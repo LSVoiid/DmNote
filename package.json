@@ -9,7 +9,8 @@
     "prebuild": "npm run type-check && vite build",
     "build": "electron-builder --win",
     "type-check": "tsc --noEmit",
-    "type-check:watch": "tsc --noEmit --watch"
+    "type-check:watch": "tsc --noEmit --watch",
+    "postinstall": "electron-builder install-app-deps && npx electron-rebuild -f -w node-global-key-listener-extended"
   },
   "build": {
     "appId": "com.dmnote.app",
@@ -26,6 +27,10 @@
           "**/*"
         ]
       }
+    ],
+    "asarUnpack": [
+      "**/*.node",
+      "node_modules/node-global-key-listener-extended/**"
     ],
     "directories": {
       "output": "dist",
@@ -51,6 +56,7 @@
   "author": "lee-sihun",
   "license": "MIT",
   "devDependencies": {
+    "@electron/rebuild": "^3.7.2",
     "@types/node": "^22.15.27",
     "@types/react": "^19.1.6",
     "@types/react-dom": "^19.1.5",
