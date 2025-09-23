@@ -17,9 +17,12 @@
   [![GitHub license](https://img.shields.io/github/license/lee-sihun/DmNote.svg?logo=github)](https://github.com/lee-sihun/DmNote/blob/master/LICENSE)
 </div>
 
+https://github.com/user-attachments/assets/20fb118d-3982-4925-9004-9ce0936590c2
+
+
 ## 🌟 개요
 
-**DM Note**는 리듬게임에서 사용하기 위해 만들어진 키뷰어 프로그램입니다. Electron과 React로 구축 되었으며
+**DM Note**는 DJMAX RESPECT V에서 사용하기 위해 만들어진 키뷰어 프로그램입니다. Electron과 React로 구축 되었으며
 키보드 후킹을 위해 [node-global-key-listener-extended](https://github.com/lee-sihun/node-global-key-listener) 패키지를 사용합니다.
 간편한 설정으로 스트리밍이나 플레이 영상 제작 시 키 입력을 시각적으로 보여줄 수 있습니다. 현재는 windows 환경만 지원하며, 리듬게임 이외의 다른 게임에서도 사용이 가능합니다.
 
@@ -127,10 +130,11 @@ npm run start
 
 ## 🖼️ 스크린샷
 
-<img src="docs/assets/2025-08-29_12-07-12.webp" alt="Note Effect" width="700">
+<!--img src="docs/assets/2025-08-29_12-07-12.webp" alt="Note Effect" width="700"-->
+
 <img src="docs/assets/IMG_1005.gif" alt="Note Effect" width="700">
 
-<img src="docs/assets/1.webp" alt="키뷰어 데모 1" width="700">
+<!--img src="docs/assets/1.webp" alt="키뷰어 데모 1" width="700"-->
 
 <img src="docs/assets/2025-09-20_11-55-17.gif" alt="키뷰어 데모 2" width="700">
 
@@ -167,3 +171,4 @@ npm run start
 - 동시 입력 간격 밀리초(ms) 표시
 - 입력 통계 분석 기능
  -->
+
