@@ -17,9 +17,11 @@
 [![GitHub license](https://img.shields.io/github/license/lee-sihun/DmNote.svg?logo=github)](https://github.com/lee-sihun/DmNote/blob/master/LICENSE)
 </div>
 
+https://github.com/user-attachments/assets/20fb118d-3982-4925-9004-9ce0936590c2
+
 ## 🌟 Overview
 
-**DM Note** is a key viewer built for rhythm games. Built with Electron and React, powered by [node-global-key-listener-extended](https://github.com/lee-sihun/node-global-key-listener) for global keyboard hooks.
+**DM Note** is a key viewer built for DJMAX RESPECT V. Built with Electron and React, powered by [node-global-key-listener-extended](https://github.com/lee-sihun/node-global-key-listener) for global keyboard hooks.
 Set it up in minutes and visualize your keystrokes for streams or gameplay captures. Windows only for now, and it works with non-rhythm games too
 
 [Download DM NOTE v1.2.0](https://github.com/lee-sihun/DmNote/releases/download/1.2.0/DM.NOTE.v.1.2.0.zip)
@@ -126,16 +128,17 @@ After editing the file, run `npm install` and then `npm run start`
 
 ## 🖼️ Screenshots
 
-<img src="assets/2025-08-29_12-07-12.webp" alt="Note Effect" width="700">
-<img src="assets/IMG_1005.gif" alt="Note Effect" width="700">
+<!--img src="docs/assets/2025-08-29_12-07-12.webp" alt="Note Effect" width="700"-->
 
-<img src="assets/1.webp" alt="Key viewer demo 1" width="700">
+<img src="docs/assets/IMG_1005.gif" alt="Note Effect" width="700">
 
-<img src="assets/2025-09-20_11-55-17.gif" alt="Key viewer demo 2" width="700">
+<!--img src="docs/assets/1.webp" alt="키뷰어 데모 1" width="700"-->
 
-<img src="assets/IMG_1008.gif" alt="Key viewer demo 3" width="700">
+<img src="docs/assets/2025-09-20_11-55-17.gif" alt="키뷰어 데모 2" width="700">
 
-<img src="assets/2025-09-20_11-57-38.gif" alt="Key viewer demo 4" width="700">
+<img src="docs/assets/IMG_1008.gif" alt="키뷰어 데모 3" width="700">
+
+<img src="docs/assets/2025-09-20_11-57-38.gif" alt="키뷰어 데모 4" width="700">
 
 ## 📝 Notes
 
