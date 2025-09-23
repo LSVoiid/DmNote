@@ -136,7 +136,7 @@ After editing the file, run `npm install` and then `npm run start`
 
 <img src="./assets/2025-09-20_11-55-17.gif" alt="키뷰어 데모 2" width="700">
 
-<img src="./assets/IMG_1008.gif" alt="키뷰어 데모 3" width="700">
+<!--img src="./assets/IMG_1008.gif" alt="키뷰어 데모 3" width="700"-->
 
 <img src="./assets/2025-09-20_11-57-38.gif" alt="키뷰어 데모 4" width="700">
 
