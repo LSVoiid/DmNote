@@ -9,6 +9,7 @@ import { useKeyManager } from "@hooks/useKeyManager";
 import { usePalette } from "@hooks/usePalette";
 import CustomAlert from "@components/main/modal/content/Alert";
 import NoteSettingModal from "@components/main/modal/content/NoteSetting";
+import LaboratoryModal from "@components/main/modal/content/Laboratory";
 import { useSettingsStore } from "@stores/useSettingsStore";
 import FloatingPopup from "@components/main/modal/FloatingPopup";
 import Palette from "@components/main/modal/content/Palette";
@@ -37,6 +38,7 @@ export default function App() {
   const [activeTool, setActiveTool] = useState("move");
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isNoteSettingOpen, setIsNoteSettingOpen] = useState(false);
+  const [isLaboratoryOpen, setIsLaboratoryOpen] = useState(false);
   const [skipModalAnimationOnReturn, setSkipModalAnimationOnReturn] =
     useState(false);
   const [noteSettings, setNoteSettings] = useState(null);
@@ -46,6 +48,8 @@ export default function App() {
     setAngleMode,
     language: storeLanguage,
     setLanguage,
+    laboratoryEnabled,
+    setLaboratoryEnabled,
   } = useSettingsStore();
   const confirmCallbackRef = useRef(null);
   const [alertState, setAlertState] = useState({
@@ -71,6 +75,7 @@ export default function App() {
     ipcRenderer.send("get-always-on-top");
     ipcRenderer.send("get-overlay-lock");
     ipcRenderer.send("get-note-effect");
+    ipcRenderer.send("get-laboratory-enabled");
 
     ipcRenderer.invoke("get-angle-mode").then((mode) => {
       if (mode && mode !== angleMode) {
@@ -89,10 +94,18 @@ export default function App() {
     const languageUpdateHandler = (_, lng) => {
       if (lng && lng !== storeLanguage) setLanguage(lng);
     };
+    const laboratoryUpdateHandler = (_, enabled) => {
+      setLaboratoryEnabled(!!enabled);
+    };
     ipcRenderer.on("update-language", languageUpdateHandler);
+    ipcRenderer.on("update-laboratory-enabled", laboratoryUpdateHandler);
 
     return () => {
       ipcRenderer.removeListener("update-language", languageUpdateHandler);
+      ipcRenderer.removeListener(
+        "update-laboratory-enabled",
+        laboratoryUpdateHandler
+      );
     };
   }, []);
 
@@ -204,6 +217,7 @@ export default function App() {
         onCloseSettings={() => setIsSettingsOpen(false)}
         showAlert={showAlert}
         onOpenNoteSetting={() => setIsNoteSettingOpen(true)}
+        onOpenLaboratory={() => setIsLaboratoryOpen(true)}
         primaryButtonRef={primaryButtonRef}
       />
       {palette && (
@@ -231,11 +245,32 @@ export default function App() {
                   normalized
                 );
                 if (ok) {
-                  setNoteSettings(normalized);
+                  setNoteSettings((prev) => ({ ...prev, ...normalized }));
                 }
               } catch (e) {}
             }
           }}
+        />
+      )}
+      {isLaboratoryOpen && noteSettings && (
+        <LaboratoryModal
+          delayEnabled={noteSettings.delayedNoteEnabled}
+          thresholdMs={noteSettings.shortNoteThresholdMs}
+          minLengthPx={noteSettings.shortNoteMinLengthPx}
+          onSave={async (payload) => {
+            const ipcRenderer = window.electron?.ipcRenderer;
+            if (!ipcRenderer) return;
+            try {
+              const ok = await ipcRenderer.invoke("update-note-settings", {
+                ...noteSettings,
+                ...payload,
+              });
+              if (ok) {
+                setNoteSettings((prev) => ({ ...prev, ...payload }));
+              }
+            } catch (e) {}
+          }}
+          onClose={() => setIsLaboratoryOpen(false)}
         />
       )}
       <CustomAlert

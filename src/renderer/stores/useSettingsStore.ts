@@ -12,6 +12,8 @@ interface SettingsState {
   customCSSContent: string;
   customCSSPath: string;
   language: string;
+  laboratoryEnabled: boolean;
+  setLaboratoryEnabled: (value: boolean) => void;
   setHardwareAcceleration: (value: boolean) => void;
   setAlwaysOnTop: (value: boolean) => void;
   setUseCustomCSS: (value: boolean) => void;
@@ -35,6 +37,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   customCSSContent: "",
   customCSSPath: "",
   language: "ko",
+  laboratoryEnabled: false,
   setHardwareAcceleration: (value: boolean) =>
     set({ hardwareAcceleration: value }),
   setAlwaysOnTop: (value: boolean) => set({ alwaysOnTop: value }),
@@ -46,4 +49,5 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   setAngleMode: (value: string) => set({ angleMode: value }),
   setNoteEffect: (value: boolean) => set({ noteEffect: value }),
   setLanguage: (value: string) => set({ language: value }),
+  setLaboratoryEnabled: (value: boolean) => set({ laboratoryEnabled: value }),
 }));

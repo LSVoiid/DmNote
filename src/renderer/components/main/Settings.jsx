@@ -25,6 +25,8 @@ export default function Settings({ showAlert, showConfirm }) {
     setAngleMode,
     noteEffect,
     setNoteEffect,
+    laboratoryEnabled,
+    setLaboratoryEnabled,
     useCustomCSS,
     setUseCustomCSS,
     customCSSContent,
@@ -101,6 +103,9 @@ export default function Settings({ showAlert, showConfirm }) {
     // ipcRenderer.on('update-show-key-count', showKeyCountHandler);
     ipcRenderer.on("update-overlay-lock", overlayLockHandler);
     ipcRenderer.on("update-note-effect", noteEffectHandler);
+    ipcRenderer.on("update-laboratory-enabled", (_, value) => {
+      setLaboratoryEnabled(value);
+    });
     ipcRenderer.on("resetComplete", resetCompleteHandler);
 
     // overlay resize anchor 초기값
@@ -111,12 +116,15 @@ export default function Settings({ showAlert, showConfirm }) {
       })
       .catch(() => {});
 
+    ipcRenderer.send("get-laboratory-enabled");
+
     return () => {
       ipcRenderer.removeAllListeners("update-hardware-acceleration");
       ipcRenderer.removeAllListeners("update-always-on-top");
       // ipcRenderer.removeAllListeners('update-show-key-count');
       ipcRenderer.removeAllListeners("update-overlay-lock");
       ipcRenderer.removeAllListeners("update-note-effect");
+      ipcRenderer.removeAllListeners("update-laboratory-enabled");
       ipcRenderer.removeAllListeners("resetComplete");
     };
   }, []);
@@ -219,6 +227,12 @@ export default function Settings({ showAlert, showConfirm }) {
       ipcRenderer.send("set-angle-mode", val);
       ipcRenderer.send("restart-app");
     });
+  };
+
+  const handleLaboratoryToggle = () => {
+    const newState = !laboratoryEnabled;
+    setLaboratoryEnabled(newState);
+    ipcRenderer.send("set-laboratory-enabled", newState);
   };
 
   const handleClick = (link) => {
@@ -338,6 +352,20 @@ export default function Settings({ showAlert, showConfirm }) {
                 >
                   {t("settings.loadCss")}
                 </button>
+              </div>
+              <div
+                className="flex flex-row justify-between items-center h-[40px] cursor-pointer"
+                onMouseEnter={() => setHoveredKey("laboratory")}
+                onMouseLeave={() => setHoveredKey(null)}
+                onClick={handleLaboratoryToggle}
+              >
+                <p className="text-style-3 text-[#FFFFFF]">
+                  {t("settings.laboratory")}
+                </p>
+                <Checkbox
+                  checked={laboratoryEnabled}
+                  onChange={handleLaboratoryToggle}
+                />
               </div>
               <div
                 className="flex flex-row justify-between items-center h-[40px]"

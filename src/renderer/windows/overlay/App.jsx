@@ -23,6 +23,7 @@ export default function App() {
   const [positions, setPositions] = useState({});
   const [backgroundColor, setBackgroundColor] = useState("");
   const [noteSettings, setNoteSettings] = useState(DEFAULT_NOTE_SETTINGS);
+  const [laboratoryEnabled, setLaboratoryEnabled] = useState(false);
   // const showKeyCount = useSettingsStore(state => state.showKeyCount);
   // const { setShowKeyCount } = useSettingsStore();
 
@@ -289,7 +290,9 @@ export default function App() {
     ipcRenderer.on("updateKeyPositions", positionsListener);
     ipcRenderer.on("updateBackgroundColor", backgroundColorListener);
     ipcRenderer.on("update-note-settings", noteSettingsListener);
-    // ipcRenderer.on('update-show-key-count', showKeyCountListener);
+    ipcRenderer.on("update-laboratory-enabled", (_, enabled) => {
+      setLaboratoryEnabled(!!enabled);
+    });
 
     // 초기 데이터 요청 (리스너 등록 후 요청하여 레이스 방지)
     ipcRenderer.send("getCurrentMode");
@@ -302,7 +305,7 @@ export default function App() {
         setNoteSettings(settings);
       })
       .catch(() => {});
-    // ipcRenderer.send('get-show-key-count');
+    ipcRenderer.send("get-laboratory-enabled");
 
     return () => {
       ipcRenderer.removeAllListeners("keyState");
@@ -312,6 +315,7 @@ export default function App() {
       ipcRenderer.removeAllListeners("updateKeyPositions");
       ipcRenderer.removeAllListeners("updateBackgroundColor");
       ipcRenderer.removeAllListeners("update-note-settings");
+      ipcRenderer.removeAllListeners("update-laboratory-enabled");
       // ipcRenderer.removeAllListeners('update-show-key-count');
     };
   }, [keyStateListener]);
@@ -356,6 +360,7 @@ export default function App() {
           notesRef={notesRef}
           subscribe={subscribe}
           noteSettings={noteSettings}
+          laboratoryEnabled={laboratoryEnabled}
         />
       )}
 

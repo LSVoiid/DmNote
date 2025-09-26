@@ -3,6 +3,7 @@
     "overlayLock": "Lock Overlay Window",
     "alwaysOnTop": "Always on Top",
     "noteEffect": "Show Note Effect",
+    "laboratory": "Enable experimental features",
     "customCSS": "Enable Custom CSS",
     "noCssFile": "(No CSS file selected)",
     "loadCss": "Import CSS File",
@@ -26,6 +27,7 @@
     "overlayLockDesc": "Locks the overlay window so it doesn't move.",
     "alwaysOnTopDesc": "Keeps the overlay window always on top of other windows.",
     "noteEffectDesc": "Shows note effects when keys are pressed.",
+    "laboratoryDesc": "Try experimental features.",
     "customCSSDesc": "Loads a custom CSS file to style the overlay.",
     "resizeAnchorDesc": "Selects the resize anchor point for the overlay window."
   },
@@ -74,7 +76,8 @@
     "back": "Back",
     "settings": "Settings",
     "etcSettings": "Other Settings",
-    "noteSettings": "Note Settings"
+    "noteSettings": "Note Settings",
+  "laboratory": "Experimental"
   },
   "preset": {
     "import": "Import",
@@ -114,5 +117,12 @@
       "invalid": "Invalid name",
       "createFail": "Failed to create"
     }
+  },
+  "laboratory": {
+    "delayToggle": "Enforce short-note length",
+    "threshold": "Short threshold",
+    "minLength": "Min short length",
+    "save": "Apply",
+    "cancel": "Cancel"
   }
 }

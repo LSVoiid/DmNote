@@ -17,6 +17,54 @@ const {
 const Store = require("electron-store");
 const store = new Store();
 
+// Note settings 기본값 
+const NOTE_SETTINGS_DEFAULTS = Object.freeze({
+  borderRadius: 2,
+  speed: 180,
+  trackHeight: 150,
+  reverse: false,
+  fadePosition: "auto", // 'auto' | 'top' | 'bottom'
+  delayedNoteEnabled: false,
+  shortNoteThresholdMs: 120,
+  shortNoteMinLengthPx: 10,
+});
+
+// 숫자 클램프 유틸
+function clamp(v, min, max, fallback) {
+  const n = parseInt(v);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(min, Math.min(n, max));
+}
+
+// noteSettings 정규화 (누락/이상치 보정 + 범위 클램프)
+function normalizeNoteSettings(raw) {
+  const d = NOTE_SETTINGS_DEFAULTS;
+  const r = raw || {};
+  const fade = ["auto", "top", "bottom"].includes(r.fadePosition)
+    ? r.fadePosition
+    : d.fadePosition;
+  return {
+    borderRadius: clamp(r.borderRadius, 1, 100, d.borderRadius),
+    speed: clamp(r.speed, 70, 1000, d.speed),
+    trackHeight: clamp(r.trackHeight, 20, 2000, d.trackHeight),
+    reverse: !!r.reverse,
+    fadePosition: fade,
+    delayedNoteEnabled: !!r.delayedNoteEnabled,
+    shortNoteThresholdMs: clamp(
+      r.shortNoteThresholdMs,
+      0,
+      2000,
+      d.shortNoteThresholdMs
+    ),
+    shortNoteMinLengthPx: clamp(
+      r.shortNoteMinLengthPx,
+      1,
+      500,
+      d.shortNoteMinLengthPx
+    ),
+  };
+}
+
 // main 코드 변경 시 자동 재시작
 if (process.env.NODE_ENV === "development") {
   try {
@@ -58,25 +106,14 @@ class Application {
       store.set("noteEffect", false);
     }
 
-    // 노트 효과 상세 설정 (borderRadius, speed, trackHeight, reverse)
+    // 노트 설정 초기화 & 호환성 보정
     if (store.get("noteSettings") === undefined) {
-      store.set("noteSettings", {
-        borderRadius: 2,
-        speed: 180,
-        trackHeight: 150,
-        reverse: false,
-      });
+      store.set("noteSettings", NOTE_SETTINGS_DEFAULTS);
     } else {
-      // 호환성 보정
-      const defaults = {
-        borderRadius: 2,
-        speed: 180,
-        trackHeight: 150,
-        reverse: false,
-      };
-      const existing = store.get("noteSettings") || {};
-      const normalized = { ...defaults, ...existing };
-      store.set("noteSettings", normalized);
+      store.set(
+        "noteSettings",
+        normalizeNoteSettings(store.get("noteSettings"))
+      );
     }
 
     // 선택된 키 모드 초기 설정
@@ -101,6 +138,11 @@ class Application {
     // 언어 설정 초기화 (기본: ko)
     if (store.get("language") === undefined) {
       store.set("language", "ko");
+    }
+
+    // 실험실 기능 토글 기본값
+    if (store.get("laboratoryEnabled") === undefined) {
+      store.set("laboratoryEnabled", false);
     }
 
     this.mainWindow = null;
@@ -334,12 +376,7 @@ class Application {
       const defaultColor = resetBackgroundColor();
 
       // 노트 관련 기본값
-      const defaultNoteSettings = {
-        borderRadius: 2,
-        speed: 180,
-        trackHeight: 150,
-        reverse: false,
-      };
+      const defaultNoteSettings = NOTE_SETTINGS_DEFAULTS;
 
       // CSS 관련 상태들 초기화
       store.set("useCustomCSS", false);
@@ -366,6 +403,10 @@ class Application {
         "update-note-settings",
         defaultNoteSettings
       );
+      this.overlayWindow.webContents.send(
+        "update-laboratory-enabled",
+        store.get("laboratoryEnabled", false)
+      );
 
       // CSS 초기화 알림
       [this.mainWindow, this.overlayWindow].forEach((window) => {
@@ -382,6 +423,7 @@ class Application {
         color: defaultColor,
         noteSettings: defaultNoteSettings,
         noteEffect: false,
+        laboratoryEnabled: store.get("laboratoryEnabled", false),
       });
     });
 
@@ -528,69 +570,33 @@ class Application {
       e.reply("update-note-effect", store.get("noteEffect", true));
     });
 
+    ipcMain.on("set-laboratory-enabled", (_, enabled) => {
+      store.set("laboratoryEnabled", !!enabled);
+      [this.mainWindow, this.overlayWindow].forEach((window) => {
+        if (window && !window.isDestroyed()) {
+          window.webContents.send("update-laboratory-enabled", !!enabled);
+        }
+      });
+    });
+
+    ipcMain.on("get-laboratory-enabled", (e) => {
+      e.reply(
+        "update-laboratory-enabled",
+        store.get("laboratoryEnabled", false)
+      );
+    });
+
     // 노트 효과 상세 설정 IPC
     ipcMain.handle("get-note-settings", () => {
-      const defaults = {
-        borderRadius: 2,
-        speed: 180,
-        trackHeight: 150,
-        reverse: false,
-        fadePosition: "auto",
-      };
-      const settings = store.get("noteSettings", defaults) || defaults;
-      const normalized = { ...defaults, ...settings };
-      if (
-        settings.borderRadius === undefined ||
-        settings.speed === undefined ||
-        settings.trackHeight === undefined ||
-        settings.reverse === undefined ||
-        settings.fadePosition === undefined
-      ) {
-        store.set("noteSettings", normalized);
-      }
+      const normalized = normalizeNoteSettings(store.get("noteSettings"));
+      // 저장된 값이 변경될 수 있으므로 덮어쓰기
+      store.set("noteSettings", normalized);
       return normalized;
     });
 
     ipcMain.handle("update-note-settings", (_, newSettings) => {
       try {
-        const defaults = {
-          borderRadius: 2,
-          speed: 180,
-          trackHeight: 150,
-          reverse: false,
-        };
-        const fadeDefault = "auto";
-        const br = parseInt(newSettings?.borderRadius ?? defaults.borderRadius);
-        const sp = parseInt(newSettings?.speed ?? defaults.speed);
-        const th = parseInt(newSettings?.trackHeight ?? defaults.trackHeight);
-        const rv =
-          newSettings?.reverse === undefined
-            ? defaults.reverse
-            : !!newSettings.reverse;
-        // fadePosition: 'auto' | 'top' | 'bottom'
-        const incomingFade =
-          (newSettings && newSettings.fadePosition) || fadeDefault;
-        const validFade = ["auto", "top", "bottom"].includes(incomingFade)
-          ? incomingFade
-          : fadeDefault;
-        const normalized = {
-          ...defaults,
-          ...newSettings,
-          borderRadius: Math.max(
-            1,
-            Math.min(Number.isFinite(br) ? br : defaults.borderRadius, 100)
-          ),
-          speed: Math.max(
-            70,
-            Math.min(Number.isFinite(sp) ? sp : defaults.speed, 1000)
-          ),
-          trackHeight: Math.max(
-            20,
-            Math.min(Number.isFinite(th) ? th : defaults.trackHeight, 2000)
-          ),
-          reverse: rv,
-          fadePosition: validFade,
-        };
+        const normalized = normalizeNoteSettings(newSettings);
         store.set("noteSettings", normalized);
         [this.mainWindow, this.overlayWindow].forEach((window) => {
           if (window && !window.isDestroyed()) {
@@ -637,12 +643,8 @@ class Application {
         keys: store.get("keys"),
         keyPositions: store.get("keyPositions"),
         backgroundColor: store.get("backgroundColor"),
-        noteSettings: store.get("noteSettings", {
-          borderRadius: 2,
-          speed: 180,
-          trackHeight: 150,
-          reverse: false,
-        }),
+        noteSettings: normalizeNoteSettings(store.get("noteSettings")),
+        laboratoryEnabled: store.get("laboratoryEnabled", false),
         customTabs: store.get("customTabs", []),
         selectedKeyType: store.get("selectedKeyType", "4key"),
       };
@@ -711,21 +713,10 @@ class Application {
         }
 
         // 노트 설정 정규화
-        const nsDefaults = { borderRadius: 2, speed: 180 };
-        const incomingNS = preset.noteSettings || {};
-        const br = parseInt(incomingNS.borderRadius ?? nsDefaults.borderRadius);
-        const sp = parseInt(incomingNS.speed ?? nsDefaults.speed);
-        const normalizedNS = {
-          borderRadius: Math.max(
-            1,
-            Math.min(Number.isFinite(br) ? br : nsDefaults.borderRadius, 100)
-          ),
-          speed: Math.max(
-            70,
-            Math.min(Number.isFinite(sp) ? sp : nsDefaults.speed, 1000)
-          ),
-        };
+        const normalizedNS = normalizeNoteSettings(preset.noteSettings);
         store.set("noteSettings", normalizedNS);
+        const incomingLab = !!preset.laboratoryEnabled;
+        store.set("laboratoryEnabled", incomingLab);
 
         // 선택 모드 결정 및 적용
         const savedSelected = preset.selectedKeyType;
@@ -750,10 +741,8 @@ class Application {
             if (bgColor !== undefined) {
               window.webContents.send("updateBackgroundColor", bgColor);
             }
-            window.webContents.send(
-              "update-note-settings",
-              store.get("noteSettings", { borderRadius: 2, speed: 180 })
-            );
+            window.webContents.send("update-note-settings", normalizedNS);
+            window.webContents.send("update-laboratory-enabled", incomingLab);
             window.webContents.send("currentMode", nextMode);
           }
         });
@@ -1015,12 +1004,11 @@ class Application {
           );
           this.overlayWindow.webContents.send(
             "update-note-settings",
-            store.get("noteSettings", {
-              borderRadius: 2,
-              speed: 180,
-              trackHeight: 150,
-              reverse: false,
-            })
+            normalizeNoteSettings(store.get("noteSettings"))
+          );
+          this.overlayWindow.webContents.send(
+            "update-laboratory-enabled",
+            store.get("laboratoryEnabled", false)
           );
         } catch (err) {
           console.error("Failed to sync overlay initial state:", err);

@@ -1,16 +1,28 @@
-// src/renderer/hooks/useNoteSystem.js
 import { useState, useCallback, useRef, useEffect } from "react";
 import { DEFAULT_NOTE_SETTINGS } from "@constants/overlayConfig";
 
-export const FLOW_SPEED = 180;
+let MIN_NOTE_THRESHOLD_MS = DEFAULT_NOTE_SETTINGS.shortNoteThresholdMs;
+let MIN_NOTE_LENGTH_PX = DEFAULT_NOTE_SETTINGS.shortNoteMinLengthPx;
+let DELAY_FEATURE_ENABLED = false;
 
 export function useNoteSystem() {
   const notesRef = useRef({});
   const noteEffectEnabled = useRef(true);
   const activeNotes = useRef(new Map());
-  const flowSpeedRef = useRef(180);
-  const trackHeightRef = useRef(DEFAULT_NOTE_SETTINGS.trackHeight || 150);
+  // 딜레이 대기 중인 입력(아직 화면에 노트가 생성되지 않음)
+  // pressId -> { keyName, pressTime, timeoutId, released, releaseTime }
+  const pendingPressesRef = useRef(new Map());
+  // 키별 진행 중인 pressId (재입력을 막지 않기 위해 keyup 시 즉시 해제)
+  const pendingByKeyRef = useRef(new Map());
+  const flowSpeedRef = useRef(DEFAULT_NOTE_SETTINGS.speed);
+  const trackHeightRef = useRef(DEFAULT_NOTE_SETTINGS.trackHeight);
   const subscribers = useRef(new Set());
+  const labEnabledRef = useRef(false);
+  const delayedOptionRef = useRef(false);
+
+  const applyDelayFlag = useCallback(() => {
+    DELAY_FEATURE_ENABLED = labEnabledRef.current && delayedOptionRef.current;
+  }, []);
 
   const notifySubscribers = useCallback((event) => {
     subscribers.current.forEach((callback) => callback(event));
@@ -21,6 +33,24 @@ export function useNoteSystem() {
     return () => subscribers.current.delete(callback);
   }, []);
 
+  const updateLabSettings = useCallback(
+    (settings) => {
+      flowSpeedRef.current =
+        Number(settings?.speed) || DEFAULT_NOTE_SETTINGS.speed;
+      trackHeightRef.current =
+        Number(settings?.trackHeight) || DEFAULT_NOTE_SETTINGS.trackHeight;
+      delayedOptionRef.current = !!settings?.delayedNoteEnabled;
+      MIN_NOTE_THRESHOLD_MS =
+        Number(settings?.shortNoteThresholdMs) ||
+        DEFAULT_NOTE_SETTINGS.shortNoteThresholdMs;
+      MIN_NOTE_LENGTH_PX =
+        Number(settings?.shortNoteMinLengthPx) ||
+        DEFAULT_NOTE_SETTINGS.shortNoteMinLengthPx;
+      applyDelayFlag();
+    },
+    [applyDelayFlag]
+  );
+
   useEffect(() => {
     const { ipcRenderer } = window.require("electron");
 
@@ -30,6 +60,12 @@ export function useNoteSystem() {
       noteEffectEnabled.current = enabled;
 
       if (!enabled) {
+        // 대기 중 타이머 정리
+        for (const pending of pendingPressesRef.current.values()) {
+          clearTimeout(pending.timeoutId);
+        }
+        pendingPressesRef.current.clear();
+        pendingByKeyRef.current.clear();
         notesRef.current = {};
         activeNotes.current.clear();
         notifySubscribers({ type: "clear" });
@@ -42,27 +78,31 @@ export function useNoteSystem() {
     ipcRenderer
       .invoke("get-note-settings")
       .then((settings) => {
-        flowSpeedRef.current = Number(settings?.speed) || 180;
-        trackHeightRef.current =
-          Number(settings?.trackHeight) || DEFAULT_NOTE_SETTINGS.trackHeight;
+        updateLabSettings(settings);
       })
       .catch(() => {});
     const noteSettingsListener = (_, settings) => {
-      flowSpeedRef.current = Number(settings?.speed) || 180;
-      trackHeightRef.current =
-        Number(settings?.trackHeight) || DEFAULT_NOTE_SETTINGS.trackHeight;
+      updateLabSettings(settings);
     };
     ipcRenderer.on("update-note-settings", noteSettingsListener);
+
+    const laboratoryListener = (_, enabled) => {
+      labEnabledRef.current = !!enabled;
+      applyDelayFlag();
+    };
+    ipcRenderer.on("update-laboratory-enabled", laboratoryListener);
+    ipcRenderer.send("get-laboratory-enabled");
 
     return () => {
       ipcRenderer.removeAllListeners("update-note-effect");
       ipcRenderer.removeAllListeners("update-note-settings");
+      ipcRenderer.removeAllListeners("update-laboratory-enabled");
     };
-  }, [notifySubscribers]);
+  }, [notifySubscribers, updateLabSettings, applyDelayFlag]);
 
   const createNote = useCallback(
-    (keyName) => {
-      const startTime = performance.now();
+    (keyName, startTimeOverride) => {
+      const startTime = startTimeOverride ?? performance.now();
       const noteId = `${keyName}_${startTime}`;
       const newNote = {
         id: noteId,
@@ -86,8 +126,8 @@ export function useNoteSystem() {
   );
 
   const finalizeNote = useCallback(
-    (keyName, noteId) => {
-      const endTime = performance.now();
+    (keyName, noteId, endTimeOverride) => {
+      const endTime = endTimeOverride ?? performance.now();
       const currentNotes = notesRef.current;
 
       if (!currentNotes[keyName]) return;
@@ -114,28 +154,102 @@ export function useNoteSystem() {
     [notifySubscribers]
   );
 
-  // 노트 생성/완료
+  // 노트 생성/완료 (딜레이 기반)
   const handleKeyDown = useCallback(
     (keyName) => {
       if (!noteEffectEnabled.current) return;
+      if (!DELAY_FEATURE_ENABLED) {
+        // 원본 동작: 즉시 생성 후 keyup에서 종료
+        if (activeNotes.current.has(keyName)) return;
+        const noteId = createNote(keyName);
+        activeNotes.current.set(keyName, { noteId });
+        return;
+      }
 
-      // 활성화된 노트가 있는지 체크
-      if (activeNotes.current.has(keyName)) return;
+      // 딜레이 기반 동작
+      if (
+        pendingByKeyRef.current.has(keyName) ||
+        activeNotes.current.has(keyName)
+      )
+        return;
 
-      const noteId = createNote(keyName);
-      activeNotes.current.set(keyName, { noteId });
+      const pressTime = performance.now();
+      const pressId = `${keyName}_${pressTime}`;
+
+      const timeoutId = setTimeout(() => {
+        const pending = pendingPressesRef.current.get(pressId);
+        if (!pending) return;
+        pendingPressesRef.current.delete(pressId);
+        if (pendingByKeyRef.current.get(keyName) === pressId) {
+          pendingByKeyRef.current.delete(keyName);
+        }
+
+        const startNow = performance.now();
+
+        if (pending.released) {
+          const noteId = createNote(keyName, startNow);
+          const flowSpeed = flowSpeedRef.current;
+          const growMs = (MIN_NOTE_LENGTH_PX * 1000) / flowSpeed;
+          setTimeout(() => {
+            finalizeNote(keyName, noteId, startNow + growMs);
+          }, growMs);
+        } else {
+          const noteId = createNote(keyName, startNow);
+          activeNotes.current.set(keyName, { noteId });
+        }
+      }, MIN_NOTE_THRESHOLD_MS);
+
+      pendingPressesRef.current.set(pressId, {
+        keyName,
+        pressTime,
+        timeoutId,
+        released: false,
+        releaseTime: null,
+      });
+      pendingByKeyRef.current.set(keyName, pressId);
     },
-    [createNote]
+    [createNote, finalizeNote]
   );
 
   const handleKeyUp = useCallback(
     (keyName) => {
       if (!noteEffectEnabled.current) return;
 
+      if (!DELAY_FEATURE_ENABLED) {
+        const activeNote = activeNotes.current.get(keyName);
+        if (activeNote) {
+          finalizeNote(keyName, activeNote.noteId);
+          activeNotes.current.delete(keyName);
+        }
+        return;
+      }
+
+      // 롱노트 진행 중이라면 즉시 종료
       const activeNote = activeNotes.current.get(keyName);
       if (activeNote) {
-        finalizeNote(keyName, activeNote.noteId);
+        finalizeNote(keyName, activeNote.noteId, performance.now());
         activeNotes.current.delete(keyName);
+        const pressIdMaybe = pendingByKeyRef.current.get(keyName);
+        if (pressIdMaybe) {
+          const pending = pendingPressesRef.current.get(pressIdMaybe);
+          if (pending) {
+            clearTimeout(pending.timeoutId);
+            pendingPressesRef.current.delete(pressIdMaybe);
+          }
+          pendingByKeyRef.current.delete(keyName);
+        }
+        return;
+      }
+
+      // 딜레이 대기 중인 입력에 대해 'released' 표시 (단노트 처리)
+      const pressId = pendingByKeyRef.current.get(keyName);
+      if (pressId) {
+        const pending = pendingPressesRef.current.get(pressId);
+        if (pending) {
+          pending.released = true;
+          pending.releaseTime = performance.now();
+        }
+        pendingByKeyRef.current.delete(keyName);
       }
     },
     [finalizeNote]
@@ -151,7 +265,10 @@ export function useNoteSystem() {
       // 최소 1초 간격으로 cleanup 실행
       if (now - lastCleanupTime < 1000) {
         if (cleanupTimeoutId) clearTimeout(cleanupTimeoutId);
-        cleanupTimeoutId = setTimeout(scheduleCleanup, 1000 - (now - lastCleanupTime));
+        cleanupTimeoutId = setTimeout(
+          scheduleCleanup,
+          1000 - (now - lastCleanupTime)
+        );
         return;
       }
 
@@ -206,8 +323,12 @@ export function useNoteSystem() {
 
       lastCleanupTime = currentTime;
       // 적응형 간격: 노트가 많으면 더 자주, 적으면 덜 자주
-      const totalNotes = Object.values(updated).reduce((sum, notes) => sum + notes.length, 0);
-      const nextInterval = totalNotes > 10 ? 1500 : totalNotes > 0 ? 2500 : 4000;
+      const totalNotes = Object.values(updated).reduce(
+        (sum, notes) => sum + notes.length,
+        0
+      );
+      const nextInterval =
+        totalNotes > 10 ? 1500 : totalNotes > 0 ? 2500 : 4000;
       cleanupTimeoutId = setTimeout(scheduleCleanup, nextInterval);
     };
 

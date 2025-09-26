@@ -19,6 +19,7 @@ type Props = {
   onCloseSettings?: () => void;
   showAlert?: (message: string) => void;
   onOpenNoteSetting?: () => void;
+  onOpenLaboratory?: () => void;
   primaryButtonRef?: React.RefObject<HTMLButtonElement>;
 };
 
@@ -34,6 +35,7 @@ const ToolBar = ({
   onCloseSettings,
   showAlert,
   onOpenNoteSetting,
+  onOpenLaboratory,
   primaryButtonRef,
 }: Props) => {
   const { t } = useTranslation();
@@ -99,6 +101,7 @@ const ToolBar = ({
           onCloseSettings={onCloseSettings}
           showAlert={showAlert}
           onOpenNoteSetting={onOpenNoteSetting}
+          onOpenLaboratory={onOpenLaboratory}
         />
       </div>
     </div>

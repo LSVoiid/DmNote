@@ -17,6 +17,7 @@ type SettingToolProps = {
   onCloseSettings?: () => void;
   showAlert?: (message: string) => void;
   onOpenNoteSetting?: () => void;
+  onOpenLaboratory?: () => void;
 };
 
 const SettingTool = ({
@@ -25,14 +26,23 @@ const SettingTool = ({
   onCloseSettings,
   showAlert,
   onOpenNoteSetting,
+  onOpenLaboratory,
 }: SettingToolProps) => {
   const { t } = useTranslation();
   const [isOverlayVisible, setIsOverlayVisible] = useState(true);
-  const [isNoteSettingsOpen, setIsNoteSettingsOpen] = useState(false);
   const [isExportImportOpen, setIsExportImportOpen] = useState(false);
-  const noteSettingsRef = useRef<HTMLButtonElement | null>(null);
+  const [isExtrasOpen, setIsExtrasOpen] = useState(false);
   const exportImportRef = useRef<HTMLButtonElement | null>(null);
-  const { noteEffect } = useSettingsStore();
+  const extrasRef = useRef<HTMLButtonElement | null>(null);
+  const { noteEffect, laboratoryEnabled } = useSettingsStore();
+  const menuItems: ListItem[] = [];
+  
+  if (laboratoryEnabled) {
+    menuItems.push({ id: "lab", label: t("tooltip.laboratory") });
+  }
+  if (noteEffect) {
+    menuItems.push({ id: "note", label: t("tooltip.noteSettings") });
+  }
 
   useEffect(() => {
     const ipc = window.electron.ipcRenderer;
@@ -153,26 +163,28 @@ const SettingTool = ({
                 onClick={isSettingsOpen ? onCloseSettings : onOpenSettings}
               />
             </FloatingTooltip>
-            {noteEffect && (
+            {noteEffect && menuItems.length > 0 && (
               <>
                 <FloatingTooltip
                   content={t("tooltip.etcSettings")}
-                  disabled={isNoteSettingsOpen}
+                  disabled={isExtrasOpen}
                 >
                   <ChevronButton
-                    ref={noteSettingsRef}
-                    isSelected={isNoteSettingsOpen}
-                    onClick={() => setIsNoteSettingsOpen((prev) => !prev)}
+                    ref={extrasRef}
+                    isSelected={isExtrasOpen}
+                    onClick={() => setIsExtrasOpen((prev) => !prev)}
                   />
                 </FloatingTooltip>
                 <div className="relative">
                   <ListPopup
-                    open={isNoteSettingsOpen}
-                    referenceRef={noteSettingsRef}
-                    onClose={() => setIsNoteSettingsOpen(false)}
-                    items={[{ id: "note", label: t("tooltip.noteSettings") }]}
+                    open={isExtrasOpen}
+                    referenceRef={extrasRef}
+                    onClose={() => setIsExtrasOpen(false)}
+                    items={menuItems}
                     onSelect={(id) => {
-                      if (id === "note") {
+                      if (id === "lab") {
+                        onOpenLaboratory?.();
+                      } else if (id === "note") {
                         onOpenNoteSetting?.();
                       }
                     }}

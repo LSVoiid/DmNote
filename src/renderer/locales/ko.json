@@ -3,6 +3,7 @@
     "overlayLock": "오버레이 창 고정",
     "alwaysOnTop": "항상 위에 표시",
     "noteEffect": "노트 효과 표시",
+    "laboratory": "실험적 기능 활성화",
     "customCSS": "커스텀 CSS 활성화",
     "noCssFile": "(선택된 CSS 파일 없음)",
     "loadCss": "CSS 파일 불러오기",
@@ -26,6 +27,7 @@
     "overlayLockDesc": "오버레이 창이 움직이지 않도록 고정시킵니다.",
     "alwaysOnTopDesc": "오버레이 창을 항상 다른 창 위에 표시합니다.",
     "noteEffectDesc": "키 입력 시 노트 효과를 표시합니다.",
+    "laboratoryDesc": "실험적인 기능을 사용해보세요.",
     "customCSSDesc": "커스텀 CSS 파일을 불러와 오버레이의 스타일을 변경합니다.",
     "resizeAnchorDesc": "오버레이 창의 리사이즈 기준점을 선택합니다."
   },
@@ -74,7 +76,8 @@
     "back": "돌아가기",
     "settings": "설정",
     "etcSettings": "기타 설정",
-    "noteSettings": "노트 설정"
+    "noteSettings": "노트 설정",
+    "laboratory": "실험적 기능"
   },
   "preset": {
     "import": "불러오기",
@@ -114,5 +117,12 @@
       "invalid": "올바르지 않은 이름입니다",
       "createFail": "생성에 실패했습니다"
     }
+  },
+  "laboratory": {
+    "delayToggle": "단노트 길이 일관성 유지",
+    "threshold": "단노트 구분 시간",
+    "minLength": "단노트 최소 길이",
+    "save": "저장",
+    "cancel": "취소"
   }
 }

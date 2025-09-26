@@ -12,6 +12,9 @@ const vertexShader = `
   uniform float uScreenHeight; // 전체 화면 높이 (캔버스 y -> WebGL y 변환용)
   uniform float uTrackHeight; // 트랙 높이 (px, runtime 설정)
   uniform float uReverse; // 0.0 = normal (bottom->up), 1.0 = reversed (top->down)
+  uniform float uShortThresholdMs; // 단노트 판정 시간(ms)
+  uniform float uShortMinLengthPx; // 단노트 최소 길이(px)
+  uniform float uDelayEnabled; // 1.0이면 단/롱 딜레이 기능 활성
 
   attribute vec3 noteInfo; // x: startTime, y: endTime, z: trackX (왼쪽 X px, DOM 기준)
   attribute vec2 noteSize; // x: width, y: trackBottomY (DOM 기준; 키 위치)
@@ -69,7 +72,7 @@ const vertexShader = `
     // 트랙 상단 = trackBottomY - uTrackHeight, 트랙 바닥 = trackBottomY
     float noteTopY, noteBottomY;
     
-    if (isActive) {
+  if (isActive) {
       // 활성 노트: 트랙 바닥부터 위로 자라남 (normal)
       // 활성 노트 in reverse mode should grow from trackTop downward
       if (uReverse < 0.5) {
@@ -91,6 +94,22 @@ const vertexShader = `
         float trackTopY_local = trackBottomY - uTrackHeight;
         noteTopY = trackTopY_local + travel;
         noteBottomY = noteTopY + noteLength;
+      }
+
+      // 단노트(비활성) 최소 픽셀 길이 보정: 타이밍/속도 미스매치 보호
+      if (uDelayEnabled > 0.5) {
+        float durationMs = max(0.0, endTime - startTime);
+        if (durationMs <= uShortThresholdMs) {
+          float desired = uShortMinLengthPx;
+          float current = noteBottomY - noteTopY;
+          if (current < desired) {
+            if (uReverse < 0.5) {
+              noteTopY = noteBottomY - desired;
+            } else {
+              noteBottomY = noteTopY + desired;
+            }
+          }
+        }
       }
     }
     
@@ -212,7 +231,7 @@ const fragmentShader = `
 `;
 
 export const WebGLTracks = memo(
-  ({ tracks, notesRef, subscribe, noteSettings }) => {
+  ({ tracks, notesRef, subscribe, noteSettings, laboratoryEnabled }) => {
     const canvasRef = useRef();
     const rendererRef = useRef();
     const sceneRef = useRef();
@@ -267,6 +286,14 @@ export const WebGLTracks = memo(
           uScreenHeight: { value: window.innerHeight },
           uTrackHeight: { value: noteSettings.trackHeight || 150 },
           uReverse: { value: noteSettings.reverse ? 1.0 : 0.0 },
+          uShortThresholdMs: {
+            value: noteSettings.shortNoteThresholdMs || 120,
+          },
+          uShortMinLengthPx: { value: noteSettings.shortNoteMinLengthPx || 10 },
+          uDelayEnabled: {
+            value:
+              laboratoryEnabled && noteSettings.delayedNoteEnabled ? 1.0 : 0.0,
+          },
           // fadePosition: 'auto' | 'top' | 'bottom' -> 0 | 1 | 2
           uFadePosition: {
             value:
@@ -380,7 +407,10 @@ export const WebGLTracks = memo(
           return;
 
         // 조기 종료: 노트가 전혀 없으면 렌더링하지 않음
-        const totalNotes = Object.values(notesRef.current).reduce((sum, notes) => sum + notes.length, 0);
+        const totalNotes = Object.values(notesRef.current).reduce(
+          (sum, notes) => sum + notes.length,
+          0
+        );
         if (totalNotes === 0) {
           if (meshRef.current.count > 0) {
             meshRef.current.count = 0;
@@ -617,6 +647,12 @@ export const WebGLTracks = memo(
         materialRef.current.uniforms.uReverse.value = noteSettings.reverse
           ? 1.0
           : 0.0;
+        materialRef.current.uniforms.uShortThresholdMs.value =
+          noteSettings.shortNoteThresholdMs || 120;
+        materialRef.current.uniforms.uShortMinLengthPx.value =
+          noteSettings.shortNoteMinLengthPx || 10;
+        materialRef.current.uniforms.uDelayEnabled.value =
+          laboratoryEnabled && noteSettings.delayedNoteEnabled ? 1.0 : 0.0;
         materialRef.current.uniforms.uFadePosition.value =
           noteSettings.fadePosition === "top"
             ? 1.0
@@ -628,6 +664,10 @@ export const WebGLTracks = memo(
       noteSettings.speed,
       noteSettings.trackHeight,
       noteSettings.reverse,
+      noteSettings.shortNoteThresholdMs,
+      noteSettings.shortNoteMinLengthPx,
+      noteSettings.delayedNoteEnabled,
+      laboratoryEnabled,
       noteSettings.fadePosition,
     ]);
 
