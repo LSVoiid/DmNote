@@ -41,6 +41,8 @@ export default defineConfig(() => {
         "@utils": path.resolve(rendererRoot, "utils"),
         "@stores": path.resolve(rendererRoot, "stores"),
         "@constants": path.resolve(rendererRoot, "constants"),
+        "@shared": path.resolve(projectRoot, "src/types"),
+        "@src": path.resolve(projectRoot, "src/"),
       },
       extensions: [".mjs", ".js", ".ts", ".jsx", ".tsx", ".json"],
     },
@@ -56,3 +58,4 @@ export default defineConfig(() => {
     },
   };
 });
+

@@ -1,4 +1,11 @@
-module.exports = {
+import type { BrowserWindowConstructorOptions } from "electron";
+
+type WindowConfig = {
+  main: BrowserWindowConstructorOptions;
+  overlay: BrowserWindowConstructorOptions;
+};
+
+const windowConfig: WindowConfig = {
   main: {
     width: 902,
     height: 488,
@@ -10,11 +17,9 @@ module.exports = {
     resizable: false,
     maximizable: false,
     fullscreenable: false,
-    // 렌더링 최적화
-    vibrancy: "under-window",
+    vibrancy: "under-window" as const,
     visualEffectState: "active",
     paintWhenInitiallyHidden: true,
-    backgroundThrottling: false,
   },
   overlay: {
     width: 860,
@@ -23,16 +28,17 @@ module.exports = {
     transparent: true,
     backgroundColor: "rgba(0,0,0,0)",
     alwaysOnTop: true,
-    // skipTaskbar: true,
     resizable: false,
     maximizable: false,
     fullscreenable: false,
     webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false,
+      nodeIntegration: false,
+      contextIsolation: true,
       enableBlinkFeatures: "CSSContainment",
-      disableBlinkFeatures: "VSync", // VSync 비활성화로 지연 최소화 (테어링 문제 체크 필요)
-      backgroundThrottling: false, // 백그라운드에서 실행 시에도 CPU 사용량 제한 해제
+      disableBlinkFeatures: "VSync",
     },
   },
 };
+
+export default windowConfig;
+

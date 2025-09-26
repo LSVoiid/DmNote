@@ -2,15 +2,17 @@
   "name": "dm-note",
   "version": "1.2.0",
   "description": "DM NOTE",
-  "main": "src/main/main.js",
+  "main": "dist/main/main/main.js",
   "scripts": {
-    "start": "npm run type-check && cross-env NODE_ENV=development concurrently \"npm run dev\" \"wait-on tcp:3000 && electron .\"",
+    "start": "npm run type-check && npm run build:main && cross-env NODE_ENV=development concurrently \"npm run dev\" \"npm run watch:main\" \"wait-on dist/main/main.js && electron .\"",
     "dev": "vite",
-    "prebuild": "npm run type-check && vite build",
-    "build": "electron-builder --win",
+    "prebuild": "npm run type-check && npm run build:main && vite build",
+    "build": "npm run build:main && electron-builder --win",
     "type-check": "tsc --noEmit",
     "type-check:watch": "tsc --noEmit --watch",
-    "postinstall": "electron-builder install-app-deps && npx electron-rebuild -f -w node-global-key-listener-extended"
+    "postinstall": "electron-builder install-app-deps && npx electron-rebuild -f -w node-global-key-listener-extended",
+    "watch:main": "tsc -p tsconfig.main.json --watch",
+    "build:main": "tsc -p tsconfig.main.json"
   },
   "build": {
     "appId": "com.dmnote.app",
@@ -38,7 +40,7 @@
     },
     "files": [
       "dist/renderer/**/*",
-      "src/main/**/*"
+      "dist/main/**/*"
     ]
   },
   "authors": [
@@ -85,6 +87,8 @@
     "react-dom": "^19.0.0",
     "react-i18next": "^15.7.3",
     "three": "^0.180.0",
+    "zod": "^4.1.11",
     "zustand": "^5.0.3"
   }
 }
+
