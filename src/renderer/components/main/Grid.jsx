@@ -19,15 +19,8 @@ export default function Grid({
   shouldSkipModalAnimation,
   onModalAnimationConsumed,
 }) {
-  const { selectedKeyType } = useKeyStore();
+  const selectedKeyType = useKeyStore((state) => state.selectedKeyType);
   const { t } = useTranslation();
-
-  useEffect(() => {
-    if (!selectedKeyType) return;
-    window.api.keys.setMode(selectedKeyType).catch((error) => {
-      console.error("Failed to synchronise key mode", error);
-    });
-  }, [selectedKeyType]);
 
   useEffect(() => {
     if (

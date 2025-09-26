@@ -8,7 +8,7 @@ import TabList from "../modal/content/TabList";
 const TabTool = () => {
   const keyTypes = ["4key", "5key", "6key", "8key"];
   const { t } = useTranslation();
-  const { selectedKeyType, setSelectedKeyType } = useKeyStore();
+  const { selectedKeyType, setSelectedKeyType, isBootstrapped } = useKeyStore();
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const gridButtonRef = useRef(null);
   const isCustomSelected = !keyTypes.includes(selectedKeyType);
@@ -24,7 +24,11 @@ const TabTool = () => {
               key={keyType}
               text={label}
               isSelected={selectedKeyType === keyType}
-              onClick={() => setSelectedKeyType(keyType)}
+              disabled={!isBootstrapped}
+              onClick={() => {
+                if (!isBootstrapped) return;
+                setSelectedKeyType(keyType);
+              }}
             />
           );
         })}
@@ -33,21 +37,23 @@ const TabTool = () => {
         ref={gridButtonRef}
         className="flex items-center justify-center w-[40px] h-[40px] bg-button-primary rounded-[7px]"
         onClick={() => {
+          if (!isBootstrapped) return;
           setIsPopupOpen((prev) => !prev);
         }}
+        disabled={!isBootstrapped}
       >
         <div
           className={`w-[30px] h-[30px] flex items-center justify-center rounded-[7px] transition-colors ${
             isCustomSelected
               ? "bg-button-active"
               : "hover:bg-button-hover active:bg-button-active"
-          }`}
+          } ${!isBootstrapped ? "opacity-50" : ""}`}
         >
           <GridIcon />
         </div>
       </button>
       <FloatingPopup
-        open={isPopupOpen}
+        open={isPopupOpen && isBootstrapped}
         referenceRef={gridButtonRef}
         placement="bottom"
         onClose={() => setIsPopupOpen(false)}
@@ -62,9 +68,15 @@ interface ButtonProps {
   text: string;
   isSelected?: boolean;
   onClick?: () => void;
+  disabled?: boolean;
 }
 
-const Button = ({ text, isSelected = false, onClick }: ButtonProps) => {
+const Button = ({
+  text,
+  isSelected = false,
+  onClick,
+  disabled,
+}: ButtonProps) => {
   return (
     <button
       type="button"
@@ -72,8 +84,9 @@ const Button = ({ text, isSelected = false, onClick }: ButtonProps) => {
         isSelected
           ? "bg-button-active"
           : "bg-button-primary hover:bg-button-hover"
-      }`}
+      } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
       onClick={onClick}
+      disabled={disabled}
     >
       <span className="text-style-4 text-[#DBDEE8]">{text}</span>
     </button>

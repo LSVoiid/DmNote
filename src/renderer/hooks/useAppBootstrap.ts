@@ -15,6 +15,11 @@ export function useAppBootstrap() {
 
     const { setAll, merge } = useSettingsStore.getState();
 
+    const finalizeBootstrap = () =>
+      useKeyStore.setState((state) =>
+        state.isBootstrapped ? state : { ...state, isBootstrapped: true }
+      );
+
     const applyDiff = (diff: SettingsDiff) => {
       if (diff.changed.noteSettings) {
         useSettingsStore.setState((state) => ({
@@ -54,12 +59,14 @@ export function useAppBootstrap() {
         laboratoryEnabled: bootstrap.settings.laboratoryEnabled,
         overlayResizeAnchor: bootstrap.settings.overlayResizeAnchor,
       });
-      useKeyStore.setState({
+      useKeyStore.setState((state) => ({
+        ...state,
         keyMappings: bootstrap.keys,
         positions: bootstrap.positions,
         customTabs: bootstrap.customTabs,
         selectedKeyType: bootstrap.selectedKeyType,
-      });
+      }));
+      finalizeBootstrap();
     })();
 
     const unsubscribers = [
@@ -68,17 +75,21 @@ export function useAppBootstrap() {
         applyDiff(diff);
       }),
       window.api.keys.onChanged((keys) => {
-        useKeyStore.setState({ keyMappings: keys });
+        useKeyStore.setState((state) => ({ ...state, keyMappings: keys }));
       }),
       window.api.keys.onPositionsChanged((positions) => {
-        useKeyStore.setState({ positions });
+        useKeyStore.setState((state) => ({ ...state, positions }));
       }),
       window.api.keys.onModeChanged(({ mode }) => {
-        useKeyStore.setState({ selectedKeyType: mode });
+        useKeyStore.setState((state) => ({ ...state, selectedKeyType: mode }));
       }),
       window.api.keys.customTabs.onChanged(
         ({ customTabs, selectedKeyType }) => {
-          useKeyStore.setState({ customTabs, selectedKeyType });
+          useKeyStore.setState((state) => ({
+            ...state,
+            customTabs,
+            selectedKeyType,
+          }));
         }
       ),
       window.api.overlay.onLock(({ locked }) => {

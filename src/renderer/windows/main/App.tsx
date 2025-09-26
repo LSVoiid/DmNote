@@ -17,7 +17,7 @@ import { useKeyStore } from "@stores/useKeyStore";
 import { useAppBootstrap } from "@hooks/useAppBootstrap";
 
 export default function App() {
-  const { selectedKeyType, setSelectedKeyType } = useKeyStore();
+  const { selectedKeyType, setSelectedKeyType, isBootstrapped } = useKeyStore();
   useCustomCssInjection();
   useAppBootstrap();
 
@@ -73,19 +73,16 @@ export default function App() {
         if (tag === "input" || tag === "textarea" || editable) return;
       }
       const defaults = ["4key", "5key", "6key", "8key"];
-      if (!defaults.includes(selectedKeyType)) return;
+      if (!isBootstrapped || !defaults.includes(selectedKeyType)) return;
       e.preventDefault();
       e.stopPropagation();
       const idx = defaults.indexOf(selectedKeyType);
       const next = defaults[(idx + 1) % defaults.length];
       setSelectedKeyType(next);
-      window.api.keys.setMode(next).catch((error) => {
-        console.error("Failed to set key mode", error);
-      });
     };
     window.addEventListener("keydown", handler, true);
     return () => window.removeEventListener("keydown", handler, true);
-  }, [selectedKeyType, setSelectedKeyType]);
+  }, [selectedKeyType, setSelectedKeyType, isBootstrapped]);
 
   const showAlert = (message: string) =>
     setAlertState({

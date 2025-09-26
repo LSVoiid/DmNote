@@ -47,7 +47,7 @@ export function registerPresetDomain(ctx: DomainContext) {
     };
 
     const { filePath } = await dialog.showSaveDialog({
-      defaultPath: path.join(app.getPath("documents"), "dm-note-preset.json"),
+      defaultPath: path.join(app.getPath("documents"), "preset.json"),
       filters: [{ name: "DM NOTE Preset", extensions: ["json"] }],
     });
 
@@ -152,4 +152,3 @@ function chooseSelectedKeyType({
   if (keys[fallback]) return fallback;
   return "4key";
 }
-
