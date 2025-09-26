@@ -60,81 +60,104 @@ export function registerOverlayDomain(ctx: DomainContext) {
     "overlay:set-anchor",
     async ({ anchor }) => {
       const parsed = overlayResizeAnchorSchema.safeParse(anchor);
-      const value = parsed.success ? parsed.data : ctx.store.getState().overlayResizeAnchor;
+      const value = parsed.success
+        ? parsed.data
+        : ctx.store.getState().overlayResizeAnchor;
       ctx.store.update("overlayResizeAnchor", value);
       windowRegistry.broadcast("overlay:anchor", { anchor: value });
       return { anchor: value };
     }
   );
 
-  ipcRouter.handle<OverlayResizePayload, { bounds?: { x: number; y: number; width: number; height: number }; error?: string }>(
-    "overlay:resize",
-    async (payload) => {
-      const overlayWindow = ctx.overlayController.instance;
-      if (!overlayWindow || overlayWindow.isDestroyed()) {
-        return { error: "overlay-not-ready" };
-      }
-
-      const targetWidth = clamp(Math.round(payload.width), MIN_SIZE, MAX_SIZE);
-      const targetHeight = clamp(Math.round(payload.height), MIN_SIZE, MAX_SIZE);
-      const anchor = payload.anchor ?? ctx.store.getState().overlayResizeAnchor;
-      const parsedAnchor = overlayResizeAnchorSchema.safeParse(anchor).success
-        ? anchor
-        : ctx.store.getState().overlayResizeAnchor;
-
-      const bounds = overlayWindow.getBounds();
-      const oldX = bounds.x;
-      const oldY = bounds.y;
-      const oldWidth = bounds.width;
-      const oldHeight = bounds.height;
-
-      let newX = oldX;
-      let newY = oldY;
-
-      switch (parsedAnchor) {
-        case "bottom-left":
-          newY = oldY + oldHeight - targetHeight;
-          break;
-        case "top-right":
-          newX = oldX + oldWidth - targetWidth;
-          break;
-        case "bottom-right":
-          newX = oldX + oldWidth - targetWidth;
-          newY = oldY + oldHeight - targetHeight;
-          break;
-        case "center":
-          newX = oldX + Math.round((oldWidth - targetWidth) / 2);
-          newY = oldY + Math.round((oldHeight - targetHeight) / 2);
-          break;
-        case "top-left":
-        default:
-          break;
-      }
-
-      const incomingTopOffset = Number(payload.contentTopOffset);
-      const prevTopOffset = Number(ctx.store.getState().overlayLastContentTopOffset ?? Number.NaN);
-      if (Number.isFinite(incomingTopOffset) && Number.isFinite(prevTopOffset)) {
-        const delta = incomingTopOffset - prevTopOffset;
-        newY = Math.round(newY - delta);
-      }
-
-      const nextBounds = {
-        x: Math.round(newX),
-        y: Math.round(newY),
-        width: targetWidth,
-        height: targetHeight,
-      };
-
-      ctx.overlayController.setBounds(nextBounds);
-
-      if (Number.isFinite(incomingTopOffset)) {
-        ctx.store.update("overlayLastContentTopOffset", incomingTopOffset);
-      }
-
-      windowRegistry.broadcast("overlay:resized", nextBounds);
-      return { bounds: nextBounds };
+  ipcRouter.handle<
+    OverlayResizePayload,
+    {
+      bounds?: { x: number; y: number; width: number; height: number };
+      error?: string;
     }
-  );
+  >("overlay:resize", async (payload) => {
+    const overlayWindow = ctx.overlayController.instance;
+    if (!overlayWindow || overlayWindow.isDestroyed()) {
+      return { error: "overlay-not-ready" };
+    }
+
+    const targetWidth = clamp(Math.round(payload.width), MIN_SIZE, MAX_SIZE);
+    const targetHeight = clamp(Math.round(payload.height), MIN_SIZE, MAX_SIZE);
+    const anchor = payload.anchor ?? ctx.store.getState().overlayResizeAnchor;
+    const parsedAnchor = overlayResizeAnchorSchema.safeParse(anchor).success
+      ? anchor
+      : ctx.store.getState().overlayResizeAnchor;
+
+    const bounds = overlayWindow.getBounds();
+    const oldX = bounds.x;
+    const oldY = bounds.y;
+    const oldWidth = bounds.width;
+    const oldHeight = bounds.height;
+
+    let newX = oldX;
+    let newY = oldY;
+
+    switch (parsedAnchor) {
+      case "bottom-left":
+        newY = oldY + oldHeight - targetHeight;
+        break;
+      case "top-right":
+        newX = oldX + oldWidth - targetWidth;
+        break;
+      case "bottom-right":
+        newX = oldX + oldWidth - targetWidth;
+        newY = oldY + oldHeight - targetHeight;
+        break;
+      case "center":
+        newX = oldX + Math.round((oldWidth - targetWidth) / 2);
+        newY = oldY + Math.round((oldHeight - targetHeight) / 2);
+        break;
+      case "top-left":
+      default:
+        break;
+    }
+
+    let adjustedY = newY;
+
+    const incomingTopOffset = Number(payload.contentTopOffset);
+    const prevTopOffset = Number(
+      ctx.store.getState().overlayLastContentTopOffset ?? Number.NaN
+    );
+
+    if (Number.isFinite(incomingTopOffset) && Number.isFinite(prevTopOffset)) {
+      const delta = incomingTopOffset - prevTopOffset;
+      if (delta !== 0) {
+        const verticalAnchor =
+          parsedAnchor === "center"
+            ? "center"
+            : parsedAnchor.includes("bottom")
+            ? "bottom"
+            : "top";
+
+        if (verticalAnchor === "top") {
+          adjustedY -= delta;
+        } else if (verticalAnchor === "center") {
+          adjustedY -= delta / 2;
+        }
+      }
+    }
+
+    const nextBounds = {
+      x: Math.round(newX),
+      y: Math.round(adjustedY),
+      width: targetWidth,
+      height: targetHeight,
+    };
+
+    ctx.overlayController.setBounds(nextBounds);
+
+    if (Number.isFinite(incomingTopOffset)) {
+      ctx.store.update("overlayLastContentTopOffset", incomingTopOffset);
+    }
+
+    windowRegistry.broadcast("overlay:resized", nextBounds);
+    return { bounds: nextBounds };
+  });
 }
 
 function clamp(value: number, min: number, max: number) {
