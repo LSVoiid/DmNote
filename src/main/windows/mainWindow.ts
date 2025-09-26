@@ -56,7 +56,7 @@ export class MainWindow {
       this.window.loadURL("http://localhost:3000/main/index.html");
     } else {
       this.window.loadFile(
-        path.join(__dirname, "..", "..", "..", "dist", "renderer", "main", "index.html")
+        path.join(__dirname, "..", "..", "..", "renderer", "main", "index.html")
       );
     }
   }

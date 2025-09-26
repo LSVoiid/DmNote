@@ -161,7 +161,6 @@ export class OverlayWindow {
           "..",
           "..",
           "..",
-          "dist",
           "renderer",
           "overlay",
           "index.html"
