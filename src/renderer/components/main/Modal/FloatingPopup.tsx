@@ -17,6 +17,7 @@ type FloatingPopupProps = {
   onClose?: () => void;
   className?: string;
   children?: React.ReactNode;
+  autoClose?: boolean;
 };
 
 const FloatingPopup = ({
@@ -29,6 +30,7 @@ const FloatingPopup = ({
   onClose,
   className = "",
   children,
+  autoClose = true,
 }: FloatingPopupProps) => {
   const { x, y, refs, strategy, update } = useFloating({
     placement,
@@ -42,32 +44,32 @@ const FloatingPopup = ({
   }, [referenceRef, refs.setReference]);
 
   useEffect(() => {
-    if (!open) return;
+    if (open && autoClose) {
+      const onKey = (e: KeyboardEvent) => {
+        if (e.key === "Escape") onClose?.();
+      };
 
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose?.();
-    };
+      const onClickAway = (e: MouseEvent) => {
+        const target = e.target as Node;
+        if (!refs.floating.current) return;
+        if (
+          refs.floating.current.contains(target) ||
+          (referenceRef &&
+            referenceRef.current &&
+            referenceRef.current.contains(target))
+        )
+          return;
+        onClose?.();
+      };
 
-    const onClickAway = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (!refs.floating.current) return;
-      if (
-        refs.floating.current.contains(target) ||
-        (referenceRef &&
-          referenceRef.current &&
-          referenceRef.current.contains(target))
-      )
-        return;
-      onClose?.();
-    };
-
-    document.addEventListener("keydown", onKey);
-    document.addEventListener("mousedown", onClickAway);
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.removeEventListener("mousedown", onClickAway);
-    };
-  }, [open, onClose, referenceRef, refs.floating]);
+      document.addEventListener("keydown", onKey);
+      document.addEventListener("mousedown", onClickAway);
+      return () => {
+        document.removeEventListener("keydown", onKey);
+        document.removeEventListener("mousedown", onClickAway);
+      };
+    }
+  }, [open, autoClose, onClose, referenceRef, refs.floating]);
 
   useEffect(() => {
     if (open) update?.();
