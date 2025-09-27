@@ -33,6 +33,7 @@ export default function NoteSetting({ onClose, settings, onSave }) {
 
   const handleSave = async () => {
     const normalized = {
+      ...settings,
       borderRadius: Math.max(1, Math.min(parseInt(borderRadius || 1), 100)),
       speed: Math.max(70, Math.min(parseInt(speed || 70), 1000)),
       trackHeight: Math.min(Math.max(trackHeight, 50), 500),
