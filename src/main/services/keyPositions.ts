@@ -364,6 +364,19 @@ const DEFAULT_POSITIONS = {
   ],
 };
 
+function normalizeNoteColor(value) {
+  if (!value) return "#FFFFFF";
+  if (typeof value === "string") {
+    return value;
+  }
+  if (typeof value === "object" && value.type === "gradient") {
+    const top = normalizeNoteColor(value.top);
+    const bottom = normalizeNoteColor(value.bottom);
+    return { type: "gradient", top, bottom };
+  }
+  return "#FFFFFF";
+}
+
 function loadKeyPositions() {
   try {
     const positions = store.get("keyPositions");
@@ -384,6 +397,12 @@ function loadKeyPositions() {
         if (!updatedKey.hasOwnProperty("noteColor")) {
           updatedKey.noteColor = "#FFFFFF";
           hasUpdates = true;
+        } else {
+          const normalizedColor = normalizeNoteColor(updatedKey.noteColor);
+          if (normalizedColor !== updatedKey.noteColor) {
+            updatedKey.noteColor = normalizedColor;
+            hasUpdates = true;
+          }
         }
 
         // noteOpacity가 없으면 기본값 추가
@@ -411,7 +430,14 @@ function loadKeyPositions() {
 
 function saveKeyPositions(positions) {
   try {
-    store.set("keyPositions", positions);
+    const normalized = {};
+    Object.keys(positions).forEach((mode) => {
+      normalized[mode] = positions[mode].map((key) => ({
+        ...key,
+        noteColor: normalizeNoteColor(key.noteColor),
+      }));
+    });
+    store.set("keyPositions", normalized);
   } catch (error) {
     console.error("Failed to save key positions:", error);
   }

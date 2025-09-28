@@ -14,6 +14,16 @@ export type KeyMode = z.infer<typeof keyModeSchema> | string;
 export const keyMappingSchema = z.record(z.string(), z.array(keySchema));
 export type KeyMappings = Record<string, string[]>;
 
+const gradientNoteColorSchema = z.object({
+  type: z.literal("gradient"),
+  top: z.string(),
+  bottom: z.string(),
+});
+
+export const noteColorSchema = z.union([z.string(), gradientNoteColorSchema]);
+export type GradientNoteColor = z.infer<typeof gradientNoteColorSchema>;
+export type NoteColor = z.infer<typeof noteColorSchema>;
+
 export const keyPositionSchema = z.object({
   dx: z.number(),
   dy: z.number(),
@@ -22,7 +32,7 @@ export const keyPositionSchema = z.object({
   activeImage: z.string().optional().or(z.literal("")),
   inactiveImage: z.string().optional().or(z.literal("")),
   count: z.number().int().nonnegative(),
-  noteColor: z.string(),
+  noteColor: noteColorSchema,
   noteOpacity: z.number().int().min(0).max(100),
   className: z.string().optional().or(z.literal("")),
 });

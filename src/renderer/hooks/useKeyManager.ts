@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useKeyStore } from "@stores/useKeyStore";
-import type { KeyMappings, KeyPositions } from "@src/types/keys";
+import type { KeyMappings, KeyPositions, NoteColor } from "@src/types/keys";
 
 type SelectedKey = { key: string; index: number } | null;
 
@@ -10,7 +10,7 @@ type KeyUpdatePayload = {
   inactiveImage?: string;
   width: number;
   height: number;
-  noteColor?: string;
+  noteColor?: NoteColor;
   noteOpacity?: number;
   className?: string;
 };
