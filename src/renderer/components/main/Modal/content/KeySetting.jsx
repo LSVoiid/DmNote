@@ -5,6 +5,14 @@ import ColorPicker from "./ColorPicker";
 import Modal from "../Modal";
 import { useTranslation } from "react-i18next";
 
+const COLOR_MODES = {
+  solid: "solid",
+  gradient: "gradient",
+};
+
+const toGradient = (top, bottom) => ({ type: "gradient", top, bottom });
+import { isGradientColor, normalizeColorInput } from "@utils/colorUtils";
+
 export default function KeySetting({
   keyData,
   onClose,
@@ -30,7 +38,19 @@ export default function KeySetting({
   );
   const [width, setWidth] = useState(keyData.width || 60);
   const [height, setHeight] = useState(keyData.height || 60);
-  const [noteColor, setNoteColor] = useState(keyData.noteColor || "#FFFFFF");
+  const [colorMode, setColorMode] = useState(
+    isGradientColor(keyData.noteColor)
+      ? COLOR_MODES.gradient
+      : COLOR_MODES.solid
+  );
+  const [noteColor, setNoteColor] = useState(() =>
+    normalizeColorInput(keyData.noteColor)
+  );
+  const [gradientBottom, setGradientBottom] = useState(() =>
+    isGradientColor(keyData.noteColor)
+      ? keyData.noteColor.bottom
+      : normalizeColorInput(keyData.noteColor)
+  );
   const [noteOpacity, setNoteOpacity] = useState(keyData.noteOpacity || 80);
   const [showPicker, setShowPicker] = useState(false);
 
@@ -76,13 +96,17 @@ export default function KeySetting({
   }, [noteOpacity, isFocused]);
 
   const handleSubmit = () => {
+    const colorValue =
+      colorMode === COLOR_MODES.gradient
+        ? toGradient(noteColor, gradientBottom)
+        : noteColor;
     onSave({
       key,
       activeImage,
       inactiveImage,
-      width: parseInt(width),
-      height: parseInt(height),
-      noteColor,
+      width: parseInt(width, 10),
+      height: parseInt(height, 10),
+      noteColor: colorValue,
       noteOpacity,
       className,
     });
@@ -92,41 +116,11 @@ export default function KeySetting({
     const file = e.target.files[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (e) => {
-        // const img = new Image();
-        // img.onload = () => {
-        //   const canvas = document.createElement('canvas');
-        //   const ctx = canvas.getContext('2d', { alpha: true });
-
-        //   // 키 크기에 맞게 캔버스 설정
-        //   const width = keyData.width;
-        //   canvas.width = width;
-        //   canvas.height = 60;
-
-        //   // 이미지 렌더링 품질 설정
-        //   ctx.imageSmoothingEnabled = true;
-        //   ctx.imageSmoothingQuality = 'high';
-
-        //   // 투명도 유지를 위한 설정
-        //   ctx.clearRect(0, 0, width, height);
-
-        //   // 이미지 리사이징 (Bicubic 알고리즘 사용)
-        //   ctx.drawImage(img, 0, 0, width, 60);
-
-        //   // WebP 포맷으로 변환 및 압축
-        //   const optimizedImageUrl = canvas.toDataURL('image/webp', 1.0);
-
-        //   if (isActive) {
-        //     setActiveImage(optimizedImageUrl);
-        //   } else {
-        //     setInactiveImage(optimizedImageUrl);
-        //   }
-        // };
-        // img.src = e.target.result;
+      reader.onload = (event) => {
         if (isActive) {
-          setActiveImage(e.target.result);
+          setActiveImage(event.target.result);
         } else {
-          setInactiveImage(e.target.result);
+          setInactiveImage(event.target.result);
         }
       };
       reader.readAsDataURL(file);
@@ -134,16 +128,38 @@ export default function KeySetting({
   };
 
   const handleColorButtonClick = () => {
-    setShowPicker(!showPicker);
+    setShowPicker((prev) => !prev);
   };
 
   const handleColorChange = (newColor) => {
-    setNoteColor(newColor);
+    if (isGradientColor(newColor)) {
+      setColorMode(COLOR_MODES.gradient);
+      setNoteColor(newColor.top);
+      setGradientBottom(newColor.bottom);
+    } else {
+      setColorMode(COLOR_MODES.solid);
+      setNoteColor(newColor);
+      setGradientBottom(newColor);
+    }
   };
 
   const handlePickerClose = () => {
     setShowPicker(false);
   };
+
+  const renderColorPreview = () => {
+    if (colorMode === COLOR_MODES.gradient) {
+      return {
+        background: `linear-gradient(to bottom, ${noteColor}, ${gradientBottom})`,
+      };
+    }
+    return { backgroundColor: noteColor };
+  };
+
+  const colorLabel =
+    colorMode === COLOR_MODES.gradient
+      ? "Gradient"
+      : noteColor.replace(/^#/, "");
 
   return (
     <Modal onClick={onClose} animate={!initialSkipRef.current}>
@@ -186,8 +202,8 @@ export default function KeySetting({
                     if (newValue === "") {
                       setWidth("");
                     } else {
-                      const numValue = parseInt(newValue);
-                      if (!isNaN(numValue)) {
+                      const numValue = parseInt(newValue, 10);
+                      if (!Number.isNaN(numValue)) {
                         setWidth(Math.min(Math.max(numValue, 1), 999));
                       }
                     }
@@ -197,7 +213,7 @@ export default function KeySetting({
                     setWidthFocused(false);
                     if (
                       e.target.value === "" ||
-                      isNaN(parseInt(e.target.value))
+                      Number.isNaN(parseInt(e.target.value, 10))
                     ) {
                       setWidth(60);
                     }
@@ -221,8 +237,8 @@ export default function KeySetting({
                     if (newValue === "") {
                       setHeight("");
                     } else {
-                      const numValue = parseInt(newValue);
-                      if (!isNaN(numValue)) {
+                      const numValue = parseInt(newValue, 10);
+                      if (!Number.isNaN(numValue)) {
                         setHeight(Math.min(Math.max(numValue, 1), 999));
                       }
                     }
@@ -232,7 +248,7 @@ export default function KeySetting({
                     setHeightFocused(false);
                     if (
                       e.target.value === "" ||
-                      isNaN(parseInt(e.target.value))
+                      Number.isNaN(parseInt(e.target.value, 10))
                     ) {
                       setHeight(60);
                     }
@@ -252,23 +268,20 @@ export default function KeySetting({
                 <button
                   ref={colorButtonRef}
                   type="button"
-                  className={`relative w-[76px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] flex items-center justify-center ${
+                  className={`relative w-[80px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] flex items-center justify-center ${
                     showPicker ? "border-[#459BF8]" : "border-[#3A3943]"
-                  } text-[#DBDEE8] text-style-4`}
+                  } text-[#DBDEE8] text-style-2`}
                   onClick={handleColorButtonClick}
                   onFocus={() => setColorFocused(true)}
                   onBlur={() => setColorFocused(false)}
                 >
                   <div
                     className="absolute left-[6px] top-[4.5px] w-[11px] h-[11px] rounded-[2px] border border-[#3A3943]"
-                    style={{ backgroundColor: noteColor }}
+                    style={renderColorPreview()}
                   ></div>
-                  <span className="ml-[20px] text-center">
-                    {noteColor.replace(/^#/, "")}
-                  </span>
+                  <span className="ml-[16px] text-left">{colorLabel}</span>
                 </button>
               </div>
-              {/* 노트 투명도 설정 추가 */}
               <div className="flex justify-between w-full items-center">
                 <p className="text-white text-style-2">
                   {t("keySetting.noteOpacity")}
@@ -281,8 +294,8 @@ export default function KeySetting({
                     if (newValue === "") {
                       setDisplayNoteOpacity("");
                     } else {
-                      const numValue = parseInt(newValue);
-                      if (!isNaN(numValue)) {
+                      const numValue = parseInt(newValue, 10);
+                      if (!Number.isNaN(numValue)) {
                         setDisplayNoteOpacity(newValue);
                       }
                     }
@@ -294,11 +307,17 @@ export default function KeySetting({
                   onBlur={(e) => {
                     setIsFocused(false);
                     const inputValue = e.target.value.replace(/[^0-9]/g, "");
-                    if (inputValue === "" || isNaN(parseInt(inputValue))) {
+                    if (
+                      inputValue === "" ||
+                      Number.isNaN(parseInt(inputValue, 10))
+                    ) {
                       setNoteOpacity(80);
+                      setDisplayNoteOpacity("80%");
                     } else {
-                      const numValue = parseInt(inputValue);
-                      setNoteOpacity(Math.min(Math.max(numValue, 0), 100));
+                      const numValue = parseInt(inputValue, 10);
+                      const clamped = Math.min(Math.max(numValue, 0), 100);
+                      setNoteOpacity(clamped);
+                      setDisplayNoteOpacity(`${clamped}%`);
                     }
                   }}
                   className="text-center w-[47px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943] focus:border-[#459BF8] text-style-4 text-[#DBDEE8]"
@@ -391,7 +410,11 @@ export default function KeySetting({
           <ColorPicker
             open={showPicker}
             referenceRef={colorButtonRef}
-            color={noteColor}
+            color={
+              colorMode === COLOR_MODES.gradient
+                ? toGradient(noteColor, gradientBottom)
+                : noteColor
+            }
             onColorChange={handleColorChange}
             onClose={handlePickerClose}
           />
