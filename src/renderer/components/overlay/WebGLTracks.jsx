@@ -2,7 +2,30 @@ import React, { memo, useEffect, useRef } from "react";
 import * as THREE from "three";
 import { animationScheduler } from "../../utils/animationScheduler";
 
-const MAX_NOTES = 2048; // 씬에서 동시에 렌더링할 수 있는 최대 노트 수
+const MAX_NOTES = 2048;  // 씬에서 동시에 렌더링할 수 있는 최대 노트 수
+
+const extractColorStops = (color, fallback = "#FFFFFF") => {
+  if (!color) {
+    return {
+      top: new THREE.Color(fallback),
+      bottom: new THREE.Color(fallback),
+      isGradient: false,
+    };
+  }
+  if (typeof color === "string") {
+    const solid = new THREE.Color(color);
+    return { top: solid, bottom: solid.clone(), isGradient: false };
+  }
+  if (typeof color === "object" && color.type === "gradient") {
+    return {
+      top: new THREE.Color(color.top ?? fallback),
+      bottom: new THREE.Color(color.bottom ?? fallback),
+      isGradient: true,
+    };
+  }
+  const parsed = new THREE.Color(fallback);
+  return { top: parsed, bottom: parsed.clone(), isGradient: false };
+};
 
 // 버텍스 셰이더: 캔버스 로직과 동일한 (위▶아래 좌표계) 계산을 위해 DOM 기준(y 아래로 증가) 값을 받아
 // 화면 변환 시 실제 WebGL 상(y 위로 증가)으로 변환 + 라운드 코너 처리를 위한 로컬 좌표 전달.
@@ -18,17 +41,22 @@ const vertexShader = `
 
   attribute vec3 noteInfo; // x: startTime, y: endTime, z: trackX (왼쪽 X px, DOM 기준)
   attribute vec2 noteSize; // x: width, y: trackBottomY (DOM 기준; 키 위치)
-  attribute vec4 noteColor;
+  attribute vec4 noteColorTop;
+  attribute vec4 noteColorBottom;
   attribute float noteRadius; // 픽셀 단위 라운드 반경
   attribute float trackIndex; // 키 순서 (첫 번째 키 = 0, 두 번째 키 = 1, ...)
 
-  varying vec4 vColor;
+  varying vec4 vColorTop;
+  varying vec4 vColorBottom;
   varying vec2 vLocalPos;     // 노트 중심 기준 로컬 좌표(px)
   varying vec2 vHalfSize;     // (width/2, height/2)
   varying float vRadius;      // 라운드 반경(px)
   varying float vTrackTopY;   // 트랙 상단 Y 좌표 (DOM 기준)
   varying float vTrackBottomY; // 트랙 하단 Y 좌표 (DOM 기준)
   varying float vReverse;     // 리버스 모드 플래그
+
+  varying float vNoteTopY;
+  varying float vNoteBottomY;
 
   void main() {
     float startTime = noteInfo.x;
@@ -40,7 +68,8 @@ const vertexShader = `
     // startTime이 0이면 제거된 노트이므로 렌더링하지 않음
     if (startTime == 0.0) {
       gl_Position = vec4(2.0, 2.0, 2.0, 0.0);
-      vColor = vec4(0.0);
+      vColorTop = vec4(0.0);
+      vColorBottom = vec4(0.0);
       return;
     }
 
@@ -122,14 +151,16 @@ const vertexShader = `
     // 노트가 트랙 범위 밖에 완전히 벗어난 경우 렌더링하지 않음
     if (noteBottomY <= trackTopY) {
       gl_Position = vec4(2.0, 2.0, 2.0, 0.0);
-      vColor = vec4(0.0);
+      vColorTop = vec4(0.0);
+      vColorBottom = vec4(0.0);
       return;
     }
     
     // 완전히 화면 위로 사라진 경우: 투명 처리
     if (noteBottomY < 0.0) {
       gl_Position = vec4(2.0, 2.0, 2.0, 0.0);
-      vColor = vec4(0.0);
+      vColorTop = vec4(0.0);
+      vColorBottom = vec4(0.0);
       return;
     }
 
@@ -154,13 +185,16 @@ const vertexShader = `
 
     gl_Position = projectionMatrix * modelViewMatrix * vec4(transformed, 1.0);
 
-    vColor = noteColor; // 색상
+    vColorTop = noteColorTop; // 색상
+    vColorBottom = noteColorBottom;
     vHalfSize = vec2(noteWidth, noteLength) * 0.5;
     vLocalPos = vec2(position.x * noteWidth, position.y * noteLength); // 중심 기준 -half~half
     vRadius = noteRadius;
     vTrackTopY = trackTopY;
     vTrackBottomY = trackBottomY;
     vReverse = uReverse;
+    vNoteTopY = noteTopY;
+    vNoteBottomY = noteBottomY;
   }
 `;
 
@@ -168,46 +202,44 @@ const vertexShader = `
 // gl_FragCoord.y 는 하단=0, 상단=screenHeight 이므로 distanceFromTop = uScreenHeight - gl_FragCoord.y
 const fragmentShader = `
   uniform float uScreenHeight;
-  uniform float uFadePosition; // 0 = auto, 1 = top, 2 = bottom
-  varying vec4 vColor;
+  uniform float uFadePosition;
+  varying vec4 vColorTop;
+  varying vec4 vColorBottom;
   varying vec2 vLocalPos;
   varying vec2 vHalfSize;
   varying float vRadius;
   varying float vTrackTopY;
   varying float vTrackBottomY;
   varying float vReverse;
+  varying float vNoteTopY;
+  varying float vNoteBottomY;
 
   void main() {
     // 현재 픽셀의 DOM Y 좌표 계산
     float currentDOMY = uScreenHeight - gl_FragCoord.y;
-    
-    // 트랙 내에서의 상대적 위치 계산 (0.0 = 트랙 상단, 1.0 = 트랙 하단)
-    float trackRelativeY = (currentDOMY - vTrackTopY) / (vTrackBottomY - vTrackTopY);
-    
-    // fadePosition: 0 = auto (기존 동작: reverse에 따라 반전), 1 = top, 2 = bottom
-    // vReverse: 0 = normal, 1 = reversed
+    float trackHeight = max(vTrackBottomY - vTrackTopY, 0.0001);
+    float gradientRatio = clamp((currentDOMY - vTrackTopY) / trackHeight, 0.0, 1.0);
+    float trackRelativeY = gradientRatio;
+
     float fadePosFlag = uFadePosition;
     bool invertForFade = false;
     if (fadePosFlag < 0.5) {
-      // auto
       invertForFade = (vReverse > 0.5);
     } else if (abs(fadePosFlag - 1.0) < 0.1) {
-      // top
       invertForFade = false;
     } else {
-      // bottom
       invertForFade = true;
     }
     if (invertForFade) {
       trackRelativeY = 1.0 - trackRelativeY;
     }
-    
+
+    vec4 baseColor = mix(vColorTop, vColorBottom, gradientRatio);
     float fadeZone = 50.0; // 페이드 영역 50px
-    float trackHeight = vTrackBottomY - vTrackTopY;
     float fadeRatio = fadeZone / trackHeight; // 트랙 높이 대비 페이드 영역 비율
-    
-    float alpha = vColor.a;
-    
+
+    float alpha = baseColor.a;
+
     // 라운드 코너: vLocalPos 범위는 -vHalfSize ~ +vHalfSize
     float r = clamp(vRadius, 0.0, min(vHalfSize.x, vHalfSize.y));
     if (r > 0.0) {
@@ -220,15 +252,24 @@ const fragmentShader = `
       if (dist > 0.5) discard; // 경계 밖
       alpha *= smoothAlpha;
     }
-    
+
     // 트랙 페이드 영역 적용 (상단 또는 하단)
     if (trackRelativeY < fadeRatio) {
       alpha *= clamp(trackRelativeY / fadeRatio, 0.0, 1.0);
     }
 
-    gl_FragColor = vec4(vColor.rgb, alpha);
+    gl_FragColor = vec4(baseColor.rgb, alpha);
   }
 `;
+
+const buildColorAttributes = (color, opacity = 1) => {
+  const { top, bottom } = extractColorStops(color);
+  const clampedOpacity = Math.min(Math.max(opacity, 0), 1);
+  return {
+    top: [top.r, top.g, top.b, clampedOpacity],
+    bottom: [bottom.r, bottom.g, bottom.b, clampedOpacity],
+  };
+};
 
 export const WebGLTracks = memo(
   ({ tracks, notesRef, subscribe, noteSettings, laboratoryEnabled }) => {
@@ -329,7 +370,8 @@ export const WebGLTracks = memo(
         // 트랙별 버퍼
         const noteInfoArray = new Float32Array(MAX_NOTES * 3);
         const noteSizeArray = new Float32Array(MAX_NOTES * 2);
-        const noteColorArray = new Float32Array(MAX_NOTES * 4);
+        const noteColorArrayTop = new Float32Array(MAX_NOTES * 4);
+        const noteColorArrayBottom = new Float32Array(MAX_NOTES * 4);
         const noteRadiusArray = new Float32Array(MAX_NOTES);
         const trackIndexArray = new Float32Array(MAX_NOTES);
 
@@ -341,8 +383,12 @@ export const WebGLTracks = memo(
           noteSizeArray,
           2
         );
-        const noteColorAttr = new THREE.InstancedBufferAttribute(
-          noteColorArray,
+        const noteColorAttrTop = new THREE.InstancedBufferAttribute(
+          noteColorArrayTop,
+          4
+        );
+        const noteColorAttrBottom = new THREE.InstancedBufferAttribute(
+          noteColorArrayBottom,
           4
         );
         const noteRadiusAttr = new THREE.InstancedBufferAttribute(
@@ -356,17 +402,20 @@ export const WebGLTracks = memo(
 
         mesh.geometry.setAttribute("noteInfo", noteInfoAttr);
         mesh.geometry.setAttribute("noteSize", noteSizeAttr);
-        mesh.geometry.setAttribute("noteColor", noteColorAttr);
+        mesh.geometry.setAttribute("noteColorTop", noteColorAttrTop);
+        mesh.geometry.setAttribute("noteColorBottom", noteColorAttrBottom);
         mesh.geometry.setAttribute("noteRadius", noteRadiusAttr);
         mesh.geometry.setAttribute("trackIndex", trackIndexAttr);
 
         attributesMapRef.current.set(track.trackKey, {
           noteInfoArray,
           noteSizeArray,
-          noteColorArray,
+          noteColorArrayTop,
+          noteColorArrayBottom,
           noteInfoAttr,
           noteSizeAttr,
-          noteColorAttr,
+          noteColorAttrTop,
+          noteColorAttrBottom,
           noteRadiusArray,
           noteRadiusAttr,
           trackIndexArray,
@@ -378,6 +427,7 @@ export const WebGLTracks = memo(
           noteIndexMap: new Map(),
           freeIndices: [],
           nextIndex: 0,
+          gradient: track.gradient,
         });
       };
 
@@ -406,16 +456,17 @@ export const WebGLTracks = memo(
         )
           return;
 
-        // 조기 종료: 노트가 전혀 없으면 렌더링하지 않음
         const totalNotes = Object.values(notesRef.current).reduce(
           (sum, notes) => sum + notes.length,
           0
         );
         if (totalNotes === 0) {
-          if (meshRef.current.count > 0) {
-            meshRef.current.count = 0;
-            rendererRef.current.render(sceneRef.current, cameraRef.current);
+          for (const { mesh } of meshMapRef.current.values()) {
+            if (mesh.count > 0) {
+              mesh.count = 0;
+            }
           }
+          rendererRef.current.render(sceneRef.current, cameraRef.current);
           return;
         }
 
@@ -473,35 +524,29 @@ export const WebGLTracks = memo(
           const attrs = attributesMapRef.current.get(note.keyName);
           if (!attrs) return;
 
-          // 색상 데이터 가져오기
-          let colorData = colorCacheRef.current.get(track.noteColor);
+          const opacity =
+            track.noteOpacity != null
+              ? Math.min(Math.max(track.noteOpacity / 100, 0), 1)
+              : 0.8;
+          const colorKey =
+            track.noteColor && typeof track.noteColor === "object"
+              ? JSON.stringify(track.noteColor)
+              : track.noteColor ?? "";
+          const cacheKey = `${colorKey}|${opacity}`;
+          let colorData = colorCacheRef.current.get(cacheKey);
           if (!colorData) {
-            const color = track.noteColor;
-            if (
-              typeof color === "string" &&
-              color.startsWith("#") &&
-              color.length >= 7
-            ) {
-              const r = parseInt(color.slice(1, 3), 16) / 255;
-              const g = parseInt(color.slice(3, 5), 16) / 255;
-              const b = parseInt(color.slice(5, 7), 16) / 255;
-              colorData = { r, g, b };
-            } else {
-              colorData = { r: 1, g: 1, b: 1 };
-            }
-            colorCacheRef.current.set(track.noteColor, colorData);
+            colorData = buildColorAttributes(track.noteColor, opacity);
+            colorCacheRef.current.set(cacheKey, colorData);
           }
 
-          // 인덱스 할당
           const index = freeIndices.pop() ?? entry.nextIndex++;
           if (index >= MAX_NOTES) {
             entry.nextIndex--;
-            return; // 버퍼 꽉 참
+            return;
           }
           noteIndexMap.set(note.id, index);
           noteTrackMapRef.current.set(note.id, note.keyName);
 
-          // 해당 인덱스에 데이터 쓰기
           const base3 = index * 3;
           const base2 = index * 2;
           const base4 = index * 4;
@@ -511,16 +556,15 @@ export const WebGLTracks = memo(
             base3
           );
           attrs.noteSizeArray.set([track.width, track.position.dy], base2);
-          attrs.noteColorArray.set(
-            [colorData.r, colorData.g, colorData.b, track.noteOpacity / 100],
-            base4
-          );
+          attrs.noteColorArrayTop.set(colorData.top, base4);
+          attrs.noteColorArrayBottom.set(colorData.bottom, base4);
           attrs.noteRadiusArray.set([track.borderRadius || 0], index);
-          attrs.trackIndexArray.set([track.trackIndex], index); // 키 순서 설정
+          attrs.trackIndexArray.set([track.trackIndex], index);
 
           attrs.noteInfoAttr.needsUpdate = true;
           attrs.noteSizeAttr.needsUpdate = true;
-          attrs.noteColorAttr.needsUpdate = true;
+          attrs.noteColorAttrTop.needsUpdate = true;
+          attrs.noteColorAttrBottom.needsUpdate = true;
           attrs.noteRadiusAttr.needsUpdate = true;
           attrs.trackIndexAttr.needsUpdate = true;
 
@@ -605,7 +649,8 @@ export const WebGLTracks = memo(
           try {
             entry.mesh.geometry.deleteAttribute?.("noteInfo");
             entry.mesh.geometry.deleteAttribute?.("noteSize");
-            entry.mesh.geometry.deleteAttribute?.("noteColor");
+            entry.mesh.geometry.deleteAttribute?.("noteColorTop");
+            entry.mesh.geometry.deleteAttribute?.("noteColorBottom");
             entry.mesh.geometry.deleteAttribute?.("noteRadius");
             entry.mesh.geometry.deleteAttribute?.("trackIndex");
           } catch {}
@@ -631,7 +676,7 @@ export const WebGLTracks = memo(
       // 기존 트랙 메쉬의 renderOrder 갱신 (키 순서 변화 반영)
       tracks.forEach((track) => {
         const entry = meshMapRef.current.get(track.trackKey);
-        if (entry?.mesh) {
+        if (entry) {
           entry.mesh.renderOrder = track.trackIndex ?? 0;
         }
       });
@@ -678,6 +723,7 @@ export const WebGLTracks = memo(
         const height = window.innerHeight;
         if (rendererRef.current) {
           rendererRef.current.setSize(width, height);
+          rendererRef.current.setPixelRatio(window.devicePixelRatio);
         }
         if (cameraRef.current) {
           cameraRef.current.left = 0;
@@ -690,9 +736,13 @@ export const WebGLTracks = memo(
           materialRef.current.uniforms.uScreenHeight.value = height;
         }
       };
+
       window.addEventListener("resize", handleResize);
       handleResize();
-      return () => window.removeEventListener("resize", handleResize);
+
+      return () => {
+        window.removeEventListener("resize", handleResize);
+      };
     }, []);
 
     return (
