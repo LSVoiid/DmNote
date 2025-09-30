@@ -85,12 +85,10 @@
   "dependencies": {
     "@floating-ui/react": "^0.27.16",
     "electron-store": "^8.2.0",
-    "i18next": "^25.5.2",
     "node-global-key-listener-extended": "github:lee-sihun/node-global-key-listener",
     "ogl": "^1.0.11",
     "preact": "^10.18.0",
     "react-color-palette": "^7.3.1",
-    "react-i18next": "^15.7.3",
     "three": "^0.180.0",
     "zod": "^4.1.11",
     "zustand": "^5.0.3"
