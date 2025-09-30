@@ -61,12 +61,12 @@
   "license": "GPL-3.0-only",
   "devDependencies": {
     "@electron/rebuild": "^3.7.2",
+    "@preact/preset-vite": "^2.3.0",
     "@types/node": "^22.15.27",
     "@types/react": "^19.1.6",
     "@types/react-dom": "^19.1.5",
     "@typescript-eslint/eslint-plugin": "^8.33.0",
     "@typescript-eslint/parser": "^8.33.0",
-    "@preact/preset-vite": "^2.3.0",
     "autoprefixer": "^10.4.20",
     "concurrently": "^9.1.1",
     "cross-env": "^7.0.3",
@@ -87,11 +87,12 @@
     "electron-store": "^8.2.0",
     "i18next": "^25.5.2",
     "node-global-key-listener-extended": "github:lee-sihun/node-global-key-listener",
+    "ogl": "^1.0.11",
     "preact": "^10.18.0",
+    "react-color-palette": "^7.3.1",
     "react-i18next": "^15.7.3",
     "three": "^0.180.0",
     "zod": "^4.1.11",
-    "zustand": "^5.0.3",
-    "react-color-palette": "^7.3.1"
+    "zustand": "^5.0.3"
   }
 }
