@@ -17,6 +17,7 @@ type FloatingPopupProps = {
   onClose?: () => void;
   className?: string;
   children?: React.ReactNode;
+  autoClose?: boolean;
 };
 
 const FloatingPopup = ({
@@ -29,6 +30,7 @@ const FloatingPopup = ({
   onClose,
   className = "",
   children,
+  autoClose = true,
 }: FloatingPopupProps) => {
   const { x, y, refs, strategy, update } = useFloating({
     placement,
@@ -42,36 +44,96 @@ const FloatingPopup = ({
   }, [referenceRef, refs.setReference]);
 
   useEffect(() => {
-    if (!open) return;
+    if (open && autoClose) {
+      const onKey = (e: KeyboardEvent) => {
+        if (e.key === "Escape") onClose?.();
+      };
 
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose?.();
-    };
+      const onClickAway = (e: MouseEvent) => {
+        const target = e.target as Node;
+        if (!refs.floating.current) return;
+        if (
+          refs.floating.current.contains(target) ||
+          (referenceRef &&
+            referenceRef.current &&
+            referenceRef.current.contains(target))
+        )
+          return;
+        onClose?.();
+      };
 
-    const onClickAway = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (!refs.floating.current) return;
-      if (
-        refs.floating.current.contains(target) ||
-        (referenceRef &&
-          referenceRef.current &&
-          referenceRef.current.contains(target))
-      )
-        return;
-      onClose?.();
-    };
-
-    document.addEventListener("keydown", onKey);
-    document.addEventListener("mousedown", onClickAway);
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.removeEventListener("mousedown", onClickAway);
-    };
-  }, [open, onClose, referenceRef, refs.floating]);
+      document.addEventListener("keydown", onKey);
+      document.addEventListener("mousedown", onClickAway);
+      return () => {
+        document.removeEventListener("keydown", onKey);
+        document.removeEventListener("mousedown", onClickAway);
+      };
+    }
+  }, [open, autoClose, onClose, referenceRef, refs.floating]);
 
   useEffect(() => {
     if (open) update?.();
   }, [open, update]);
+
+  useEffect(() => {
+    if (!open || autoClose) return;
+
+    let pointerCapturedInside = false;
+
+    const floatingEl = refs.floating.current;
+    const referenceEl = referenceRef?.current ?? null;
+
+    const handlePointerDownInside = () => {
+      pointerCapturedInside = true;
+    };
+
+    const handlePointerUp = () => {
+      pointerCapturedInside = false;
+    };
+
+    const handleDocumentDown = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (!floatingEl) return;
+
+      const isInsideFloating = floatingEl.contains(target);
+      const isInsideReference = referenceEl?.contains(target) ?? false;
+
+      if (isInsideFloating) {
+        pointerCapturedInside = true;
+        return;
+      }
+
+      if (
+        pointerCapturedInside &&
+        (event.type === "pointerdown" || event.type === "mousedown")
+      ) {
+        pointerCapturedInside = false;
+      }
+
+      if (isInsideReference) {
+        pointerCapturedInside = false;
+        return;
+      }
+
+      if (pointerCapturedInside) {
+        return;
+      }
+
+      onClose?.();
+    };
+
+    floatingEl?.addEventListener("pointerdown", handlePointerDownInside);
+    document.addEventListener("pointerup", handlePointerUp, true);
+    document.addEventListener("pointerdown", handleDocumentDown, true);
+    document.addEventListener("mousedown", handleDocumentDown, true);
+
+    return () => {
+      floatingEl?.removeEventListener("pointerdown", handlePointerDownInside);
+      document.removeEventListener("pointerup", handlePointerUp, true);
+      document.removeEventListener("pointerdown", handleDocumentDown, true);
+      document.removeEventListener("mousedown", handleDocumentDown, true);
+    };
+  }, [open, autoClose, onClose, referenceRef, refs.floating]);
 
   if (!open) return null;
 

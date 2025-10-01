@@ -24,7 +24,10 @@
       "@assets/*": ["src/renderer/assets/*"],
       "@utils/*": ["src/renderer/utils/*"],
       "@stores/*": ["src/renderer/stores/*"],
-      "@constants/*": ["src/renderer/constants/*"]
+      "@constants/*": ["src/renderer/constants/*"],
+      "@contexts/*": ["src/renderer/contexts/*"],
+      "@src/*": ["src/*"],
+      "@main/*": ["src/main/*"]
     }
   },
   "include": ["src/**/*"],

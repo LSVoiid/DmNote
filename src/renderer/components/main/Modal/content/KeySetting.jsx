@@ -1,8 +1,17 @@
 import React, { useEffect, useState, useRef } from "react";
+import { useTranslation } from "@contexts/I18nContext";
 import { getKeyInfo, getKeyInfoByGlobalKey } from "@utils/KeyMaps";
 import { useSettingsStore } from "@stores/useSettingsStore";
+import ColorPicker from "./ColorPicker";
 import Modal from "../Modal";
-import { useTranslation } from "react-i18next";
+
+const COLOR_MODES = {
+  solid: "solid",
+  gradient: "gradient",
+};
+
+const toGradient = (top, bottom) => ({ type: "gradient", top, bottom });
+import { isGradientColor, normalizeColorInput } from "@utils/colorUtils";
 
 export default function KeySetting({
   keyData,
@@ -29,8 +38,21 @@ export default function KeySetting({
   );
   const [width, setWidth] = useState(keyData.width || 60);
   const [height, setHeight] = useState(keyData.height || 60);
-  const [noteColor, setNoteColor] = useState(keyData.noteColor || "#FFFFFF");
+  const [colorMode, setColorMode] = useState(
+    isGradientColor(keyData.noteColor)
+      ? COLOR_MODES.gradient
+      : COLOR_MODES.solid
+  );
+  const [noteColor, setNoteColor] = useState(() =>
+    normalizeColorInput(keyData.noteColor)
+  );
+  const [gradientBottom, setGradientBottom] = useState(() =>
+    isGradientColor(keyData.noteColor)
+      ? keyData.noteColor.bottom
+      : normalizeColorInput(keyData.noteColor)
+  );
   const [noteOpacity, setNoteOpacity] = useState(keyData.noteOpacity || 80);
+  const [showPicker, setShowPicker] = useState(false);
 
   const [className, setClassName] = useState(keyData.className || "");
 
@@ -45,6 +67,7 @@ export default function KeySetting({
 
   const activeInputRef = useRef(null);
   const inactiveInputRef = useRef(null);
+  const colorButtonRef = useRef(null);
   const initialSkipRef = useRef(skipAnimation);
 
   useEffect(() => {
@@ -55,35 +78,16 @@ export default function KeySetting({
         if (e.key === "Shift") {
           code = e.location === 1 ? "ShiftLeft" : "ShiftRight";
         }
-        setKey(getKeyInfo(code, e.key).globalKey);
-        setDisplayKey(getKeyInfo(code, e.key).displayName);
+        const info = getKeyInfo(code, e.key);
+        setKey(info.globalKey);
+        setDisplayKey(info.displayName);
         setIsListening(false);
       }
     };
 
-    // Early CSS sync (모달이 SettingTab 방문 전에 열릴 경우)
-    const ipcRenderer = window.electron?.ipcRenderer;
-    if (ipcRenderer) {
-      ipcRenderer
-        .invoke("get-use-custom-css")
-        .then((enabled) => {
-          if (typeof enabled === "boolean") setUseCustomCSS(enabled);
-        })
-        .catch(() => {});
-      ipcRenderer
-        .invoke("get-custom-css")
-        .then((data) => {
-          if (data) {
-            if (data.content) setCustomCSSContent(data.content);
-            if (data.path) setCustomCSSPath(data.path);
-          }
-        })
-        .catch(() => {});
-    }
-
     window.addEventListener("keydown", handleKeyPress);
     return () => window.removeEventListener("keydown", handleKeyPress);
-  }, [isListening, setUseCustomCSS, setCustomCSSContent, setCustomCSSPath]);
+  }, [isListening]);
 
   useEffect(() => {
     if (!isFocused) {
@@ -92,13 +96,17 @@ export default function KeySetting({
   }, [noteOpacity, isFocused]);
 
   const handleSubmit = () => {
+    const colorValue =
+      colorMode === COLOR_MODES.gradient
+        ? toGradient(noteColor, gradientBottom)
+        : noteColor;
     onSave({
       key,
       activeImage,
       inactiveImage,
-      width: parseInt(width),
-      height: parseInt(height),
-      noteColor,
+      width: parseInt(width, 10),
+      height: parseInt(height, 10),
+      noteColor: colorValue,
       noteOpacity,
       className,
     });
@@ -108,310 +116,309 @@ export default function KeySetting({
     const file = e.target.files[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (e) => {
-        // const img = new Image();
-        // img.onload = () => {
-        //   const canvas = document.createElement('canvas');
-        //   const ctx = canvas.getContext('2d', { alpha: true });
-
-        //   // 키 크기에 맞게 캔버스 설정
-        //   const width = keyData.width;
-        //   canvas.width = width;
-        //   canvas.height = 60;
-
-        //   // 이미지 렌더링 품질 설정
-        //   ctx.imageSmoothingEnabled = true;
-        //   ctx.imageSmoothingQuality = 'high';
-
-        //   // 투명도 유지를 위한 설정
-        //   ctx.clearRect(0, 0, width, height);
-
-        //   // 이미지 리사이징 (Bicubic 알고리즘 사용)
-        //   ctx.drawImage(img, 0, 0, width, 60);
-
-        //   // WebP 포맷으로 변환 및 압축
-        //   const optimizedImageUrl = canvas.toDataURL('image/webp', 1.0);
-
-        //   if (isActive) {
-        //     setActiveImage(optimizedImageUrl);
-        //   } else {
-        //     setInactiveImage(optimizedImageUrl);
-        //   }
-        // };
-        // img.src = e.target.result;
+      reader.onload = (event) => {
         if (isActive) {
-          setActiveImage(e.target.result);
+          setActiveImage(event.target.result);
         } else {
-          setInactiveImage(e.target.result);
+          setInactiveImage(event.target.result);
         }
       };
       reader.readAsDataURL(file);
     }
   };
 
-  // 색상 값 검증 함수
-  const isValidColor = (color) => {
-    const hexPattern = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
-    return hexPattern.test(color);
+  const handleColorButtonClick = () => {
+    setShowPicker((prev) => !prev);
   };
 
-  const handleColorChange = (e) => {
-    const value = e.target.value.toUpperCase();
-    setNoteColor("#" + value);
-  };
-
-  const handleColorBlur = (e) => {
-    const inputValue = e.target.value.toUpperCase();
-    const fullColor = "#" + inputValue;
-    if (!isValidColor(fullColor)) {
-      setNoteColor("#FFFFFF"); // 잘못된 값이면 기본값으로 복원
+  const handleColorChange = (newColor) => {
+    if (isGradientColor(newColor)) {
+      setColorMode(COLOR_MODES.gradient);
+      setNoteColor(newColor.top);
+      setGradientBottom(newColor.bottom);
+    } else {
+      setColorMode(COLOR_MODES.solid);
+      setNoteColor(newColor);
+      setGradientBottom(newColor);
     }
   };
+
+  const handlePickerClose = () => {
+    setShowPicker(false);
+  };
+
+  const renderColorPreview = () => {
+    if (colorMode === COLOR_MODES.gradient) {
+      return {
+        background: `linear-gradient(to bottom, ${noteColor}, ${gradientBottom})`,
+      };
+    }
+    return { backgroundColor: noteColor };
+  };
+
+  const colorLabel =
+    colorMode === COLOR_MODES.gradient
+      ? "Gradient"
+      : noteColor.replace(/^#/, "");
 
   return (
     <Modal onClick={onClose} animate={!initialSkipRef.current}>
       <div
-        className="flex flex-col items-center justify-center p-[20px] bg-[#1A191E] rounded-[13px] gap-[19px] border-[1px] border-[#2A2A30]"
+        className="flex items-center justify-center p-[20px] bg-[#1A191E] rounded-[13px] border-[1px] border-[#2A2A30] gap-[19px]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex justify-between w-full items-center">
-          <p className="text-white text-style-2">
-            {t("keySetting.keyMapping")}
-          </p>
-          <button
-            onClick={() => setIsListening(true)}
-            className={`flex items-center justify-center h-[23px] min-w-[0px] px-[8.5px] bg-[#2A2A30] rounded-[7px] border-[1px] ${
-              isListening ? "border-[#459BF8]" : "border-[#3A3943]"
-            } text-[#DBDEE8] text-style-2`}
-          >
-            {isListening
-              ? t("keySetting.pressAnyKey")
-              : displayKey || t("keySetting.clickToSet")}
-          </button>
-        </div>
-        <div className="flex justify-between w-full items-center">
-          <p className="text-white text-style-2">{t("keySetting.keySize")}</p>
-          <div className="flex items-center gap-[10.5px]">
-            <div
-              className={`relative w-[48px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] ${
-                widthFocused ? "border-[#459BF8]" : "border-[#3A3943]"
-              }`}
+        <div className="flex-1 flex flex-col gap-[19px]">
+          <div className="flex justify-between w-full items-center">
+            <p className="text-white text-style-2">
+              {t("keySetting.keyMapping")}
+            </p>
+            <button
+              onClick={() => setIsListening(true)}
+              className={`flex items-center justify-center h-[23px] min-w-[0px] px-[8.5px] bg-[#2A2A30] rounded-[7px] border-[1px] ${
+                isListening ? "border-[#459BF8]" : "border-[#3A3943]"
+              } text-[#DBDEE8] text-style-2`}
             >
-              <span className="absolute left-[5px] top-[50%] transform -translate-y-1/2 text-[#97999E] text-style-1 pointer-events-none">
-                X
-              </span>
-              <input
-                type="number"
-                value={width}
-                onChange={(e) => {
-                  const newValue = e.target.value;
-                  if (newValue === "") {
-                    setWidth("");
-                  } else {
-                    const numValue = parseInt(newValue);
-                    if (!isNaN(numValue)) {
-                      setWidth(Math.min(Math.max(numValue, 1), 999));
-                    }
-                  }
-                }}
-                onFocus={() => setWidthFocused(true)}
-                onBlur={(e) => {
-                  setWidthFocused(false);
-                  if (
-                    e.target.value === "" ||
-                    isNaN(parseInt(e.target.value))
-                  ) {
-                    setWidth(60);
-                  }
-                }}
-                className="absolute left-[20px] top-[-1px] h-[23px] w-[26px] bg-transparent text-style-4 text-[#DBDEE8] text-left"
-              />
-            </div>
-            <div
-              className={`relative w-[48px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] ${
-                heightFocused ? "border-[#459BF8]" : "border-[#3A3943]"
-              }`}
-            >
-              <span className="absolute left-[5px] top-[50%] transform -translate-y-1/2 text-[#97999E] text-style-1 pointer-events-none">
-                Y
-              </span>
-              <input
-                type="number"
-                value={height}
-                onChange={(e) => {
-                  const newValue = e.target.value;
-                  if (newValue === "") {
-                    setHeight("");
-                  } else {
-                    const numValue = parseInt(newValue);
-                    if (!isNaN(numValue)) {
-                      setHeight(Math.min(Math.max(numValue, 1), 999));
-                    }
-                  }
-                }}
-                onFocus={() => setHeightFocused(true)}
-                onBlur={(e) => {
-                  setHeightFocused(false);
-                  if (
-                    e.target.value === "" ||
-                    isNaN(parseInt(e.target.value))
-                  ) {
-                    setHeight(60);
-                  }
-                }}
-                className="absolute left-[20px] top-[-1px] h-[23px] w-[26px] bg-transparent text-style-4 text-[#DBDEE8] text-left"
-              />
-            </div>
+              {isListening
+                ? t("keySetting.pressAnyKey")
+                : displayKey || t("keySetting.clickToSet")}
+            </button>
           </div>
-        </div>
-        {/* 노트 관련 UI: noteEffect가 true일 때만 렌더링 */}
-        {noteEffect && (
-          <>
-            <div className="flex justify-between w-full items-center">
-              <p className="text-white text-style-2">
-                {t("keySetting.noteColor")}
-              </p>
+          <div className="flex justify-between w-full items-center">
+            <p className="text-white text-style-2">{t("keySetting.keySize")}</p>
+            <div className="flex items-center gap-[10.5px]">
               <div
-                className={`relative w-[76px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] ${
-                  colorFocused ? "border-[#459BF8]" : "border-[#3A3943]"
+                className={`relative w-[48px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] ${
+                  widthFocused ? "border-[#459BF8]" : "border-[#3A3943]"
                 }`}
               >
-                <div
-                  className="absolute left-[6px] top-[4.5px] w-[11px] h-[11px] rounded-[2px] border border-[#3A3943]"
-                  style={{ backgroundColor: noteColor }}
-                ></div>
+                <span className="absolute left-[5px] top-[50%] transform -translate-y-1/2 text-[#97999E] text-style-1 pointer-events-none">
+                  X
+                </span>
                 <input
-                  type="text"
-                  value={noteColor.replace(/^#/, "")}
-                  onChange={handleColorChange}
-                  onFocus={() => setColorFocused(true)}
-                  onBlur={(e) => {
-                    setColorFocused(false);
-                    handleColorBlur(e);
+                  type="number"
+                  value={width}
+                  onChange={(e) => {
+                    const newValue = e.target.value;
+                    if (newValue === "") {
+                      setWidth("");
+                    } else {
+                      const numValue = parseInt(newValue, 10);
+                      if (!Number.isNaN(numValue)) {
+                        setWidth(Math.min(Math.max(numValue, 1), 999));
+                      }
+                    }
                   }}
-                  placeholder="FFF"
-                  className="absolute left-[20px] top-[-1px] h-[23px] w-[50px] bg-transparent text-style-1 text-[#DBDEE8] text-center"
+                  onFocus={() => setWidthFocused(true)}
+                  onBlur={(e) => {
+                    setWidthFocused(false);
+                    if (
+                      e.target.value === "" ||
+                      Number.isNaN(parseInt(e.target.value, 10))
+                    ) {
+                      setWidth(60);
+                    }
+                  }}
+                  className="absolute left-[20px] top-[-1px] h-[23px] w-[26px] bg-transparent text-style-4 text-[#DBDEE8] text-left"
+                />
+              </div>
+              <div
+                className={`relative w-[48px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] ${
+                  heightFocused ? "border-[#459BF8]" : "border-[#3A3943]"
+                }`}
+              >
+                <span className="absolute left-[5px] top-[50%] transform -translate-y-1/2 text-[#97999E] text-style-1 pointer-events-none">
+                  Y
+                </span>
+                <input
+                  type="number"
+                  value={height}
+                  onChange={(e) => {
+                    const newValue = e.target.value;
+                    if (newValue === "") {
+                      setHeight("");
+                    } else {
+                      const numValue = parseInt(newValue, 10);
+                      if (!Number.isNaN(numValue)) {
+                        setHeight(Math.min(Math.max(numValue, 1), 999));
+                      }
+                    }
+                  }}
+                  onFocus={() => setHeightFocused(true)}
+                  onBlur={(e) => {
+                    setHeightFocused(false);
+                    if (
+                      e.target.value === "" ||
+                      Number.isNaN(parseInt(e.target.value, 10))
+                    ) {
+                      setHeight(60);
+                    }
+                  }}
+                  className="absolute left-[20px] top-[-1px] h-[23px] w-[26px] bg-transparent text-style-4 text-[#DBDEE8] text-left"
                 />
               </div>
             </div>
-            {/* 노트 투명도 설정 추가 */}
-            <div className="flex justify-between w-full items-center">
+          </div>
+          {/* 노트 관련 UI: noteEffect가 true일 때만 렌더링 */}
+          {noteEffect && (
+            <>
+              <div className="flex justify-between w-full items-center">
+                <p className="text-white text-style-2">
+                  {t("keySetting.noteColor")}
+                </p>
+                <button
+                  ref={colorButtonRef}
+                  type="button"
+                  className={`relative w-[80px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] flex items-center justify-center ${
+                    showPicker ? "border-[#459BF8]" : "border-[#3A3943]"
+                  } text-[#DBDEE8] text-style-2`}
+                  onClick={handleColorButtonClick}
+                  onFocus={() => setColorFocused(true)}
+                  onBlur={() => setColorFocused(false)}
+                >
+                  <div
+                    className="absolute left-[6px] top-[4.5px] w-[11px] h-[11px] rounded-[2px] border border-[#3A3943]"
+                    style={renderColorPreview()}
+                  ></div>
+                  <span className="ml-[16px] text-left">{colorLabel}</span>
+                </button>
+              </div>
+              <div className="flex justify-between w-full items-center">
+                <p className="text-white text-style-2">
+                  {t("keySetting.noteOpacity")}
+                </p>
+                <input
+                  type="text"
+                  value={displayNoteOpacity}
+                  onChange={(e) => {
+                    const newValue = e.target.value.replace(/[^0-9]/g, "");
+                    if (newValue === "") {
+                      setDisplayNoteOpacity("");
+                    } else {
+                      const numValue = parseInt(newValue, 10);
+                      if (!Number.isNaN(numValue)) {
+                        setDisplayNoteOpacity(newValue);
+                      }
+                    }
+                  }}
+                  onFocus={() => {
+                    setIsFocused(true);
+                    setDisplayNoteOpacity(noteOpacity.toString());
+                  }}
+                  onBlur={(e) => {
+                    setIsFocused(false);
+                    const inputValue = e.target.value.replace(/[^0-9]/g, "");
+                    if (
+                      inputValue === "" ||
+                      Number.isNaN(parseInt(inputValue, 10))
+                    ) {
+                      setNoteOpacity(80);
+                      setDisplayNoteOpacity("80%");
+                    } else {
+                      const numValue = parseInt(inputValue, 10);
+                      const clamped = Math.min(Math.max(numValue, 0), 100);
+                      setNoteOpacity(clamped);
+                      setDisplayNoteOpacity(`${clamped}%`);
+                    }
+                  }}
+                  className="text-center w-[47px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943] focus:border-[#459BF8] text-style-4 text-[#DBDEE8]"
+                />
+              </div>
+            </>
+          )}
+          {/* 입력/대기 이미지 */}
+          <div className="flex justify-between w-full items-center">
+            <div className="flex items-center justify-between gap-[20px]">
               <p className="text-white text-style-2">
-                {t("keySetting.noteOpacity")}
+                {t("keySetting.inactiveState")}
               </p>
               <input
+                type="file"
+                accept="image/*"
+                ref={inactiveInputRef}
+                className="hidden"
+                onChange={(e) => handleImageSelect(e, false)}
+              />
+              <button
+                className="key-bg flex w-[30px] h-[30px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943]"
+                onClick={() => inactiveInputRef.current.click()}
+                style={{
+                  backgroundImage: inactiveImage
+                    ? `url(${inactiveImage})`
+                    : "none",
+                  backgroundSize: "cover",
+                  width: "30px",
+                  height: "30px",
+                }}
+              ></button>
+            </div>
+            <div className="flex items-center justify-between gap-[20px]">
+              <p className="text-white text-style-2">
+                {t("keySetting.activeState")}
+              </p>
+              <input
+                type="file"
+                accept="image/*"
+                ref={activeInputRef}
+                className="hidden"
+                onChange={(e) => handleImageSelect(e, true)}
+              />
+              <button
+                className="key-bg flex w-[30px] h-[30px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943]"
+                onClick={() => activeInputRef.current.click()}
+                style={{
+                  backgroundImage: activeImage ? `url(${activeImage})` : "none",
+                  backgroundSize: "cover",
+                  width: "30px",
+                  height: "30px",
+                }}
+              ></button>
+            </div>
+          </div>
+          {/* 클래스 이름 - 커스텀 CSS 활성화 시에만 표시 */}
+          {useCustomCSS && (
+            <div className="flex justify-between w-full items-center">
+              <p className="text-white text-style-2">
+                {t("keySetting.className")}
+              </p>
+              <input
+                key="classNameUnified"
                 type="text"
-                value={displayNoteOpacity}
-                onChange={(e) => {
-                  const newValue = e.target.value.replace(/[^0-9]/g, "");
-                  if (newValue === "") {
-                    setDisplayNoteOpacity("");
-                  } else {
-                    const numValue = parseInt(newValue);
-                    if (!isNaN(numValue)) {
-                      setDisplayNoteOpacity(newValue);
-                    }
-                  }
-                }}
-                onFocus={() => {
-                  setIsFocused(true);
-                  setDisplayNoteOpacity(noteOpacity.toString());
-                }}
-                onBlur={(e) => {
-                  setIsFocused(false);
-                  const inputValue = e.target.value.replace(/[^0-9]/g, "");
-                  if (inputValue === "" || isNaN(parseInt(inputValue))) {
-                    setNoteOpacity(80);
-                  } else {
-                    const numValue = parseInt(inputValue);
-                    setNoteOpacity(Math.min(Math.max(numValue, 0), 100));
-                  }
-                }}
-                className="text-center w-[47px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943] focus:border-[#459BF8] text-style-4 text-[#DBDEE8]"
+                value={className}
+                onChange={(e) => setClassName(e.target.value)}
+                placeholder="className"
+                className="text-center w-[90px] h-[23px] p-[6px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943] focus:border-[#459BF8] text-style-4 text-[#DBDEE8]"
               />
             </div>
-          </>
-        )}
-        {/* 입력/대기 이미지 */}
-        <div className="flex justify-between w-full items-center">
-          <div className="flex items-center justify-between gap-[20px]">
-            <p className="text-white text-style-2">
-              {t("keySetting.inactiveState")}
-            </p>
-            <input
-              type="file"
-              accept="image/*"
-              ref={inactiveInputRef}
-              className="hidden"
-              onChange={(e) => handleImageSelect(e, false)}
-            />
+          )}
+          {/* 저장/취소 버튼 */}
+          <div className="flex gap-[10.5px]">
             <button
-              className="key-bg flex w-[30px] h-[30px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943]"
-              onClick={() => inactiveInputRef.current.click()}
-              style={{
-                backgroundImage: inactiveImage
-                  ? `url(${inactiveImage})`
-                  : "none",
-                backgroundSize: "cover",
-                width: "30px",
-                height: "30px",
-              }}
-            ></button>
-          </div>
-          <div className="flex items-center justify-between gap-[20px]">
-            <p className="text-white text-style-2">
-              {t("keySetting.activeState")}
-            </p>
-            <input
-              type="file"
-              accept="image/*"
-              ref={activeInputRef}
-              className="hidden"
-              onChange={(e) => handleImageSelect(e, true)}
-            />
+              onClick={handleSubmit}
+              className="w-[150px] h-[30px] bg-[#2A2A30] hover:bg-[#303036] active:bg-[#393941] rounded-[7px] text-[#DCDEE7] text-style-3"
+            >
+              {t("keySetting.save")}
+            </button>
             <button
-              className="key-bg flex w-[30px] h-[30px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943]"
-              onClick={() => activeInputRef.current.click()}
-              style={{
-                backgroundImage: activeImage ? `url(${activeImage})` : "none",
-                backgroundSize: "cover",
-                width: "30px",
-                height: "30px",
-              }}
-            ></button>
+              onClick={onClose}
+              className="w-[75px] h-[30px] bg-[#3C1E1E] hover:bg-[#442222] active:bg-[#522929] rounded-[7px] text-[#E6DBDB] text-style-3"
+            >
+              {t("keySetting.cancel")}
+            </button>
           </div>
         </div>
-        {/* 클래스 이름 - 커스텀 CSS 활성화 시에만 표시 */}
-        {useCustomCSS && (
-          <div className="flex justify-between w-full items-center">
-            <p className="text-white text-style-2">
-              {t("keySetting.className")}
-            </p>
-            <input
-              key="classNameUnified"
-              type="text"
-              value={className}
-              onChange={(e) => setClassName(e.target.value)}
-              placeholder="className"
-              className="text-center w-[90px] h-[23px] p-[6px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943] focus:border-[#459BF8] text-style-4 text-[#DBDEE8]"
-            />
-          </div>
+        {noteEffect && showPicker && (
+          <ColorPicker
+            open={showPicker}
+            referenceRef={colorButtonRef}
+            color={
+              colorMode === COLOR_MODES.gradient
+                ? toGradient(noteColor, gradientBottom)
+                : noteColor
+            }
+            onColorChange={handleColorChange}
+            onClose={handlePickerClose}
+          />
         )}
-        {/* 저장/취소 버튼 */}
-        <div className="flex gap-[10.5px]">
-          <button
-            onClick={handleSubmit}
-            className="w-[150px] h-[30px] bg-[#2A2A30] hover:bg-[#303036] active:bg-[#393941] rounded-[7px] text-[#DCDEE7] text-style-3"
-          >
-            {t("keySetting.save")}
-          </button>
-          <button
-            onClick={onClose}
-            className="w-[75px] h-[30px] bg-[#3C1E1E] hover:bg-[#442222] active:bg-[#522929] rounded-[7px] text-[#E6DBDB] text-style-3"
-          >
-            {t("keySetting.cancel")}
-          </button>
-        </div>
       </div>
     </Modal>
   );

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 
 interface ModalProps {
   onClick?: () => void;
@@ -6,16 +6,53 @@ interface ModalProps {
   animate?: boolean;
 }
 
-export default function Modal({ onClick, children, animate = true }: ModalProps) {
-  const backdropAnimClass = animate ? "opacity-0 animate-modal-fade" : "opacity-100";
+export default function Modal({
+  onClick,
+  children,
+  animate = true,
+}: ModalProps) {
+  const backdropAnimClass = animate
+    ? "opacity-0 animate-modal-fade"
+    : "opacity-100";
   const contentAnimClass = animate ? "animate-modal-scale" : "";
+  const pointerDownInsideRef = useRef(false);
+
+  useEffect(() => {
+    const handlePointerUp = () => {
+      if (!pointerDownInsideRef.current) return;
+      setTimeout(() => {
+        pointerDownInsideRef.current = false;
+      }, 0);
+    };
+
+    document.addEventListener("pointerup", handlePointerUp, true);
+    return () => {
+      document.removeEventListener("pointerup", handlePointerUp, true);
+    };
+  }, []);
+
+  const handleBackdropClick = () => {
+    if (pointerDownInsideRef.current) {
+      return;
+    }
+    onClick?.();
+  };
+
+  const handleContentPointerDown = () => {
+    pointerDownInsideRef.current = true;
+  };
 
   return (
     <div
       className={`fixed top-[40px] left-[1px] flex items-center justify-center w-[900px] h-[387px] bg-[#000000] bg-opacity-70 z-50 ${backdropAnimClass}`}
-      onClick={onClick}
+      onClick={handleBackdropClick}
     >
-      <div className={contentAnimClass}>{children}</div>
+      <div
+        className={contentAnimClass}
+        onPointerDown={handleContentPointerDown}
+      >
+        {children}
+      </div>
     </div>
   );
 }

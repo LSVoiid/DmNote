@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import Checkbox from "@components/main/common/Checkbox";
 import Dropdown from "@components/main/common/Dropdown";
 import Modal from "../Modal";
-import { useTranslation } from "react-i18next";
+import { useTranslation } from "@contexts/I18nContext";
 
 export default function NoteSetting({ onClose, settings, onSave }) {
   const { t } = useTranslation();
@@ -33,6 +33,7 @@ export default function NoteSetting({ onClose, settings, onSave }) {
 
   const handleSave = async () => {
     const normalized = {
+      ...settings,
       borderRadius: Math.max(1, Math.min(parseInt(borderRadius || 1), 100)),
       speed: Math.max(70, Math.min(parseInt(speed || 70), 1000)),
       trackHeight: Math.min(Math.max(trackHeight, 50), 500),

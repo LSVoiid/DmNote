@@ -157,15 +157,15 @@ const FloatingTooltip = ({
             position: strategy,
             top: y ?? 0,
             left: x ?? 0,
-            zIndex: 50,
+            zIndex: 90,
           }}
           className={
             shouldAnimateOpenRef.current ? "tooltip-fade-in" : undefined
           }
         >
-          <div className="bg-[#1E1E22] text-[#EDEDED] text-[12px] px-2 py-1 rounded-md shadow-sm">
+            <div className="bg-[#1E1E22] text-[#EDEDED] text-[12px] px-2 py-1 rounded-md shadow-sm whitespace-nowrap">
             {content}
-          </div>
+            </div>
           <div
             ref={arrowRef}
             style={arrowStyle}

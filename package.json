@@ -2,15 +2,19 @@
   "name": "dm-note",
   "version": "1.2.0",
   "description": "DM NOTE",
-  "main": "src/main/main.js",
+  "main": "dist/main/main/main.js",
   "scripts": {
-    "start": "npm run type-check && cross-env NODE_ENV=development concurrently \"npm run dev\" \"wait-on tcp:3000 && electron .\"",
+    "start": "npm run ensure-main-built && cross-env NODE_ENV=development concurrently \"npm run dev\" \"npm run watch:main\" \"wait-on dist/main/main/main.js && electron .\"",
     "dev": "vite",
-    "prebuild": "npm run type-check && vite build",
-    "build": "electron-builder --win",
+    "analyze:renderer": "cross-env ANALYZE=true vite build",
+    "prebuild": "npm run type-check && npm run build:main && vite build",
+    "build": "npm run build:main && electron-builder --win",
     "type-check": "tsc --noEmit",
     "type-check:watch": "tsc --noEmit --watch",
-    "postinstall": "electron-builder install-app-deps && npx electron-rebuild -f -w node-global-key-listener-extended"
+    "postinstall": "electron-builder install-app-deps && npx electron-rebuild -f -w node-global-key-listener-extended",
+    "watch:main": "tsc -p tsconfig.main.json --watch",
+    "build:main": "tsc -p tsconfig.main.json",
+    "ensure-main-built": "node ./scripts/ensure-main-built.js"
   },
   "build": {
     "appId": "com.dmnote.app",
@@ -38,7 +42,7 @@
     },
     "files": [
       "dist/renderer/**/*",
-      "src/main/**/*"
+      "dist/main/**/*"
     ]
   },
   "authors": [
@@ -57,12 +61,12 @@
   "license": "GPL-3.0-only",
   "devDependencies": {
     "@electron/rebuild": "^3.7.2",
+    "@preact/preset-vite": "^2.3.0",
     "@types/node": "^22.15.27",
     "@types/react": "^19.1.6",
     "@types/react-dom": "^19.1.5",
     "@typescript-eslint/eslint-plugin": "^8.33.0",
     "@typescript-eslint/parser": "^8.33.0",
-    "@vitejs/plugin-react": "^5.0.2",
     "autoprefixer": "^10.4.20",
     "concurrently": "^9.1.1",
     "cross-env": "^7.0.3",
@@ -70,6 +74,8 @@
     "electron-builder": "^25.1.8",
     "electron-reloader": "^1.2.3",
     "postcss": "^8.4.49",
+    "rollup-plugin-analyzer": "^4.0.0",
+    "rollup-plugin-visualizer": "^5.12.0",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.8.3",
     "vite": "^7.1.5",
@@ -79,12 +85,12 @@
   "dependencies": {
     "@floating-ui/react": "^0.27.16",
     "electron-store": "^8.2.0",
-    "i18next": "^25.5.2",
     "node-global-key-listener-extended": "github:lee-sihun/node-global-key-listener",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "react-i18next": "^15.7.3",
+    "ogl": "^1.0.11",
+    "preact": "^10.18.0",
+    "react-color-palette": "^7.3.1",
     "three": "^0.180.0",
+    "zod": "^4.1.11",
     "zustand": "^5.0.3"
   }
 }

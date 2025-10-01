@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
+import { useTranslation } from "@contexts/I18nContext";
 import FolderIcon from "@assets/svgs/folder.svg";
 import SettingIcon from "@assets/svgs/setting.svg";
 import CloseEyeIcon from "@assets/svgs/close_eye.svg";
@@ -35,8 +35,28 @@ const SettingTool = ({
   const exportImportRef = useRef<HTMLButtonElement | null>(null);
   const extrasRef = useRef<HTMLButtonElement | null>(null);
   const { noteEffect, laboratoryEnabled } = useSettingsStore();
+
+  useEffect(() => {
+    let unsubscribe: (() => void) | null = null;
+    window.api.overlay
+      .get()
+      .then((state) => {
+        setIsOverlayVisible(state.visible);
+      })
+      .catch((error) => {
+        console.error("Failed to fetch overlay visibility", error);
+      });
+
+    unsubscribe = window.api.overlay.onVisibility(({ visible }) => {
+      setIsOverlayVisible(visible);
+    });
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, []);
+
   const menuItems: ListItem[] = [];
-  
   if (laboratoryEnabled) {
     menuItems.push({ id: "lab", label: t("tooltip.laboratory") });
   }
@@ -44,27 +64,36 @@ const SettingTool = ({
     menuItems.push({ id: "note", label: t("tooltip.noteSettings") });
   }
 
-  useEffect(() => {
-    const ipc = window.electron.ipcRenderer;
-    ipc.invoke("get-overlay-visibility").then((visible) => {
-      setIsOverlayVisible(visible);
-    });
-
-    const handleVisibilityChange = (_, visible) => {
-      setIsOverlayVisible(visible);
-    };
-
-    ipc.on("overlay-visibility-changed", handleVisibilityChange);
-
-    return () => {
-      ipc.removeListener("overlay-visibility-changed", handleVisibilityChange);
-    };
-  }, []);
-
   const toggleOverlay = () => {
-    const newState = !isOverlayVisible;
-    setIsOverlayVisible(newState);
-    window.electron.ipcRenderer.send("toggle-overlay", newState);
+    const next = !isOverlayVisible;
+    setIsOverlayVisible(next);
+    window.api.overlay.setVisible(next).catch((error) => {
+      console.error("Failed to toggle overlay", error);
+    });
+  };
+
+  const handlePresetSave = async () => {
+    try {
+      const result = await window.api.presets.save();
+      showAlert?.(
+        result?.success ? t("preset.saveSuccess") : t("preset.saveFail")
+      );
+    } catch (error) {
+      console.error("Failed to save preset", error);
+      showAlert?.(t("preset.saveFail"));
+    }
+  };
+
+  const handlePresetLoad = async () => {
+    try {
+      const result = await window.api.presets.load();
+      showAlert?.(
+        result?.success ? t("preset.loadSuccess") : t("preset.loadFail")
+      );
+    } catch (error) {
+      console.error("Failed to load preset", error);
+      showAlert?.(t("preset.loadFail"));
+    }
   };
 
   return (
@@ -73,23 +102,7 @@ const SettingTool = ({
         <TooltipGroup>
           <div className="flex items-center h-[40px] p-[5px] bg-button-primary rounded-[7px] gap-[0px]">
             <FloatingTooltip content={t("tooltip.exportPreset")}>
-              <Button
-                icon={<FolderIcon />}
-                onClick={async () => {
-                  try {
-                    const ok = await window.electron.ipcRenderer.invoke(
-                      "save-preset"
-                    );
-                    if (showAlert) {
-                      showAlert(
-                        ok ? t("preset.saveSuccess") : t("preset.saveFail")
-                      );
-                    }
-                  } catch {
-                    showAlert?.(t("preset.saveFail"));
-                  }
-                }}
-              />
+              <Button icon={<FolderIcon />} onClick={handlePresetSave} />
             </FloatingTooltip>
 
             <FloatingTooltip
@@ -112,26 +125,12 @@ const SettingTool = ({
                   { id: "export", label: t("preset.export") },
                 ]}
                 onSelect={async (id) => {
-                  try {
-                    if (id === "import") {
-                      const ok = await window.electron.ipcRenderer.invoke(
-                        "load-preset"
-                      );
-                      showAlert?.(
-                        ok ? t("preset.loadSuccess") : t("preset.loadFail")
-                      );
-                    } else if (id === "export") {
-                      const ok = await window.electron.ipcRenderer.invoke(
-                        "save-preset"
-                      );
-                      showAlert?.(
-                        ok ? t("preset.saveSuccess") : t("preset.saveFail")
-                      );
-                    }
-                  } catch {
-                    if (id === "import") showAlert?.(t("preset.loadFail"));
-                    else if (id === "export") showAlert?.(t("preset.saveFail"));
+                  if (id === "import") {
+                    await handlePresetLoad();
+                  } else if (id === "export") {
+                    await handlePresetSave();
                   }
+                  setIsExportImportOpen(false);
                 }}
               />
             </div>
