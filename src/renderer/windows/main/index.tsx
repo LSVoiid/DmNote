@@ -1,3 +1,4 @@
+import "@utils/tauriApi";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
@@ -12,3 +13,4 @@ root.render(
     <App />
   </I18nProvider>
 );
+
