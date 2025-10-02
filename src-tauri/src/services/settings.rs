@@ -1,0 +1,169 @@
+use std::sync::Arc;
+
+use anyhow::Result;
+
+use crate::models::{
+    CustomCss, CustomCssPatch, NoteSettings, NoteSettingsPatch, SettingsDiff, SettingsPatch,
+    SettingsPatchInput, SettingsState,
+};
+use crate::store::AppStore;
+
+#[derive(Clone)]
+pub struct SettingsService {
+    store: Arc<AppStore>,
+}
+
+impl SettingsService {
+    pub fn new(store: Arc<AppStore>) -> Self {
+        Self { store }
+    }
+
+    pub fn snapshot(&self) -> SettingsState {
+        self.store.settings_snapshot()
+    }
+
+    pub fn apply_patch(&self, patch: SettingsPatchInput) -> Result<SettingsDiff> {
+        let current = self.snapshot();
+        let normalized = normalize_patch(&patch, &current);
+        let next = apply_changes(current.clone(), &normalized);
+
+        self.store.update(|state| {
+            state.hardware_acceleration = next.hardware_acceleration;
+            state.always_on_top = next.always_on_top;
+            state.overlay_locked = next.overlay_locked;
+            state.note_effect = next.note_effect;
+            state.note_settings = next.note_settings.clone();
+            state.angle_mode = next.angle_mode.clone();
+            state.language = next.language.clone();
+            state.laboratory_enabled = next.laboratory_enabled;
+            state.background_color = next.background_color.clone();
+            state.use_custom_css = next.use_custom_css;
+            state.custom_css = next.custom_css.clone();
+            state.overlay_resize_anchor = next.overlay_resize_anchor.clone();
+        })?;
+
+        Ok(SettingsDiff {
+            changed: normalized,
+            full: next,
+        })
+    }
+}
+
+fn normalize_patch(patch: &SettingsPatchInput, current: &SettingsState) -> SettingsPatch {
+    let mut normalized = SettingsPatch::default();
+    if let Some(value) = patch.hardware_acceleration {
+        normalized.hardware_acceleration = Some(value);
+    }
+    if let Some(value) = patch.always_on_top {
+        normalized.always_on_top = Some(value);
+    }
+    if let Some(value) = patch.overlay_locked {
+        normalized.overlay_locked = Some(value);
+    }
+    if let Some(value) = patch.note_effect {
+        normalized.note_effect = Some(value);
+    }
+    if let Some(value) = patch.note_settings.as_ref() {
+        normalized.note_settings = Some(apply_note_patch(current.note_settings.clone(), value));
+    }
+    if let Some(value) = patch.angle_mode.as_ref() {
+        normalized.angle_mode = Some(value.clone());
+    }
+    if let Some(value) = patch.language.as_ref() {
+        normalized.language = Some(value.clone());
+    }
+    if let Some(value) = patch.laboratory_enabled {
+        normalized.laboratory_enabled = Some(value);
+    }
+    if let Some(value) = patch.background_color.as_ref() {
+        normalized.background_color = Some(value.clone());
+    }
+    if let Some(value) = patch.use_custom_css {
+        normalized.use_custom_css = Some(value);
+    }
+    if let Some(value) = patch.custom_css.as_ref() {
+        normalized.custom_css = Some(apply_css_patch(current.custom_css.clone(), value));
+    }
+    if let Some(value) = patch.overlay_resize_anchor.as_ref() {
+        normalized.overlay_resize_anchor = Some(value.clone());
+    }
+    normalized
+}
+
+fn apply_changes(mut current: SettingsState, patch: &SettingsPatch) -> SettingsState {
+    if let Some(value) = patch.hardware_acceleration {
+        current.hardware_acceleration = value;
+    }
+    if let Some(value) = patch.always_on_top {
+        current.always_on_top = value;
+    }
+    if let Some(value) = patch.overlay_locked {
+        current.overlay_locked = value;
+    }
+    if let Some(value) = patch.note_effect {
+        current.note_effect = value;
+    }
+    if let Some(value) = patch.note_settings.as_ref() {
+        current.note_settings = value.clone();
+    }
+    if let Some(value) = patch.angle_mode.as_ref() {
+        current.angle_mode = value.clone();
+    }
+    if let Some(value) = patch.language.as_ref() {
+        current.language = value.clone();
+    }
+    if let Some(value) = patch.laboratory_enabled {
+        current.laboratory_enabled = value;
+    }
+    if let Some(value) = patch.background_color.as_ref() {
+        current.background_color = value.clone();
+    }
+    if let Some(value) = patch.use_custom_css {
+        current.use_custom_css = value;
+    }
+    if let Some(value) = patch.custom_css.as_ref() {
+        current.custom_css = value.clone();
+    }
+    if let Some(value) = patch.overlay_resize_anchor.as_ref() {
+        current.overlay_resize_anchor = value.clone();
+    }
+    current
+}
+
+fn apply_note_patch(mut settings: NoteSettings, patch: &NoteSettingsPatch) -> NoteSettings {
+    if let Some(value) = patch.border_radius {
+        settings.border_radius = value;
+    }
+    if let Some(value) = patch.speed {
+        settings.speed = value;
+    }
+    if let Some(value) = patch.track_height {
+        settings.track_height = value;
+    }
+    if let Some(value) = patch.reverse {
+        settings.reverse = value;
+    }
+    if let Some(value) = patch.fade_position.as_ref() {
+        settings.fade_position = value.clone();
+    }
+    if let Some(value) = patch.delayed_note_enabled {
+        settings.delayed_note_enabled = value;
+    }
+    if let Some(value) = patch.short_note_threshold_ms {
+        settings.short_note_threshold_ms = value;
+    }
+    if let Some(value) = patch.short_note_min_length_px {
+        settings.short_note_min_length_px = value;
+    }
+    settings
+}
+
+fn apply_css_patch(mut css: CustomCss, patch: &CustomCssPatch) -> CustomCss {
+    if let Some(path) = patch.path.as_ref() {
+        css.path = path.clone();
+    }
+    if let Some(content) = patch.content.as_ref() {
+        css.content = content.clone();
+    }
+    css
+}

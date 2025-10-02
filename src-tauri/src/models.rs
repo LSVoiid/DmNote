@@ -1,0 +1,302 @@
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+
+pub type KeyMappings = HashMap<String, Vec<String>>;
+pub type KeyPositions = HashMap<String, Vec<KeyPosition>>;
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(untagged)]
+pub enum NoteColor {
+    Solid(String),
+    Gradient { top: String, bottom: String },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct KeyPosition {
+    pub dx: f64,
+    pub dy: f64,
+    pub width: f64,
+    pub height: f64,
+    #[serde(default)]
+    pub active_image: Option<String>,
+    #[serde(default)]
+    pub inactive_image: Option<String>,
+    pub count: u32,
+    pub note_color: NoteColor,
+    pub note_opacity: u32,
+    #[serde(default)]
+    pub class_name: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct NoteSettings {
+    pub border_radius: u32,
+    pub speed: u32,
+    pub track_height: u32,
+    pub reverse: bool,
+    pub fade_position: FadePosition,
+    pub delayed_note_enabled: bool,
+    pub short_note_threshold_ms: u32,
+    pub short_note_min_length_px: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "kebab-case")]
+pub enum FadePosition {
+    Auto,
+    Top,
+    Bottom,
+}
+
+impl Default for NoteSettings {
+    fn default() -> Self {
+        Self {
+            border_radius: 2,
+            speed: 180,
+            track_height: 150,
+            reverse: false,
+            fade_position: FadePosition::Auto,
+            delayed_note_enabled: false,
+            short_note_threshold_ms: 120,
+            short_note_min_length_px: 10,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct CustomCss {
+    pub path: Option<String>,
+    pub content: String,
+}
+
+impl Default for CustomCss {
+    fn default() -> Self {
+        Self {
+            path: None,
+            content: String::new(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "kebab-case")]
+pub enum OverlayResizeAnchor {
+    TopLeft,
+    TopRight,
+    BottomLeft,
+    BottomRight,
+    Center,
+}
+
+impl Default for OverlayResizeAnchor {
+    fn default() -> Self {
+        OverlayResizeAnchor::TopLeft
+    }
+}
+
+impl OverlayResizeAnchor {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            OverlayResizeAnchor::TopLeft => "top-left",
+            OverlayResizeAnchor::TopRight => "top-right",
+            OverlayResizeAnchor::BottomLeft => "bottom-left",
+            OverlayResizeAnchor::BottomRight => "bottom-right",
+            OverlayResizeAnchor::Center => "center",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct CustomTab {
+    pub id: String,
+    pub name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct AppStoreData {
+    pub hardware_acceleration: bool,
+    pub always_on_top: bool,
+    pub overlay_locked: bool,
+    pub note_effect: bool,
+    #[serde(default)]
+    pub note_settings: NoteSettings,
+    pub selected_key_type: String,
+    #[serde(default)]
+    pub custom_tabs: Vec<CustomTab>,
+    pub angle_mode: String,
+    pub language: String,
+    pub laboratory_enabled: bool,
+    #[serde(default)]
+    pub keys: KeyMappings,
+    #[serde(default)]
+    pub key_positions: KeyPositions,
+    pub background_color: String,
+    pub use_custom_css: bool,
+    #[serde(default)]
+    pub custom_css: CustomCss,
+    pub overlay_resize_anchor: OverlayResizeAnchor,
+    pub overlay_last_content_top_offset: Option<f64>,
+}
+
+impl Default for AppStoreData {
+    fn default() -> Self {
+        Self {
+            hardware_acceleration: true,
+            always_on_top: true,
+            overlay_locked: false,
+            note_effect: false,
+            note_settings: NoteSettings::default(),
+            selected_key_type: "4key".to_string(),
+            custom_tabs: Vec::new(),
+            angle_mode: "d3d11".to_string(),
+            language: "ko".to_string(),
+            laboratory_enabled: false,
+            keys: KeyMappings::new(),
+            key_positions: KeyPositions::new(),
+            background_color: "transparent".to_string(),
+            use_custom_css: false,
+            custom_css: CustomCss::default(),
+            overlay_resize_anchor: OverlayResizeAnchor::TopLeft,
+            overlay_last_content_top_offset: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BootstrapOverlayState {
+    pub visible: bool,
+    pub locked: bool,
+    pub anchor: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BootstrapPayload {
+    pub settings: SettingsState,
+    pub keys: KeyMappings,
+    pub positions: KeyPositions,
+    pub custom_tabs: Vec<CustomTab>,
+    pub selected_key_type: String,
+    pub current_mode: String,
+    pub overlay: BootstrapOverlayState,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct SettingsState {
+    pub hardware_acceleration: bool,
+    pub always_on_top: bool,
+    pub overlay_locked: bool,
+    pub note_effect: bool,
+    #[serde(default)]
+    pub note_settings: NoteSettings,
+    pub angle_mode: String,
+    pub language: String,
+    pub laboratory_enabled: bool,
+    pub background_color: String,
+    pub use_custom_css: bool,
+    #[serde(default)]
+    pub custom_css: CustomCss,
+    pub overlay_resize_anchor: OverlayResizeAnchor,
+}
+
+impl Default for SettingsState {
+    fn default() -> Self {
+        Self {
+            hardware_acceleration: true,
+            always_on_top: true,
+            overlay_locked: false,
+            note_effect: false,
+            note_settings: NoteSettings::default(),
+            angle_mode: "d3d11".to_string(),
+            language: "ko".to_string(),
+            laboratory_enabled: false,
+            background_color: "transparent".to_string(),
+            use_custom_css: false,
+            custom_css: CustomCss::default(),
+            overlay_resize_anchor: OverlayResizeAnchor::TopLeft,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct NoteSettingsPatch {
+    pub border_radius: Option<u32>,
+    pub speed: Option<u32>,
+    pub track_height: Option<u32>,
+    pub reverse: Option<bool>,
+    pub fade_position: Option<FadePosition>,
+    pub delayed_note_enabled: Option<bool>,
+    pub short_note_threshold_ms: Option<u32>,
+    pub short_note_min_length_px: Option<u32>,
+}
+
+impl Default for NoteSettingsPatch {
+    fn default() -> Self {
+        Self {
+            border_radius: None,
+            speed: None,
+            track_height: None,
+            reverse: None,
+            fade_position: None,
+            delayed_note_enabled: None,
+            short_note_threshold_ms: None,
+            short_note_min_length_px: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct SettingsPatchInput {
+    pub hardware_acceleration: Option<bool>,
+    pub always_on_top: Option<bool>,
+    pub overlay_locked: Option<bool>,
+    pub note_effect: Option<bool>,
+    pub note_settings: Option<NoteSettingsPatch>,
+    pub angle_mode: Option<String>,
+    pub language: Option<String>,
+    pub laboratory_enabled: Option<bool>,
+    pub background_color: Option<String>,
+    pub use_custom_css: Option<bool>,
+    pub custom_css: Option<CustomCssPatch>,
+    pub overlay_resize_anchor: Option<OverlayResizeAnchor>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct CustomCssPatch {
+    pub path: Option<Option<String>>,
+    pub content: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SettingsDiff {
+    pub changed: SettingsPatch,
+    pub full: SettingsState,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct SettingsPatch {
+    pub hardware_acceleration: Option<bool>,
+    pub always_on_top: Option<bool>,
+    pub overlay_locked: Option<bool>,
+    pub note_effect: Option<bool>,
+    pub note_settings: Option<NoteSettings>,
+    pub angle_mode: Option<String>,
+    pub language: Option<String>,
+    pub laboratory_enabled: Option<bool>,
+    pub background_color: Option<String>,
+    pub use_custom_css: Option<bool>,
+    pub custom_css: Option<CustomCss>,
+    pub overlay_resize_anchor: Option<OverlayResizeAnchor>,
+}

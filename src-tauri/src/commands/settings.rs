@@ -1,0 +1,27 @@
+use tauri::{AppHandle, State};
+
+use crate::{
+    app_state::AppState,
+    models::{SettingsPatchInput, SettingsState},
+};
+
+#[tauri::command(rename = "settings:get")]
+pub fn settings_get(state: State<'_, AppState>) -> Result<SettingsState, String> {
+    Ok(state.settings.snapshot())
+}
+
+#[tauri::command(rename = "settings:update")]
+pub fn settings_update(
+    state: State<'_, AppState>,
+    app: AppHandle,
+    patch: SettingsPatchInput,
+) -> Result<SettingsState, String> {
+    let diff = state
+        .settings
+        .apply_patch(patch)
+        .map_err(|err| err.to_string())?;
+    state
+        .emit_settings_changed(&diff, &app)
+        .map_err(|err| err.to_string())?;
+    Ok(diff.full)
+}

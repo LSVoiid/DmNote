@@ -4,3 +4,4 @@ dist
 .roo
 AGENTS.md
 copilot-instructions.md
+src-tauri/target

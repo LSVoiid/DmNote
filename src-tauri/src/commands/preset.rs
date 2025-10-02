@@ -1,0 +1,209 @@
+use std::fs;
+
+use rfd::FileDialog;
+use serde::{Deserialize, Serialize};
+use tauri::{AppHandle, Emitter, State};
+
+use crate::{
+    app_state::AppState,
+    defaults::{default_keys, default_positions},
+    models::{
+        CustomCss, CustomCssPatch, CustomTab, KeyMappings, KeyPositions, NoteSettings,
+        NoteSettingsPatch, SettingsPatchInput,
+    },
+};
+
+#[derive(Serialize)]
+pub struct PresetOperationResult {
+    pub success: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+struct PresetFile {
+    keys: Option<KeyMappings>,
+    key_positions: Option<KeyPositions>,
+    background_color: Option<String>,
+    note_settings: Option<NoteSettings>,
+    laboratory_enabled: Option<bool>,
+    custom_tabs: Option<Vec<CustomTab>>,
+    selected_key_type: Option<String>,
+    use_custom_css: Option<bool>,
+    custom_css: Option<CustomCss>,
+}
+
+#[tauri::command(rename = "preset:save")]
+pub fn preset_save(state: State<'_, AppState>) -> Result<PresetOperationResult, String> {
+    let preset_path = FileDialog::new()
+        .set_file_name("preset.json")
+        .add_filter("DM NOTE Preset", &["json"])
+        .save_file();
+
+    let Some(path) = preset_path else {
+        return Ok(PresetOperationResult {
+            success: false,
+            error: None,
+        });
+    };
+
+    let snapshot = state.store.snapshot();
+    let preset = PresetFile {
+        keys: Some(snapshot.keys),
+        key_positions: Some(snapshot.key_positions),
+        background_color: Some(snapshot.background_color),
+        note_settings: Some(snapshot.note_settings),
+        laboratory_enabled: Some(snapshot.laboratory_enabled),
+        custom_tabs: Some(snapshot.custom_tabs),
+        selected_key_type: Some(snapshot.selected_key_type),
+        use_custom_css: Some(snapshot.use_custom_css),
+        custom_css: Some(snapshot.custom_css),
+    };
+
+    let json = serde_json::to_string_pretty(&preset).map_err(|err| err.to_string())?;
+    fs::write(&path, json).map_err(|err| err.to_string())?;
+
+    Ok(PresetOperationResult {
+        success: true,
+        error: None,
+    })
+}
+
+#[tauri::command(rename = "preset:load")]
+pub fn preset_load(
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<PresetOperationResult, String> {
+    let picked = FileDialog::new()
+        .add_filter("DM NOTE Preset", &["json"])
+        .pick_file();
+
+    let Some(path) = picked else {
+        return Ok(PresetOperationResult {
+            success: false,
+            error: None,
+        });
+    };
+
+    let content = fs::read_to_string(&path).map_err(|err| err.to_string())?;
+    let preset: PresetFile =
+        serde_json::from_str(&content).map_err(|_| "invalid-preset".to_string())?;
+
+    let keys = preset.keys.unwrap_or_else(default_keys);
+    let positions = preset.key_positions.unwrap_or_else(default_positions);
+    let custom_tabs = preset
+        .custom_tabs
+        .unwrap_or_else(|| synthesize_custom_tabs(&keys));
+    let snapshot = state.store.snapshot();
+    let selected_key_type =
+        choose_selected_key_type(preset.selected_key_type, &keys, snapshot.selected_key_type);
+
+    state
+        .store
+        .update(|store| {
+            store.keys = keys.clone();
+            store.key_positions = positions.clone();
+            store.custom_tabs = custom_tabs.clone();
+            store.selected_key_type = selected_key_type.clone();
+        })
+        .map_err(|err| err.to_string())?;
+
+    state.keyboard.update_mappings(keys.clone());
+    state.keyboard.set_mode(selected_key_type.clone());
+
+    let desired_settings = preset.note_settings.unwrap_or_else(NoteSettings::default);
+    let mut note_patch = NoteSettingsPatch::default();
+    note_patch.border_radius = Some(desired_settings.border_radius);
+    note_patch.speed = Some(desired_settings.speed);
+    note_patch.track_height = Some(desired_settings.track_height);
+    note_patch.reverse = Some(desired_settings.reverse);
+    note_patch.fade_position = Some(desired_settings.fade_position);
+    note_patch.delayed_note_enabled = Some(desired_settings.delayed_note_enabled);
+    note_patch.short_note_threshold_ms = Some(desired_settings.short_note_threshold_ms);
+    note_patch.short_note_min_length_px = Some(desired_settings.short_note_min_length_px);
+
+    let css_use = preset.use_custom_css.unwrap_or(false);
+    let custom_css = preset.custom_css.unwrap_or_default();
+
+    let diff = state
+        .settings
+        .apply_patch(SettingsPatchInput {
+            background_color: Some(
+                preset
+                    .background_color
+                    .unwrap_or_else(|| "transparent".to_string()),
+            ),
+            note_settings: Some(note_patch),
+            laboratory_enabled: Some(preset.laboratory_enabled.unwrap_or(false)),
+            use_custom_css: Some(css_use),
+            custom_css: Some(CustomCssPatch {
+                path: Some(custom_css.path.clone()),
+                content: Some(custom_css.content.clone()),
+            }),
+            ..SettingsPatchInput::default()
+        })
+        .map_err(|err| err.to_string())?;
+
+    state
+        .emit_settings_changed(&diff, &app)
+        .map_err(|err| err.to_string())?;
+
+    app.emit("keys:changed", &keys)
+        .map_err(|err| err.to_string())?;
+    app.emit("positions:changed", &positions)
+        .map_err(|err| err.to_string())?;
+    app.emit(
+        "customTabs:changed",
+        &crate::commands::keys::CustomTabChangePayload {
+            custom_tabs: custom_tabs.clone(),
+            selected_key_type: selected_key_type.clone(),
+        },
+    )
+    .map_err(|err| err.to_string())?;
+    app.emit(
+        "keys:mode-changed",
+        &serde_json::json!({ "mode": &selected_key_type }),
+    )
+    .map_err(|err| err.to_string())?;
+    app.emit("css:use", &serde_json::json!({ "enabled": css_use }))
+        .map_err(|err| err.to_string())?;
+    app.emit("css:content", &custom_css)
+        .map_err(|err| err.to_string())?;
+
+    Ok(PresetOperationResult {
+        success: true,
+        error: None,
+    })
+}
+
+fn synthesize_custom_tabs(keys: &KeyMappings) -> Vec<CustomTab> {
+    let default_modes = default_keys();
+    let mut index = 0usize;
+    keys.keys()
+        .filter(|key| !default_modes.contains_key(*key))
+        .map(|id| {
+            index += 1;
+            CustomTab {
+                id: id.clone(),
+                name: format!("Custom {}", index),
+            }
+        })
+        .collect()
+}
+
+fn choose_selected_key_type(
+    requested: Option<String>,
+    keys: &KeyMappings,
+    fallback: String,
+) -> String {
+    if let Some(req) = requested {
+        if keys.contains_key(&req) {
+            return req;
+        }
+    }
+    if keys.contains_key(&fallback) {
+        return fallback;
+    }
+    "4key".to_string()
+}
