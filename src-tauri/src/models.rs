@@ -97,6 +97,14 @@ impl Default for OverlayResizeAnchor {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct OverlayBounds {
+    pub x: f64,
+    pub y: f64,
+    pub width: f64,
+    pub height: f64,
+}
 impl OverlayResizeAnchor {
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -109,6 +117,16 @@ impl OverlayResizeAnchor {
     }
 }
 
+pub fn overlay_resize_anchor_from_str(value: &str) -> Option<OverlayResizeAnchor> {
+    match value {
+        "top-left" => Some(OverlayResizeAnchor::TopLeft),
+        "top-right" => Some(OverlayResizeAnchor::TopRight),
+        "bottom-left" => Some(OverlayResizeAnchor::BottomLeft),
+        "bottom-right" => Some(OverlayResizeAnchor::BottomRight),
+        "center" => Some(OverlayResizeAnchor::Center),
+        _ => None,
+    }
+}
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct CustomTab {
@@ -140,6 +158,7 @@ pub struct AppStoreData {
     #[serde(default)]
     pub custom_css: CustomCss,
     pub overlay_resize_anchor: OverlayResizeAnchor,
+    pub overlay_bounds: Option<OverlayBounds>,
     pub overlay_last_content_top_offset: Option<f64>,
 }
 
@@ -162,6 +181,7 @@ impl Default for AppStoreData {
             use_custom_css: false,
             custom_css: CustomCss::default(),
             overlay_resize_anchor: OverlayResizeAnchor::TopLeft,
+            overlay_bounds: None,
             overlay_last_content_top_offset: None,
         }
     }

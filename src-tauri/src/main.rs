@@ -30,6 +30,13 @@ fn main() {
             let app_state = AppState::initialize(store)
                 .map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
             app.manage(app_state);
+            let handle = app.handle();
+            {
+                let state = app.state::<AppState>();
+                state
+                    .initialize_runtime(&handle)
+                    .map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -55,6 +62,11 @@ fn main() {
             commands::css::css_load,
             commands::preset::preset_save,
             commands::preset::preset_load,
+            commands::overlay::overlay_get,
+            commands::overlay::overlay_set_visible,
+            commands::overlay::overlay_set_lock,
+            commands::overlay::overlay_set_anchor,
+            commands::overlay::overlay_resize,
             commands::system::window_minimize,
             commands::system::window_close,
             commands::system::app_open_external,

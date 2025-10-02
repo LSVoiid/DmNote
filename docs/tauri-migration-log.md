@@ -21,3 +21,9 @@
 - willhook 기반 키보드 후킹과 오버레이(WebviewWindow) 제어 로직을 구현하고 상태 연동을 마무리.
 - 프론트엔드 API 층을 Tauri invoke 기반으로 교체하고 타입/스토어 동기화를 정리.
 - 빌드/실행 스크립트를 Tauri 기준으로 정리하고 남은 Electron 의존성 제거.
+
+## 2025-10-02 21:45 – willhook 기반 글로벌 키 후킹 및 오버레이 제어
+- willhook 크레이트로 글로벌 키 훅 스레드를 구성하고 `keys:state` 이벤트를 Tauri emit으로 연동.
+- 오버레이 WebviewWindow 재생성·위치·잠금 제어 로직을 AppState 메서드로 정비하고 상태 질의를 위한 API 추가.
+- overlay:get/set-visible/set-lock/set-anchor/resize Tauri 커맨드를 구현하고 invoke 핸들러에 등록.
+- 앱 setup 단계에서 AppState 런타임 초기화를 수행하도록 조정.
