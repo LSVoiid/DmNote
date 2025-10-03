@@ -14,13 +14,15 @@
       {
         "label": "main",
         "title": "DM Note - Settings",
-        "width": 1060,
-        "height": 760,
-        "resizable": true,
+        "width": 902,
+        "height": 488,
+        "resizable": false,
+        "maximizable": false,
         "fullscreen": false,
-        "center": true,
+        "center": false,
         "transparent": false,
-        "decorations": true,
+        "decorations": false,
+        "shadow": true,
         "url": "main/index.html"
       }
     ],

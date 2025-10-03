@@ -10,7 +10,7 @@ mod store;
 
 use anyhow::Result;
 use log::LevelFilter;
-use tauri::Manager;
+use tauri::{LogicalSize, Manager};
 
 use app_state::AppState;
 use store::AppStore;
@@ -37,6 +37,7 @@ fn main() {
                     .initialize_runtime(&handle)
                     .map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
             }
+            configure_main_window(app);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -90,4 +91,23 @@ fn setup_logging() -> Result<()> {
         .chain(std::io::stdout())
         .apply();
     Ok(())
+}
+
+fn configure_main_window(app: &tauri::App) {
+    if let Some(window) = app.get_webview_window("main") {
+        let size = LogicalSize::new(902.0, 488.0);
+        let _ = window.set_decorations(false);
+        let _ = window.set_resizable(false);
+        let _ = window.set_maximizable(false);
+        if let Err(err) = window.set_min_size(Some(tauri::Size::Logical(size))) {
+            log::warn!("failed to set min size: {err}");
+        }
+        if let Err(err) = window.set_max_size(Some(tauri::Size::Logical(size))) {
+            log::warn!("failed to set max size: {err}");
+        }
+        if let Err(err) = window.set_size(tauri::Size::Logical(size)) {
+            log::warn!("failed to set size: {err}");
+        }
+        let _ = window.set_shadow(true);
+    }
 }
