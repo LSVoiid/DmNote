@@ -1,0 +1,45 @@
+{
+  "default": null,
+  "permission": [
+    {
+      "identifier": "dmnote-allow-all",
+      "description": "Full DM Note command access for renderer",
+      "commands": {
+        "allow": [
+          "app:bootstrap",
+          "app:open-external",
+          "app:restart",
+          "window:minimize",
+          "window:close",
+          "settings:get",
+          "settings:update",
+          "overlay:get",
+          "overlay:set-visible",
+          "overlay:set-lock",
+          "overlay:set-anchor",
+          "overlay:resize",
+          "css:get",
+          "css:get-use",
+          "css:toggle",
+          "css:reset",
+          "css:set-content",
+          "css:load",
+          "keys:get",
+          "keys:update",
+          "keys:set-mode",
+          "keys:reset-all",
+          "keys:reset-mode",
+          "positions:get",
+          "positions:update",
+          "custom-tabs:list",
+          "custom-tabs:create",
+          "custom-tabs:delete",
+          "custom-tabs:select",
+          "preset:save",
+          "preset:load"
+        ],
+        "deny": []
+      }
+    }
+  ]
+}
