@@ -2,8 +2,8 @@ import { useKeyStore } from "@stores/useKeyStore";
 import GridIcon from "@assets/svgs/grid.svg";
 import { useTranslation } from "@contexts/I18nContext";
 import { useState, useRef } from "react";
-import FloatingPopup from "../modal/FloatingPopup";
-import TabList from "../modal/content/TabList";
+import FloatingPopup from "../Modal/FloatingPopup";
+import TabList from "../Modal/content/TabList";
 
 const TabTool = () => {
   const keyTypes = ["4key", "5key", "6key", "8key"];

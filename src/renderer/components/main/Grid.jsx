@@ -2,7 +2,7 @@ import React, { useEffect } from "react";
 import { useTranslation } from "@contexts/I18nContext";
 import DraggableKey from "@components/Key";
 import { getKeyInfoByGlobalKey } from "@utils/KeyMaps";
-import KeySettingModal from "./modal/content/KeySetting";
+import KeySettingModal from "./Modal/content/KeySetting";
 import { useKeyStore } from "@stores/useKeyStore";
 
 export default function Grid({

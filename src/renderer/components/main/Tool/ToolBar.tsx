@@ -3,9 +3,9 @@ import SettingTool from "./SettingTool";
 import TabTool from "./TabTool";
 import Github from "@assets/svgs/github.svg";
 import Bug from "@assets/svgs/code.svg";
-import { TooltipGroup } from "../modal/TooltipGroup";
+import { TooltipGroup } from "../Modal/TooltipGroup";
 import { useTranslation } from "@contexts/I18nContext";
-import FloatingTooltip from "../modal/FloatingTooltip";
+import FloatingTooltip from "../Modal/FloatingTooltip";
 
 type Props = {
   onAddKey: () => void;

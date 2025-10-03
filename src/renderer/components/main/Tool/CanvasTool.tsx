@@ -5,8 +5,8 @@ import EraserIcon from "@assets/svgs/eraser.svg";
 import LayerIcon from "@assets/svgs/layer.svg";
 import PrimaryIcon from "@assets/svgs/primary.svg";
 import BroomIcon from "@assets/svgs/broom.svg";
-import FloatingTooltip from "../modal/FloatingTooltip";
-import { TooltipGroup } from "../modal/TooltipGroup";
+import FloatingTooltip from "../Modal/FloatingTooltip";
+import { TooltipGroup } from "../Modal/TooltipGroup";
 
 type SelectableTool = "move" | "eraser";
 
