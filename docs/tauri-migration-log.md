@@ -27,7 +27,13 @@
 - 오버레이 WebviewWindow 재생성·위치·잠금 제어 로직을 AppState 메서드로 정비하고 상태 질의를 위한 API 추가.
 - overlay:get/set-visible/set-lock/set-anchor/resize Tauri 커맨드를 구현하고 invoke 핸들러에 등록.
 - 앱 setup 단계에서 AppState 런타임 초기화를 수행하도록 조정.
+
 ## 2025-10-02 22:15 – 프런트엔드 IPC를 Tauri invoke 기반으로 전환
 - `@tauri-apps/api` 기반 `tauriApi` 브리지를 작성해 기존 `window.api` 호출 레이어를 Tauri invoke/event로 대체.
 - 공용 IPC 타입을 `src/types/api.ts`로 정리하고 글로벌 선언을 단순화해 타입 안정성 확보.
 - 메인/오버레이 엔트리에서 브리지 초기화하도록 조정하고 npm 종속성에 Tauri API 패키지 추가 및 lockfile 갱신.
+
+## 2025-10-03 00:05 – Electron 잔여물 정리와 Tauri 빌드 검증
+- Electron 메인 프로세스/스크립트/빌드 리소스를 제거하고 npm 스크립트·의존성을 Tauri 중심으로 재구성.
+- `tauri.conf.json`을 npm build 파이프라인에 맞춰 갱신하고 번들 식별자를 `com.dmnote.desktop`으로 정정.
+- `npm run build` 및 `npm run tauri:build`를 실행해 프런트엔드와 Tauri 릴리스 빌드 파이프라인이 정상 동작함을 확인.

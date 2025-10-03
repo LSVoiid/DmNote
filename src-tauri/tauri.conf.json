@@ -2,9 +2,9 @@
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "DM NOTE",
   "version": "1.2.0",
-  "identifier": "com.dmnote.app",
+  "identifier": "com.dmnote.desktop",
   "build": {
-    "beforeBuildCommand": "npm run build:renderer",
+    "beforeBuildCommand": "npm run build",
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:3000/main/index.html",
     "frontendDist": "../dist/renderer"

@@ -1,7 +1,7 @@
 **한국어** | [English](docs/readme_en.md)
 
 <div align="center">
-  <img src="build/icon.ico" alt="dmnote Logo" width="120" height="120">
+  <img src="src-tauri/icons/icon.ico" alt="dmnote Logo" width="120" height="120">
 
   <h1>DM Note</h1>
   
@@ -179,6 +179,7 @@ npm run start
 - 동시 입력 간격 밀리초(ms) 표시
 - 입력 통계 분석 기능
  -->
+
 
 
 

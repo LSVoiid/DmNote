@@ -1,7 +1,7 @@
 [한국어](README.md) | **English**
 
 <div align="center">
-<img src="../build/icon.ico" alt="DM Note Logo" width="120" height="120">
+<img src="../src-tauri/icons/icon.ico" alt="DM Note Logo" width="120" height="120">
 
 <h1>DM Note</h1>
   
@@ -177,3 +177,4 @@ We welcome your contributions. See the [contribution guide](CONTRIBUTING.md) for
 - Millisecond interval display for simultaneous presses
 - Input analytics
 -->
+
