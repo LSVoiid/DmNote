@@ -12,7 +12,7 @@ use anyhow::Result;
 use log::LevelFilter;
 use std::{thread, time::Duration};
 
-use tauri::{LogicalSize, Manager};
+use tauri::{ipc::CapabilityBuilder, LogicalSize, Manager};
 
 use app_state::AppState;
 use store::AppStore;
@@ -26,6 +26,7 @@ fn main() {
 
     tauri::Builder::default()
         .setup(|app| {
+            register_dev_capability(app)?;
             let resolver = app.path();
             let store = AppStore::initialize(&resolver)
                 .map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
@@ -131,4 +132,26 @@ fn configure_main_window(app: &tauri::AppHandle) {
             }
         }
     });
+}
+
+fn register_dev_capability(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    const DEV_URLS: &[&str] = &[
+        "http://localhost:3400",
+        "http://127.0.0.1:3400",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "tauri://localhost",
+    ];
+
+    let builder = DEV_URLS.iter().fold(
+        CapabilityBuilder::new("dmnote-dev")
+            .local(true)
+            .windows(["main", "overlay"])
+            .webviews(["main", "overlay"])
+            .permission("dmnote-allow-all"),
+        |acc, url| acc.remote((*url).to_string()),
+    );
+
+    app.add_capability(builder)
+        .map_err(|err| -> Box<dyn std::error::Error> { err.into() })
 }
