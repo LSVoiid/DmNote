@@ -42,3 +42,8 @@
 - Windows 파일시스템 대소문자 혼용으로 깨지던 Modal 경로 import를 모두 대문자 표기로 정리하여 `forceConsistentCasingInFileNames` 오류 해소.
 - `tsconfig.json`의 `module`/`moduleResolution`을 `ESNext`/`Node`로 전환해 `@tauri-apps/api` ESM import 경고를 제거.
 - `npm run type-check`, `npm run build`, `cargo check`, `npm run tauri:build` 순으로 검증 완료 (Browserslist 경고는 기존 TODO 유지).
+
+## 2025-10-03 09:39 — 개발 환경 경로 및 TypeScript 설정 정돈
+- Tauri devUrl을 루트(http://localhost:3000)로 조정해 개발 모드에서 main/index.html이 중복으로 붙던 404를 제거.
+- tsconfig.json에서 legacy baseUrl을 제거하고 moduleResolution을 Bundler로 전환, 경로 alias를 상대 경로로 재정리해 TypeScript 7 선제 대응 경고를 해소.
+- npm run tauri:dev와 npm run type-check로 각각 실행 및 타입 검증 확인.
