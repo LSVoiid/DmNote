@@ -14,42 +14,41 @@
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,
     "module": "ESNext",
-    "moduleResolution": "Node",
+    "moduleResolution": "Bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "baseUrl": ".",
     "paths": {
       "@components/*": [
-        "src/renderer/components/*"
+        "./src/renderer/components/*"
       ],
       "@styles/*": [
-        "src/renderer/styles/*"
+        "./src/renderer/styles/*"
       ],
       "@windows/*": [
-        "src/renderer/windows/*"
+        "./src/renderer/windows/*"
       ],
       "@hooks/*": [
-        "src/renderer/hooks/*"
+        "./src/renderer/hooks/*"
       ],
       "@assets/*": [
-        "src/renderer/assets/*"
+        "./src/renderer/assets/*"
       ],
       "@utils/*": [
-        "src/renderer/utils/*"
+        "./src/renderer/utils/*"
       ],
       "@stores/*": [
-        "src/renderer/stores/*"
+        "./src/renderer/stores/*"
       ],
       "@constants/*": [
-        "src/renderer/constants/*"
+        "./src/renderer/constants/*"
       ],
       "@contexts/*": [
-        "src/renderer/contexts/*"
+        "./src/renderer/contexts/*"
       ],
       "@src/*": [
-        "src/*"
+        "./src/*"
       ]
     }
   },
