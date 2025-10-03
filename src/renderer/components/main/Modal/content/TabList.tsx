@@ -11,7 +11,7 @@ type TabListProps = {
 };
 
 const TabList = ({ onClose }: TabListProps) => {
-  const customTabs = useKeyStore((state) => state.customTabs);
+  const customTabs = useKeyStore((state) => state.customTabs) ?? [];
   const selectedKeyType = useKeyStore((state) => state.selectedKeyType);
   const setSelectedKeyType = useKeyStore((state) => state.setSelectedKeyType);
   const setCustomTabs = useKeyStore((state) => state.setCustomTabs);
@@ -48,7 +48,7 @@ const TabList = ({ onClose }: TabListProps) => {
     [selectedKeyType]
   );
 
-  const maxReached = customTabs.length >= 5;
+  const maxReached = Array.isArray(customTabs) && customTabs.length >= 5;
 
   const handleCreate = async (name: string) => {
     const result = await window.api.keys.customTabs.create(name);
