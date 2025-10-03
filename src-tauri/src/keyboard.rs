@@ -43,8 +43,17 @@ impl KeyboardManager {
         self.current_mode.read().clone()
     }
 
-    pub fn is_valid_key(&self, key: &str) -> bool {
-        self.valid_keys.read().contains(key)
+    pub fn match_candidate<'a>(
+        &self,
+        candidates: impl IntoIterator<Item = &'a str>,
+    ) -> Option<String> {
+        let guard = self.valid_keys.read();
+        for candidate in candidates {
+            if guard.contains(candidate) {
+                return Some(candidate.to_string());
+            }
+        }
+        None
     }
 
     fn rebuild_valid_keys(&self) {

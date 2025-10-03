@@ -2,6 +2,6 @@
   "identifier": "main",
   "description": "Main window capability granting DM Note access",
   "local": true,
-  "windows": ["main"],
+  "windows": ["main", "overlay"],
   "permissions": ["core:default", "dmnote-allow-all"]
 }

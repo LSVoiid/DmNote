@@ -1,15 +1,23 @@
-use std::{fs, path::PathBuf};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 use anyhow::{Context, Result};
+use dirs_next::config_dir;
 use parking_lot::RwLock;
+use serde::Deserialize;
 use serde_json::Value;
 use tauri::path::PathResolver;
 use tauri::Runtime;
 
 use crate::{
     defaults::{default_keys, default_positions},
-    models::{AppStoreData, KeyMappings, KeyPositions, NoteSettings, SettingsState},
+    models::{AppStoreData, KeyMappings, KeyPositions, NoteSettings, OverlayBounds, SettingsState},
 };
+
+const LEGACY_OVERLAY_WIDTH: f64 = 860.0;
+const LEGACY_OVERLAY_HEIGHT: f64 = 320.0;
 
 pub struct AppStore {
     path: PathBuf,
@@ -25,21 +33,26 @@ impl AppStore {
             .with_context(|| format!("failed to create data directory at {}", dir.display()))?;
 
         let path = dir.join("store.json");
-        let state = if path.exists() {
-            let content = fs::read_to_string(&path)
-                .with_context(|| format!("failed to read store file at {}", path.display()))?;
-            match serde_json::from_str::<AppStoreData>(&content) {
-                Ok(data) => normalize_state(data),
-                Err(_) => repair_legacy_state(&content),
-            }
+        let (state, needs_persist) = if path.exists() {
+            (load_store_from_path(&path)?, false)
+        } else if let Some(legacy_path) = find_legacy_store_file() {
+            let legacy = load_store_from_path(&legacy_path)?;
+            (legacy, true)
         } else {
-            initialize_default_state()
+            (initialize_default_state(), true)
         };
 
-        Ok(Self {
-            path,
+        let store = Self {
+            path: path.clone(),
             state: RwLock::new(state),
-        })
+        };
+
+        if needs_persist || !path.exists() {
+            let snapshot = store.state.read().clone();
+            store.persist_locked(&snapshot)?;
+        }
+
+        Ok(store)
     }
 
     pub fn snapshot(&self) -> AppStoreData {
@@ -90,6 +103,32 @@ impl AppStore {
         fs::write(&self.path, json)
             .with_context(|| format!("failed to write store file at {}", self.path.display()))
     }
+}
+
+fn load_store_from_path(path: &Path) -> Result<AppStoreData> {
+    let content = fs::read_to_string(path)
+        .with_context(|| format!("failed to read store file at {}", path.display()))?;
+    let state = match serde_json::from_str::<AppStoreData>(&content) {
+        Ok(data) => normalize_state(data),
+        Err(_) => repair_legacy_state(&content),
+    };
+    Ok(state)
+}
+
+fn find_legacy_store_file() -> Option<PathBuf> {
+    let base = config_dir()?;
+    const LEGACY_DIRS: [&str; 5] = ["DM NOTE", "dm-note", "Dm Note", "dm_note", "com.dmnote.app"];
+    const LEGACY_FILES: [&str; 2] = ["config.json", "store.json"];
+
+    for dir in LEGACY_DIRS.iter() {
+        for file in LEGACY_FILES.iter() {
+            let candidate = base.join(dir).join(file);
+            if candidate.exists() {
+                return Some(candidate);
+            }
+        }
+    }
+    None
 }
 
 fn initialize_default_state() -> AppStoreData {
@@ -219,6 +258,30 @@ fn repair_legacy_state(raw: &str) -> AppStoreData {
             data.overlay_resize_anchor = v;
         }
         if let Some(v) = obj
+            .get("overlayWindowBounds")
+            .and_then(|v| serde_json::from_value::<LegacyOverlayBounds>(v.clone()).ok())
+        {
+            data.overlay_bounds = Some(OverlayBounds {
+                x: v.x,
+                y: v.y,
+                width: v.width,
+                height: v.height,
+            });
+        }
+        if data.overlay_bounds.is_none() {
+            if let Some(v) = obj
+                .get("overlayWindowPosition")
+                .and_then(|v| serde_json::from_value::<LegacyOverlayPosition>(v.clone()).ok())
+            {
+                data.overlay_bounds = Some(OverlayBounds {
+                    x: v.x,
+                    y: v.y,
+                    width: LEGACY_OVERLAY_WIDTH,
+                    height: LEGACY_OVERLAY_HEIGHT,
+                });
+            }
+        }
+        if let Some(v) = obj
             .get("overlayLastContentTopOffset")
             .and_then(Value::as_f64)
         {
@@ -226,4 +289,19 @@ fn repair_legacy_state(raw: &str) -> AppStoreData {
         }
     }
     normalize_state(data)
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct LegacyOverlayBounds {
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+}
+
+#[derive(Deserialize)]
+struct LegacyOverlayPosition {
+    x: f64,
+    y: f64,
 }

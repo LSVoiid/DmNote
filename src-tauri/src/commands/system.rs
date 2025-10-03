@@ -1,4 +1,6 @@
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Manager, State};
+
+use crate::app_state::AppState;
 
 #[tauri::command(rename = "window:minimize", permission = "dmnote-allow-all")]
 pub fn window_minimize(app: AppHandle) -> Result<(), String> {
@@ -9,13 +11,15 @@ pub fn window_minimize(app: AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command(rename = "window:close", permission = "dmnote-allow-all")]
-pub fn window_close(app: AppHandle) -> Result<(), String> {
+pub fn window_close(state: State<'_, AppState>, app: AppHandle) -> Result<(), String> {
+    state.shutdown();
     if let Some(main) = app.get_webview_window("main") {
         main.close().map_err(|err| err.to_string())?;
     }
     if let Some(overlay) = app.get_webview_window("overlay") {
         overlay.close().map_err(|err| err.to_string())?;
     }
+    app.exit(0);
     Ok(())
 }
 

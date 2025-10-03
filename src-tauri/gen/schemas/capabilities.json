@@ -1,1 +1,1 @@
-{"main":{"identifier":"main","description":"Main window capability granting DM Note access","local":true,"windows":["main"],"permissions":["core:default","dmnote-allow-all"]}}
+{"main":{"identifier":"main","description":"Main window capability granting DM Note access","local":true,"windows":["main","overlay"],"permissions":["core:default","dmnote-allow-all"]}}

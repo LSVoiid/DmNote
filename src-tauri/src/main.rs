@@ -10,6 +10,8 @@ mod store;
 
 use anyhow::Result;
 use log::LevelFilter;
+use std::{thread, time::Duration};
+
 use tauri::{LogicalSize, Manager};
 
 use app_state::AppState;
@@ -37,7 +39,7 @@ fn main() {
                     .initialize_runtime(&handle)
                     .map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
             }
-            configure_main_window(app);
+            configure_main_window(&app.handle());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -93,21 +95,40 @@ fn setup_logging() -> Result<()> {
     Ok(())
 }
 
-fn configure_main_window(app: &tauri::App) {
-    if let Some(window) = app.get_webview_window("main") {
+fn configure_main_window(app: &tauri::AppHandle) {
+    let handle = app.clone();
+    thread::spawn(move || {
         let size = LogicalSize::new(902.0, 488.0);
-        let _ = window.set_decorations(false);
-        let _ = window.set_resizable(false);
-        let _ = window.set_maximizable(false);
-        if let Err(err) = window.set_min_size(Some(tauri::Size::Logical(size))) {
-            log::warn!("failed to set min size: {err}");
+        for attempt in 0..15 {
+            if let Some(window) = handle.get_webview_window("main") {
+                if let Err(err) = window.set_decorations(false) {
+                    log::warn!("failed to disable decorations: {err}");
+                }
+                if let Err(err) = window.set_resizable(false) {
+                    log::warn!("failed to disable resizing: {err}");
+                }
+                if let Err(err) = window.set_maximizable(false) {
+                    log::warn!("failed to disable maximize: {err}");
+                }
+                if let Err(err) = window.set_min_size(Some(tauri::Size::Logical(size))) {
+                    log::warn!("failed to set min size: {err}");
+                }
+                if let Err(err) = window.set_max_size(Some(tauri::Size::Logical(size))) {
+                    log::warn!("failed to set max size: {err}");
+                }
+                if let Err(err) = window.set_size(tauri::Size::Logical(size)) {
+                    log::warn!("failed to set size: {err}");
+                }
+                if let Err(err) = window.set_shadow(true) {
+                    log::warn!("failed to enable shadow: {err}");
+                }
+                return;
+            }
+
+            thread::sleep(Duration::from_millis(25));
+            if attempt == 14 {
+                log::warn!("main window was not available for configuration");
+            }
         }
-        if let Err(err) = window.set_max_size(Some(tauri::Size::Logical(size))) {
-            log::warn!("failed to set max size: {err}");
-        }
-        if let Err(err) = window.set_size(tauri::Size::Logical(size)) {
-            log::warn!("failed to set size: {err}");
-        }
-        let _ = window.set_shadow(true);
-    }
+    });
 }

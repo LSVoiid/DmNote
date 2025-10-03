@@ -11,7 +11,9 @@ use anyhow::{anyhow, Context, Result};
 use log::{error, warn};
 use parking_lot::RwLock;
 use serde_json::json;
-use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+use tauri::{
+    AppHandle, Emitter, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent,
+};
 use tauri_runtime_wry::wry::dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize};
 use willhook::{
     hook::event::{InputEvent, KeyPress, KeyboardKey},
@@ -34,7 +36,7 @@ pub struct AppState {
     pub store: Arc<AppStore>,
     pub settings: SettingsService,
     pub keyboard: KeyboardManager,
-    overlay_visible: RwLock<bool>,
+    overlay_visible: Arc<RwLock<bool>>,
     keyboard_task: RwLock<Option<KeyboardHookTask>>,
 }
 
@@ -50,7 +52,7 @@ impl AppState {
             store,
             settings,
             keyboard,
-            overlay_visible: RwLock::new(false),
+            overlay_visible: Arc::new(RwLock::new(false)),
             keyboard_task: RwLock::new(None),
         })
     }
@@ -128,6 +130,12 @@ impl AppState {
         window.set_ignore_cursor_events(locked)?;
         app.emit("overlay:lock", &json!({ "locked": locked }))?;
         Ok(())
+    }
+
+    pub fn shutdown(&self) {
+        if let Some(task) = self.keyboard_task.write().take() {
+            drop(task);
+        }
     }
 
     pub fn set_overlay_anchor(&self, app: &AppHandle, anchor: &str) -> Result<String> {
@@ -249,10 +257,17 @@ impl AppState {
                 while running_flag.load(Ordering::SeqCst) {
                     match hook.try_recv() {
                         Ok(InputEvent::Keyboard(event)) => {
-                            if let Some(key) = event.key.and_then(keyboard_key_to_global) {
-                                if !keyboard.is_valid_key(&key) {
+                            if let Some(key) = event.key {
+                                let labels = keyboard_key_to_global(key);
+                                if labels.is_empty() {
                                     continue;
                                 }
+
+                                let Some(key_label) = keyboard
+                                    .match_candidate(labels.iter().map(|label| label.as_str()))
+                                else {
+                                    continue;
+                                };
 
                                 let state = match event.pressed {
                                     KeyPress::Down(_) => "DOWN",
@@ -264,7 +279,7 @@ impl AppState {
                                 if let Err(err) = app.emit(
                                     "keys:state",
                                     &json!({
-                                        "key": key,
+                                        "key": key_label,
                                         "state": state,
                                         "mode": mode,
                                     }),
@@ -339,7 +354,43 @@ impl AppState {
             state.overlay_bounds = Some(bounds.clone());
         })?;
 
+        self.configure_overlay_window(&window, app);
+
         Ok(window)
+    }
+
+    fn configure_overlay_window(&self, window: &WebviewWindow, app: &AppHandle) {
+        let overlay_visible = self.overlay_visible.clone();
+        let store = self.store.clone();
+        let app_handle = app.clone();
+        let overlay_window = window.clone();
+
+        window.on_window_event(move |event| match event {
+            WindowEvent::CloseRequested { api, .. } => {
+                api.prevent_close();
+                if let Err(err) = overlay_window.hide() {
+                    log::error!("failed to hide overlay window on close: {err}");
+                }
+                *overlay_visible.write() = false;
+                if let Err(err) =
+                    app_handle.emit("overlay:visibility", &json!({ "visible": false }))
+                {
+                    log::error!("failed to emit overlay visibility change: {err}");
+                }
+            }
+            WindowEvent::Focused(false) => {
+                let snapshot = store.snapshot();
+                if let Err(err) = overlay_window.set_always_on_top(snapshot.always_on_top) {
+                    log::warn!("failed to reapply always on top: {err}");
+                }
+            }
+            WindowEvent::Moved(_) | WindowEvent::Resized(_) => {
+                if let Err(err) = persist_overlay_bounds(&overlay_window, &store) {
+                    log::warn!("failed to persist overlay bounds: {err}");
+                }
+            }
+            _ => {}
+        });
     }
 
     fn compute_overlay_position(
@@ -402,6 +453,25 @@ impl AppState {
     }
 }
 
+fn persist_overlay_bounds(window: &WebviewWindow, store: &Arc<AppStore>) -> Result<()> {
+    let position = window.outer_position()?;
+    let size = window.outer_size()?;
+
+    let bounds = OverlayBounds {
+        x: position.x as f64,
+        y: position.y as f64,
+        width: size.width as f64,
+        height: size.height as f64,
+    };
+
+    store
+        .update(|state| {
+            state.overlay_bounds = Some(bounds.clone());
+        })
+        .map(|_| ())
+        .map_err(|err| err.into())
+}
+
 struct KeyboardHookTask {
     running: Arc<AtomicBool>,
     handle: Option<JoinHandle<()>>,
@@ -424,132 +494,130 @@ struct OverlayPosition {
     y: f64,
 }
 
-fn keyboard_key_to_global(key: KeyboardKey) -> Option<String> {
+fn keyboard_key_to_global(key: KeyboardKey) -> Vec<String> {
     use KeyboardKey::*;
-    let label = match key {
-        A => "A",
-        B => "B",
-        C => "C",
-        D => "D",
-        E => "E",
-        F => "F",
-        G => "G",
-        H => "H",
-        I => "I",
-        J => "J",
-        K => "K",
-        L => "L",
-        M => "M",
-        N => "N",
-        O => "O",
-        P => "P",
-        Q => "Q",
-        R => "R",
-        S => "S",
-        T => "T",
-        U => "U",
-        V => "V",
-        W => "W",
-        X => "X",
-        Y => "Y",
-        Z => "Z",
-        Number0 => "0",
-        Number1 => "1",
-        Number2 => "2",
-        Number3 => "3",
-        Number4 => "4",
-        Number5 => "5",
-        Number6 => "6",
-        Number7 => "7",
-        Number8 => "8",
-        Number9 => "9",
-        LeftAlt => "LEFT ALT",
-        RightAlt => "RIGHT ALT",
-        LeftShift => "LEFT SHIFT",
-        RightShift => "RIGHT SHIFT",
-        LeftControl => "LEFT CTRL",
-        RightControl => "25",
-        BackSpace => "BACKSPACE",
-        Tab => "TAB",
-        Enter => "RETURN",
-        Escape => "ESCAPE",
-        Space => "SPACE",
-        PageUp => "PAGE UP",
-        PageDown => "PAGE DOWN",
-        Home => "HOME",
-        ArrowLeft => "LEFT ARROW",
-        ArrowUp => "UP ARROW",
-        ArrowRight => "RIGHT ARROW",
-        ArrowDown => "DOWN ARROW",
-        Print => "PRINT",
-        PrintScreen => "PRINT SCREEN",
-        Insert => "INS",
-        Delete => "DELETE",
-        LeftWindows => "91",
-        RightWindows => "92",
-        Comma => "COMMA",
-        Period => "DOT",
-        Slash => "FORWARD SLASH",
-        SemiColon => "SEMICOLON",
-        Apostrophe => "QUOTE",
-        LeftBrace => "SQUARE BRACKET OPEN",
-        BackwardSlash => "BACKSLASH",
-        RightBrace => "SQUARE BRACKET CLOSE",
-        Grave => "SECTION",
-        Add => "NUMPAD PLUS",
-        Subtract => "NUMPAD MINUS",
-        Decimal => "NUMPAD DELETE",
-        Divide => "NUMPAD DIVIDE",
-        Multiply => "NUMPAD MULTIPLY",
-        Separator => "NUMPAD SEPARATOR",
-        F1 => "F1",
-        F2 => "F2",
-        F3 => "F3",
-        F4 => "F4",
-        F5 => "F5",
-        F6 => "F6",
-        F7 => "F7",
-        F8 => "F8",
-        F9 => "F9",
-        F10 => "F10",
-        F11 => "F11",
-        F12 => "F12",
-        F13 => "F13",
-        F14 => "F14",
-        F15 => "F15",
-        F16 => "F16",
-        F17 => "F17",
-        F18 => "F18",
-        F19 => "F19",
-        F20 => "F20",
-        F21 => "F21",
-        F22 => "F22",
-        F23 => "F23",
-        F24 => "F24",
-        NumLock => "NUM LOCK",
-        ScrollLock => "SCROLL LOCK",
-        CapsLock => "CAPS LOCK",
-        Numpad0 => "NUMPAD 0",
-        Numpad1 => "NUMPAD 1",
-        Numpad2 => "NUMPAD 2",
-        Numpad3 => "NUMPAD 3",
-        Numpad4 => "NUMPAD 4",
-        Numpad5 => "NUMPAD 5",
-        Numpad6 => "NUMPAD 6",
-        Numpad7 => "NUMPAD 7",
-        Numpad8 => "NUMPAD 8",
-        Numpad9 => "NUMPAD 9",
-        Other(code) => return other_key_label(code),
-        InvalidKeyCodeReceived => return None,
-    };
-    Some(label.to_string())
+    match key {
+        A => vec!["A".to_string()],
+        B => vec!["B".to_string()],
+        C => vec!["C".to_string()],
+        D => vec!["D".to_string()],
+        E => vec!["E".to_string()],
+        F => vec!["F".to_string()],
+        G => vec!["G".to_string()],
+        H => vec!["H".to_string()],
+        I => vec!["I".to_string()],
+        J => vec!["J".to_string()],
+        K => vec!["K".to_string()],
+        L => vec!["L".to_string()],
+        M => vec!["M".to_string()],
+        N => vec!["N".to_string()],
+        O => vec!["O".to_string()],
+        P => vec!["P".to_string()],
+        Q => vec!["Q".to_string()],
+        R => vec!["R".to_string()],
+        S => vec!["S".to_string()],
+        T => vec!["T".to_string()],
+        U => vec!["U".to_string()],
+        V => vec!["V".to_string()],
+        W => vec!["W".to_string()],
+        X => vec!["X".to_string()],
+        Y => vec!["Y".to_string()],
+        Z => vec!["Z".to_string()],
+        Number0 => vec!["0".to_string()],
+        Number1 => vec!["1".to_string()],
+        Number2 => vec!["2".to_string()],
+        Number3 => vec!["3".to_string()],
+        Number4 => vec!["4".to_string()],
+        Number5 => vec!["5".to_string()],
+        Number6 => vec!["6".to_string()],
+        Number7 => vec!["7".to_string()],
+        Number8 => vec!["8".to_string()],
+        Number9 => vec!["9".to_string()],
+        LeftAlt => vec!["LEFT ALT".to_string()],
+        RightAlt => vec!["RIGHT ALT".to_string()],
+        LeftShift => vec!["LEFT SHIFT".to_string()],
+        RightShift => vec!["RIGHT SHIFT".to_string()],
+        LeftControl => vec!["LEFT CTRL".to_string()],
+        RightControl => vec!["25".to_string(), "RIGHT CTRL".to_string()],
+        BackSpace => vec!["BACKSPACE".to_string()],
+        Tab => vec!["TAB".to_string()],
+        Enter => vec!["RETURN".to_string(), "NUMPAD RETURN".to_string()],
+        Escape => vec!["ESCAPE".to_string()],
+        Space => vec!["SPACE".to_string()],
+        PageUp => vec!["PAGE UP".to_string()],
+        PageDown => vec!["PAGE DOWN".to_string()],
+        Home => vec!["HOME".to_string()],
+        ArrowLeft => vec!["LEFT ARROW".to_string()],
+        ArrowUp => vec!["UP ARROW".to_string()],
+        ArrowRight => vec!["RIGHT ARROW".to_string()],
+        ArrowDown => vec!["DOWN ARROW".to_string()],
+        Print => vec!["PRINT".to_string()],
+        PrintScreen => vec!["PRINT SCREEN".to_string()],
+        Insert => vec!["INS".to_string()],
+        Delete => vec!["DELETE".to_string()],
+        LeftWindows => vec!["91".to_string(), "LEFT WINDOWS".to_string()],
+        RightWindows => vec!["92".to_string(), "RIGHT WINDOWS".to_string()],
+        Comma => vec!["COMMA".to_string()],
+        Period => vec!["DOT".to_string(), "PERIOD".to_string()],
+        Slash => vec!["FORWARD SLASH".to_string(), "/".to_string()],
+        SemiColon => vec!["SEMICOLON".to_string()],
+        Apostrophe => vec!["QUOTE".to_string()],
+        LeftBrace => vec!["SQUARE BRACKET OPEN".to_string()],
+        BackwardSlash => vec!["BACKSLASH".to_string()],
+        RightBrace => vec!["SQUARE BRACKET CLOSE".to_string()],
+        Grave => vec!["SECTION".to_string(), "GRAVE".to_string()],
+        Add => vec!["NUMPAD PLUS".to_string(), "+".to_string()],
+        Subtract => vec!["NUMPAD MINUS".to_string(), "-".to_string()],
+        Decimal => vec!["NUMPAD DELETE".to_string(), "DECIMAL".to_string()],
+        Divide => vec!["NUMPAD DIVIDE".to_string(), "/".to_string()],
+        Multiply => vec!["NUMPAD MULTIPLY".to_string(), "*".to_string()],
+        Separator => vec!["NUMPAD SEPARATOR".to_string()],
+        F1 => vec!["F1".to_string()],
+        F2 => vec!["F2".to_string()],
+        F3 => vec!["F3".to_string()],
+        F4 => vec!["F4".to_string()],
+        F5 => vec!["F5".to_string()],
+        F6 => vec!["F6".to_string()],
+        F7 => vec!["F7".to_string()],
+        F8 => vec!["F8".to_string()],
+        F9 => vec!["F9".to_string()],
+        F10 => vec!["F10".to_string()],
+        F11 => vec!["F11".to_string()],
+        F12 => vec!["F12".to_string()],
+        F13 => vec!["F13".to_string()],
+        F14 => vec!["F14".to_string()],
+        F15 => vec!["F15".to_string()],
+        F16 => vec!["F16".to_string()],
+        F17 => vec!["F17".to_string()],
+        F18 => vec!["F18".to_string()],
+        F19 => vec!["F19".to_string()],
+        F20 => vec!["F20".to_string()],
+        F21 => vec!["F21".to_string()],
+        F22 => vec!["F22".to_string()],
+        F23 => vec!["F23".to_string()],
+        F24 => vec!["F24".to_string()],
+        NumLock => vec!["NUM LOCK".to_string()],
+        ScrollLock => vec!["SCROLL LOCK".to_string()],
+        CapsLock => vec!["CAPS LOCK".to_string()],
+        Numpad0 => vec!["NUMPAD 0".to_string()],
+        Numpad1 => vec!["NUMPAD 1".to_string()],
+        Numpad2 => vec!["NUMPAD 2".to_string()],
+        Numpad3 => vec!["NUMPAD 3".to_string()],
+        Numpad4 => vec!["NUMPAD 4".to_string()],
+        Numpad5 => vec!["NUMPAD 5".to_string()],
+        Numpad6 => vec!["NUMPAD 6".to_string()],
+        Numpad7 => vec!["NUMPAD 7".to_string()],
+        Numpad8 => vec!["NUMPAD 8".to_string()],
+        Numpad9 => vec!["NUMPAD 9".to_string()],
+        Other(code) => other_key_labels(code),
+        InvalidKeyCodeReceived => Vec::new(),
+    }
 }
 
-fn other_key_label(code: u32) -> Option<String> {
-    let label = match code {
-        187 => "EQUALS",
-        189 => "MINUS",
-        _ => return Some(code.to_string()),
-    };
-    Some(label.to_string())
+fn other_key_labels(code: u32) -> Vec<String> {
+    match code {
+        187 => vec!["EQUALS".to_string(), "=".to_string()],
+        189 => vec!["MINUS".to_string(), "-".to_string()],
+        _ => vec![code.to_string()],
+    }
 }
