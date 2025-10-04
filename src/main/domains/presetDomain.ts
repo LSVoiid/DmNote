@@ -24,6 +24,7 @@ const presetSchema = z.object({
   keyPositions: keyPositionsSchema.optional(),
   backgroundColor: z.string().optional(),
   noteSettings: noteSettingsSchema.optional(),
+  noteEffect: z.boolean().optional(),
   laboratoryEnabled: z.boolean().optional(),
   customTabs: customTabsSchema.optional(),
   selectedKeyType: z.string().optional(),
@@ -39,6 +40,7 @@ export function registerPresetDomain(ctx: DomainContext) {
       keyPositions: state.keyPositions,
       backgroundColor: state.backgroundColor,
       noteSettings: state.noteSettings,
+      noteEffect: state.noteEffect,
       laboratoryEnabled: state.laboratoryEnabled,
       customTabs: state.customTabs,
       selectedKeyType: state.selectedKeyType,
@@ -94,6 +96,7 @@ export function registerPresetDomain(ctx: DomainContext) {
       ctx.settings.applyPatch({
         backgroundColor: preset.backgroundColor ?? "transparent",
         noteSettings: preset.noteSettings ?? NOTE_SETTINGS_DEFAULTS,
+        noteEffect: preset.noteEffect ?? false,
         laboratoryEnabled: preset.laboratoryEnabled ?? false,
         useCustomCSS: preset.useCustomCSS ?? false,
         customCSS: preset.customCSS ?? { path: null, content: "" },
