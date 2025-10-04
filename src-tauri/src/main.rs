@@ -4,6 +4,8 @@ mod app_state;
 mod commands;
 mod defaults;
 mod keyboard;
+mod keyboard_labels;
+mod keyboard_daemon;
 mod models;
 mod services;
 mod store;
@@ -18,6 +20,14 @@ use app_state::AppState;
 use store::AppStore;
 
 fn main() {
+    if std::env::args().any(|arg| arg == "--keyboard-daemon") {
+        if let Err(err) = keyboard_daemon::run() {
+            eprintln!("keyboard daemon error: {err:?}");
+            std::process::exit(1);
+        }
+        return;
+    }
+
     if let Err(err) = setup_logging() {
         eprintln!("Failed to initialize logging: {err}");
     }

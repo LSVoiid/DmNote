@@ -2,6 +2,7 @@
 name = "dm-note"
 version = "0.1.0"
 edition = "2021"
+default-run = "dm-note"
 
 [build-dependencies]
 tauri-build = { version = "2.4.1", features = [] }

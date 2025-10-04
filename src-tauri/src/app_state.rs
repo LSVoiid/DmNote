@@ -1,28 +1,29 @@
 use std::{
+    io::{BufRead, BufReader},
+    process::{Child, Command, Stdio},
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
     },
     thread::{self, JoinHandle},
-    time::Duration,
 };
 
 use anyhow::{anyhow, Context, Result};
 use log::{error, warn};
 use parking_lot::RwLock;
+use serde::Deserialize;
 use serde_json::json;
 use tauri::{
     AppHandle, Emitter, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent,
 };
 use tauri_runtime_wry::wry::dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize};
-use willhook::{
-    hook::event::{InputEvent, IsKeyboardEventInjected, KeyPress, KeyboardEvent, KeyboardKey},
-    keyboard_hook,
-};
 
 use crate::{
     keyboard::KeyboardManager,
-    models::{BootstrapOverlayState, BootstrapPayload, OverlayBounds, SettingsDiff, SettingsState},
+    models::{
+        overlay_resize_anchor_from_str, BootstrapOverlayState, BootstrapPayload, OverlayBounds,
+        OverlayResizeAnchor, SettingsDiff, SettingsState,
+    },
     services::settings::SettingsService,
     store::AppStore,
 };
@@ -32,14 +33,12 @@ const DEFAULT_OVERLAY_WIDTH: f64 = 860.0;
 const DEFAULT_OVERLAY_HEIGHT: f64 = 320.0;
 const OVERLAY_MARGIN: f64 = 40.0;
 
-const LLKHF_EXTENDED: u32 = 0x01;
-
 pub struct AppState {
     pub store: Arc<AppStore>,
     pub settings: SettingsService,
     pub keyboard: KeyboardManager,
     overlay_visible: Arc<RwLock<bool>>,
-    keyboard_task: RwLock<Option<KeyboardHookTask>>,
+    keyboard_task: RwLock<Option<KeyboardDaemonTask>>,
 }
 
 impl AppState {
@@ -124,10 +123,11 @@ impl AppState {
 
     pub fn set_overlay_lock(&self, app: &AppHandle, locked: bool, persist: bool) -> Result<()> {
         if persist {
-            self.store.update(|state| {
+            let _ = self.store.update(|state| {
                 state.overlay_locked = locked;
             })?;
         }
+
         let window = self.ensure_overlay_window(app)?;
         window.set_ignore_cursor_events(locked)?;
         app.emit("overlay:lock", &json!({ "locked": locked }))?;
@@ -141,13 +141,14 @@ impl AppState {
     }
 
     pub fn set_overlay_anchor(&self, app: &AppHandle, anchor: &str) -> Result<String> {
-        let parsed = crate::models::overlay_resize_anchor_from_str(anchor);
-        let value = parsed.unwrap_or_else(|| self.store.snapshot().overlay_resize_anchor);
-        self.store.update(|state| {
+        let parsed = overlay_resize_anchor_from_str(anchor);
+        let value: OverlayResizeAnchor =
+            parsed.unwrap_or_else(|| self.store.snapshot().overlay_resize_anchor.clone());
+        let updated = self.store.update(|state| {
             state.overlay_resize_anchor = value.clone();
         })?;
         app.emit("overlay:anchor", &json!({ "anchor": value.as_str() }))?;
-        Ok(value.as_str().to_string())
+        Ok(updated.overlay_resize_anchor.as_str().to_string())
     }
 
     pub fn resize_overlay(
@@ -160,8 +161,8 @@ impl AppState {
     ) -> Result<OverlayBounds> {
         let window = self.ensure_overlay_window(app)?;
         let anchor = anchor
-            .and_then(|value| crate::models::overlay_resize_anchor_from_str(&value))
-            .unwrap_or_else(|| self.store.snapshot().overlay_resize_anchor);
+            .and_then(|value| overlay_resize_anchor_from_str(&value))
+            .unwrap_or_else(|| self.store.snapshot().overlay_resize_anchor.clone());
 
         let width = width.clamp(100.0, 2000.0).round();
         let height = height.clamp(100.0, 2000.0).round();
@@ -177,18 +178,18 @@ impl AppState {
         let mut new_x = position.x as f64;
         let mut new_y = position.y as f64;
 
-        match anchor.as_str() {
-            "bottom-left" => new_y += size.height as f64 - height,
-            "top-right" => new_x += size.width as f64 - width,
-            "bottom-right" => {
+        match anchor {
+            OverlayResizeAnchor::BottomLeft => new_y += size.height as f64 - height,
+            OverlayResizeAnchor::TopRight => new_x += size.width as f64 - width,
+            OverlayResizeAnchor::BottomRight => {
                 new_x += size.width as f64 - width;
                 new_y += size.height as f64 - height;
             }
-            "center" => {
+            OverlayResizeAnchor::Center => {
                 new_x += (size.width as f64 - width) / 2.0;
                 new_y += (size.height as f64 - height) / 2.0;
             }
-            _ => {}
+            OverlayResizeAnchor::TopLeft => {}
         }
 
         if let Some(offset) = content_top_offset {
@@ -200,13 +201,13 @@ impl AppState {
                     .unwrap_or(offset);
                 let delta = offset - previous;
                 if delta != 0.0 {
-                    match anchor.as_str() {
-                        "center" => new_y -= delta / 2.0,
-                        anchor if anchor.contains("bottom") => {}
+                    match anchor {
+                        OverlayResizeAnchor::Center => new_y -= delta / 2.0,
+                        OverlayResizeAnchor::BottomLeft | OverlayResizeAnchor::BottomRight => {}
                         _ => new_y -= delta,
                     }
                 }
-                self.store.update(|state| {
+                let _ = self.store.update(|state| {
                     state.overlay_last_content_top_offset = Some(offset);
                 })?;
             }
@@ -221,7 +222,8 @@ impl AppState {
             width,
             height,
         };
-        self.store.update(|state| {
+
+        let _ = self.store.update(|state| {
             state.overlay_bounds = Some(bounds.clone());
         })?;
 
@@ -244,70 +246,128 @@ impl AppState {
             return Ok(());
         }
 
+        let current_exe = std::env::current_exe().context("failed to locate dm-note executable")?;
+        let mut child = Command::new(current_exe)
+            .arg("--keyboard-daemon")
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .context("failed to spawn keyboard daemon process")?;
+
+        let stdout = child
+            .stdout
+            .take()
+            .context("keyboard daemon stdout unavailable")?;
+        let stderr = child.stderr.take();
+
         let running = Arc::new(AtomicBool::new(true));
+        let running_reader = running.clone();
         let keyboard = self.keyboard.clone();
-        let running_flag = running.clone();
+        let app_handle = app.clone();
 
-        let handle = thread::Builder::new()
-            .name("willhook-keyboard".into())
+        let reader_handle = thread::Builder::new()
+            .name("keyboard-daemon-reader".into())
             .spawn(move || {
-                let Some(hook) = keyboard_hook() else {
-                    warn!("failed to initialize global keyboard hook");
-                    return;
-                };
+                let mut reader = BufReader::new(stdout);
+                let mut line = String::new();
 
-                while running_flag.load(Ordering::SeqCst) {
-                    match hook.try_recv() {
-                        Ok(InputEvent::Keyboard(event)) => {
-                            if should_skip_keyboard_event(&event) {
+                while running_reader.load(Ordering::SeqCst) {
+                    line.clear();
+                    match reader.read_line(&mut line) {
+                        Ok(0) => break,
+                        Ok(_) => {
+                            let trimmed = line.trim();
+                            if trimmed.is_empty() {
                                 continue;
                             }
 
-                            let labels = build_key_labels(&event);
-                            if labels.is_empty() {
-                                continue;
-                            }
+                            match serde_json::from_str::<HookMessage>(trimmed) {
+                                Ok(message) => {
+                                    if message.labels.is_empty() {
+                                        continue;
+                                    }
 
-                            let Some(key_label) =
-                                keyboard.match_candidate(labels.iter().map(|label| label.as_str()))
-                            else {
-                                continue;
-                            };
+                                    let Some(key_label) = keyboard
+                                        .match_candidate(
+                                            message.labels.iter().map(|label| label.as_str()),
+                                        )
+                                    else {
+                                        continue;
+                                    };
 
-                            let state = match event.pressed {
-                                KeyPress::Down(_) => "DOWN",
-                                KeyPress::Up(_) => "UP",
-                                _ => continue,
-                            };
+                                    let state = match message.state {
+                                        HookKeyState::Down => "DOWN",
+                                        HookKeyState::Up => "UP",
+                                    };
 
-                            let mode = keyboard.current_mode();
-                            if let Err(err) = app.emit(
-                                "keys:state",
-                                &json!({
-                                    "key": key_label,
-                                    "state": state,
-                                    "mode": mode,
-                                }),
-                            ) {
-                                error!("failed to emit keys:state event: {err}");
+                                    let mode = keyboard.current_mode();
+                                    if let Err(err) = app_handle.emit(
+                                        "keys:state",
+                                        &json!({
+                                            "key": key_label,
+                                            "state": state,
+                                            "mode": mode,
+                                        }),
+                                    ) {
+                                        error!("failed to emit keys:state event: {err}");
+                                    }
+                                }
+                                Err(err) => {
+                                    error!(
+                                        "failed to parse keyboard daemon message: {err}; payload={trimmed}"
+                                    );
+                                }
                             }
                         }
-                        Ok(_) => {}
-                        Err(std::sync::mpsc::TryRecvError::Empty) => {
-                            thread::sleep(Duration::from_millis(1));
+                        Err(err) => {
+                            if running_reader.load(Ordering::SeqCst) {
+                                error!("error reading keyboard daemon output: {err}");
+                            }
+                            break;
                         }
-                        Err(std::sync::mpsc::TryRecvError::Disconnected) => break,
                     }
                 }
             })
-            .map_err(|err| anyhow!("failed to spawn keyboard hook thread: {err}"))?;
+            .map_err(|err| anyhow!("failed to spawn keyboard daemon reader: {err}"))?;
 
-        *task_guard = Some(KeyboardHookTask {
+        let stderr_handle = if let Some(stderr) = stderr {
+            match thread::Builder::new()
+                .name("keyboard-daemon-stderr".into())
+                .spawn(move || {
+                    let reader = BufReader::new(stderr);
+                    for line in reader.lines() {
+                        match line {
+                            Ok(text) if !text.trim().is_empty() => {
+                                warn!("keyboard-daemon stderr: {text}");
+                            }
+                            Ok(_) => {}
+                            Err(err) => {
+                                error!("error reading keyboard daemon stderr: {err}");
+                                break;
+                            }
+                        }
+                    }
+                }) {
+                Ok(handle) => Some(handle),
+                Err(err) => {
+                    warn!("failed to spawn keyboard daemon stderr reader: {err}");
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
+        *task_guard = Some(KeyboardDaemonTask {
             running,
-            handle: Some(handle),
+            reader_handle: Some(reader_handle),
+            stderr_handle,
+            child: Some(child),
         });
         Ok(())
     }
+
     fn ensure_overlay_window(&self, app: &AppHandle) -> Result<WebviewWindow> {
         if let Some(window) = app.get_webview_window(OVERLAY_LABEL) {
             return Ok(window);
@@ -357,7 +417,7 @@ impl AppState {
 
         *self.overlay_visible.write() = true;
 
-        self.store.update(|state| {
+        let _ = self.store.update(|state| {
             state.overlay_bounds = Some(bounds.clone());
         })?;
 
@@ -417,24 +477,18 @@ impl AppState {
             let work_area = monitor.work_area();
 
             let origin = work_area.position;
-
             let size = work_area.size;
 
             let origin_x = origin.x as f64;
-
             let origin_y = origin.y as f64;
-
             let work_width = size.width as f64;
-
             let work_height = size.height as f64;
 
             let x = origin_x + work_width - bounds.width - OVERLAY_MARGIN;
-
             let y = origin_y + work_height - bounds.height - OVERLAY_MARGIN;
 
             return OverlayPosition {
                 x: x.max(origin_x),
-
                 y: y.max(origin_y),
             };
         }
@@ -471,26 +525,38 @@ fn persist_overlay_bounds(window: &WebviewWindow, store: &Arc<AppStore>) -> Resu
         height: size.height as f64,
     };
 
-    store
-        .update(|state| {
-            state.overlay_bounds = Some(bounds.clone());
-        })
-        .map(|_| ())
-        .map_err(|err| err.into())
+    let _ = store.update(|state| {
+        state.overlay_bounds = Some(bounds.clone());
+    })?;
+    Ok(())
 }
 
-struct KeyboardHookTask {
+struct KeyboardDaemonTask {
     running: Arc<AtomicBool>,
-    handle: Option<JoinHandle<()>>,
+    reader_handle: Option<JoinHandle<()>>,
+    stderr_handle: Option<JoinHandle<()>>,
+    child: Option<Child>,
 }
 
-impl Drop for KeyboardHookTask {
+impl Drop for KeyboardDaemonTask {
     fn drop(&mut self) {
         self.running.store(false, Ordering::SeqCst);
-        if let Some(handle) = self.handle.take() {
-            if let Err(err) = handle.join() {
-                error!("failed to join keyboard hook thread: {:?}", err);
+
+        if let Some(child) = self.child.as_mut() {
+            if let Err(err) = child.kill() {
+                if err.kind() != std::io::ErrorKind::InvalidInput {
+                    warn!("failed to kill keyboard daemon: {err}");
+                }
             }
+            let _ = child.wait();
+        }
+
+        if let Some(handle) = self.reader_handle.take() {
+            let _ = handle.join();
+        }
+
+        if let Some(handle) = self.stderr_handle.take() {
+            let _ = handle.join();
         }
     }
 }
@@ -501,219 +567,21 @@ struct OverlayPosition {
     y: f64,
 }
 
-fn build_key_labels(event: &KeyboardEvent) -> Vec<String> {
-    let mut labels = Vec::new();
-
-    if let Some(label) = numpad_override_label(event) {
-        labels.push(label.to_string());
-    } else if let Some(key) = event.key {
-        extend_unique(&mut labels, keyboard_key_to_global(key));
-    }
-
-    if labels.is_empty() {
-        if let Some(vk_code) = event.vk_code {
-            labels.push(vk_code.to_string());
-        } else if let Some(scan_code) = event.scan_code {
-            labels.push(scan_code.to_string());
-        }
-    }
-
-    labels
+#[derive(Debug, Deserialize)]
+struct HookMessage {
+    labels: Vec<String>,
+    state: HookKeyState,
+    #[allow(dead_code)]
+    vk_code: Option<u32>,
+    #[allow(dead_code)]
+    scan_code: Option<u32>,
+    #[allow(dead_code)]
+    flags: Option<u32>,
 }
 
-fn extend_unique(target: &mut Vec<String>, items: Vec<String>) {
-    for item in items {
-        if !target.iter().any(|existing| existing == &item) {
-            target.push(item);
-        }
-    }
-}
-
-fn numpad_override_label(event: &KeyboardEvent) -> Option<&'static str> {
-    let scan_code = event.scan_code?;
-    let label = match scan_code {
-        82 => "NUMPAD 0",
-        79 => "NUMPAD 1",
-        80 => "NUMPAD 2",
-        81 => "NUMPAD 3",
-        75 => "NUMPAD 4",
-        76 => "NUMPAD 5",
-        77 => "NUMPAD 6",
-        71 => "NUMPAD 7",
-        72 => "NUMPAD 8",
-        73 => "NUMPAD 9",
-        28 => "NUMPAD RETURN",
-        83 => "NUMPAD DELETE",
-        _ => return None,
-    };
-
-    let flags = event.flags.unwrap_or(0);
-    let is_extended = (flags & LLKHF_EXTENDED) != 0;
-
-    match scan_code {
-        28 => {
-            if is_extended {
-                Some(label)
-            } else {
-                None
-            }
-        }
-        _ => {
-            if !is_extended {
-                Some(label)
-            } else {
-                None
-            }
-        }
-    }
-}
-
-fn should_skip_keyboard_event(event: &KeyboardEvent) -> bool {
-    let is_shift = matches!(event.vk_code, Some(0x10) | Some(0xA0) | Some(0xA1))
-        || matches!(
-            event.key,
-            Some(KeyboardKey::LeftShift) | Some(KeyboardKey::RightShift)
-        );
-
-    if !is_shift {
-        return false;
-    }
-
-    if matches!(event.is_injected, Some(IsKeyboardEventInjected::Injected)) {
-        return true;
-    }
-
-    if matches!(event.scan_code, Some(554)) {
-        return true;
-    }
-
-    false
-}
-
-fn keyboard_key_to_global(key: KeyboardKey) -> Vec<String> {
-    use KeyboardKey::*;
-    match key {
-        A => vec!["A".to_string()],
-        B => vec!["B".to_string()],
-        C => vec!["C".to_string()],
-        D => vec!["D".to_string()],
-        E => vec!["E".to_string()],
-        F => vec!["F".to_string()],
-        G => vec!["G".to_string()],
-        H => vec!["H".to_string()],
-        I => vec!["I".to_string()],
-        J => vec!["J".to_string()],
-        K => vec!["K".to_string()],
-        L => vec!["L".to_string()],
-        M => vec!["M".to_string()],
-        N => vec!["N".to_string()],
-        O => vec!["O".to_string()],
-        P => vec!["P".to_string()],
-        Q => vec!["Q".to_string()],
-        R => vec!["R".to_string()],
-        S => vec!["S".to_string()],
-        T => vec!["T".to_string()],
-        U => vec!["U".to_string()],
-        V => vec!["V".to_string()],
-        W => vec!["W".to_string()],
-        X => vec!["X".to_string()],
-        Y => vec!["Y".to_string()],
-        Z => vec!["Z".to_string()],
-        Number0 => vec!["0".to_string()],
-        Number1 => vec!["1".to_string()],
-        Number2 => vec!["2".to_string()],
-        Number3 => vec!["3".to_string()],
-        Number4 => vec!["4".to_string()],
-        Number5 => vec!["5".to_string()],
-        Number6 => vec!["6".to_string()],
-        Number7 => vec!["7".to_string()],
-        Number8 => vec!["8".to_string()],
-        Number9 => vec!["9".to_string()],
-        LeftAlt => vec!["LEFT ALT".to_string()],
-        RightAlt => vec!["RIGHT ALT".to_string()],
-        LeftShift => vec!["LEFT SHIFT".to_string()],
-        RightShift => vec!["RIGHT SHIFT".to_string()],
-        LeftControl => vec!["LEFT CTRL".to_string()],
-        RightControl => vec!["25".to_string(), "RIGHT CTRL".to_string()],
-        BackSpace => vec!["BACKSPACE".to_string()],
-        Tab => vec!["TAB".to_string()],
-        Enter => vec!["RETURN".to_string(), "NUMPAD RETURN".to_string()],
-        Escape => vec!["ESCAPE".to_string()],
-        Space => vec!["SPACE".to_string()],
-        PageUp => vec!["PAGE UP".to_string()],
-        PageDown => vec!["PAGE DOWN".to_string()],
-        Home => vec!["HOME".to_string()],
-        ArrowLeft => vec!["LEFT ARROW".to_string()],
-        ArrowUp => vec!["UP ARROW".to_string()],
-        ArrowRight => vec!["RIGHT ARROW".to_string()],
-        ArrowDown => vec!["DOWN ARROW".to_string()],
-        Print => vec!["PRINT".to_string()],
-        PrintScreen => vec!["PRINT SCREEN".to_string()],
-        Insert => vec!["INS".to_string()],
-        Delete => vec!["DELETE".to_string()],
-        LeftWindows => vec!["91".to_string(), "LEFT WINDOWS".to_string()],
-        RightWindows => vec!["92".to_string(), "RIGHT WINDOWS".to_string()],
-        Comma => vec!["COMMA".to_string()],
-        Period => vec!["DOT".to_string(), "PERIOD".to_string()],
-        Slash => vec!["FORWARD SLASH".to_string(), "/".to_string()],
-        SemiColon => vec!["SEMICOLON".to_string()],
-        Apostrophe => vec!["QUOTE".to_string()],
-        LeftBrace => vec!["SQUARE BRACKET OPEN".to_string()],
-        BackwardSlash => vec!["BACKSLASH".to_string()],
-        RightBrace => vec!["SQUARE BRACKET CLOSE".to_string()],
-        Grave => vec!["SECTION".to_string(), "GRAVE".to_string()],
-        Add => vec!["NUMPAD PLUS".to_string(), "+".to_string()],
-        Subtract => vec!["NUMPAD MINUS".to_string(), "-".to_string()],
-        Decimal => vec!["NUMPAD DELETE".to_string(), "DECIMAL".to_string()],
-        Divide => vec!["NUMPAD DIVIDE".to_string(), "/".to_string()],
-        Multiply => vec!["NUMPAD MULTIPLY".to_string(), "*".to_string()],
-        Separator => vec!["NUMPAD SEPARATOR".to_string()],
-        F1 => vec!["F1".to_string()],
-        F2 => vec!["F2".to_string()],
-        F3 => vec!["F3".to_string()],
-        F4 => vec!["F4".to_string()],
-        F5 => vec!["F5".to_string()],
-        F6 => vec!["F6".to_string()],
-        F7 => vec!["F7".to_string()],
-        F8 => vec!["F8".to_string()],
-        F9 => vec!["F9".to_string()],
-        F10 => vec!["F10".to_string()],
-        F11 => vec!["F11".to_string()],
-        F12 => vec!["F12".to_string()],
-        F13 => vec!["F13".to_string()],
-        F14 => vec!["F14".to_string()],
-        F15 => vec!["F15".to_string()],
-        F16 => vec!["F16".to_string()],
-        F17 => vec!["F17".to_string()],
-        F18 => vec!["F18".to_string()],
-        F19 => vec!["F19".to_string()],
-        F20 => vec!["F20".to_string()],
-        F21 => vec!["F21".to_string()],
-        F22 => vec!["F22".to_string()],
-        F23 => vec!["F23".to_string()],
-        F24 => vec!["F24".to_string()],
-        NumLock => vec!["NUM LOCK".to_string()],
-        ScrollLock => vec!["SCROLL LOCK".to_string()],
-        CapsLock => vec!["CAPS LOCK".to_string()],
-        Numpad0 => vec!["NUMPAD 0".to_string()],
-        Numpad1 => vec!["NUMPAD 1".to_string()],
-        Numpad2 => vec!["NUMPAD 2".to_string()],
-        Numpad3 => vec!["NUMPAD 3".to_string()],
-        Numpad4 => vec!["NUMPAD 4".to_string()],
-        Numpad5 => vec!["NUMPAD 5".to_string()],
-        Numpad6 => vec!["NUMPAD 6".to_string()],
-        Numpad7 => vec!["NUMPAD 7".to_string()],
-        Numpad8 => vec!["NUMPAD 8".to_string()],
-        Numpad9 => vec!["NUMPAD 9".to_string()],
-        Other(code) => other_key_labels(code),
-        InvalidKeyCodeReceived => Vec::new(),
-    }
-}
-
-fn other_key_labels(code: u32) -> Vec<String> {
-    match code {
-        187 => vec!["EQUALS".to_string(), "=".to_string()],
-        189 => vec!["MINUS".to_string(), "-".to_string()],
-        _ => vec![code.to_string()],
-    }
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+enum HookKeyState {
+    Down,
+    Up,
 }
