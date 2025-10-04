@@ -1,8 +1,4 @@
-use std::{
-    io::{self, Write},
-    thread,
-    time::Duration,
-};
+use std::io::{self, Write};
 
 use anyhow::{anyhow, Context, Result};
 use serde::Serialize;
@@ -53,7 +49,7 @@ pub fn run() -> Result<()> {
             }
             Ok(_) => {}
             Err(std::sync::mpsc::TryRecvError::Empty) => {
-                thread::sleep(Duration::from_millis(1));
+                std::thread::yield_now();
             }
             Err(std::sync::mpsc::TryRecvError::Disconnected) => break,
         }

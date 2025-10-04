@@ -306,15 +306,19 @@ impl AppState {
                                     };
 
                                     let mode = keyboard.current_mode();
-                                    if let Err(err) = app_handle.emit(
-                                        "keys:state",
-                                        &json!({
-                                            "key": key_label,
-                                            "state": state,
-                                            "mode": mode,
-                                        }),
-                                    ) {
-                                        error!("failed to emit keys:state event: {err}");
+                                    let payload = json!({
+                                        "key": key_label,
+                                        "state": state,
+                                        "mode": mode,
+                                    });
+
+                                    // 오버레이 윈도우에만 이벤트 전송
+                                    if let Some(overlay) = app_handle.get_webview_window(OVERLAY_LABEL) {
+                                        if let Err(err) = overlay.emit("keys:state", &payload) {
+                                            error!("failed to emit keys:state to overlay: {err}");
+                                        }
+                                    } else if let Err(err) = app_handle.emit("keys:state", &payload) {
+                                        error!("failed to emit keys:state (fallback): {err}");
                                     }
                                 }
                                 Err(err) => {
