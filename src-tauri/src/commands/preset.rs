@@ -27,10 +27,13 @@ struct PresetFile {
     key_positions: Option<KeyPositions>,
     background_color: Option<String>,
     note_settings: Option<NoteSettings>,
+    note_effect: Option<bool>,
     laboratory_enabled: Option<bool>,
     custom_tabs: Option<Vec<CustomTab>>,
     selected_key_type: Option<String>,
+    #[serde(rename = "useCustomCSS")]
     use_custom_css: Option<bool>,
+    #[serde(rename = "customCSS")]
     custom_css: Option<CustomCss>,
 }
 
@@ -54,6 +57,7 @@ pub fn preset_save(state: State<'_, AppState>) -> Result<PresetOperationResult, 
         key_positions: Some(snapshot.key_positions),
         background_color: Some(snapshot.background_color),
         note_settings: Some(snapshot.note_settings),
+        note_effect: Some(snapshot.note_effect),
         laboratory_enabled: Some(snapshot.laboratory_enabled),
         custom_tabs: Some(snapshot.custom_tabs),
         selected_key_type: Some(snapshot.selected_key_type),
@@ -135,6 +139,7 @@ pub fn preset_load(
                     .unwrap_or_else(|| "transparent".to_string()),
             ),
             note_settings: Some(note_patch),
+            note_effect: Some(preset.note_effect.unwrap_or(false)),
             laboratory_enabled: Some(preset.laboratory_enabled.unwrap_or(false)),
             use_custom_css: Some(css_use),
             custom_css: Some(CustomCssPatch {

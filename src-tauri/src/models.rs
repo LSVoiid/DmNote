@@ -1,14 +1,69 @@
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer, Deserializer};
+use serde::ser::SerializeMap;
+use serde::de::Error as DeError;
 use std::collections::HashMap;
 
 pub type KeyMappings = HashMap<String, Vec<String>>;
 pub type KeyPositions = HashMap<String, Vec<KeyPosition>>;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(untagged)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum NoteColor {
     Solid(String),
     Gradient { top: String, bottom: String },
+}
+
+// Serialize as:
+// - Solid: JSON string (e.g., "#FF00FF")
+// - Gradient: object with explicit type { type: "gradient", top, bottom }
+impl Serialize for NoteColor {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            NoteColor::Solid(s) => serializer.serialize_str(s),
+            NoteColor::Gradient { top, bottom } => {
+                let mut map = serializer.serialize_map(Some(3))?;
+                map.serialize_entry("type", "gradient")?;
+                map.serialize_entry("top", top)?;
+                map.serialize_entry("bottom", bottom)?;
+                map.end()
+            }
+        }
+    }
+}
+
+// Deserialize accepts both shapes:
+// - string => Solid
+// - object with { type: "gradient", top, bottom } => Gradient
+// - object with { top, bottom } (no type) => Gradient (backward compatibility)
+impl<'de> Deserialize<'de> for NoteColor {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        use serde_json::Value;
+        let value = Value::deserialize(deserializer)?;
+        match value {
+            Value::String(s) => Ok(NoteColor::Solid(s)),
+            Value::Object(map) => {
+                let ty = map.get("type").and_then(|v| v.as_str()).unwrap_or("");
+                let top = map.get("top").and_then(|v| v.as_str());
+                let bottom = map.get("bottom").and_then(|v| v.as_str());
+                match (top, bottom) {
+                    (Some(top), Some(bottom)) => Ok(NoteColor::Gradient {
+                        top: top.to_string(),
+                        bottom: bottom.to_string(),
+                    }),
+                    _ => Err(DeError::custom(format!(
+                        "invalid noteColor object (type={})",
+                        ty
+                    ))),
+                }
+            }
+            _ => Err(DeError::custom("invalid noteColor value")),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
