@@ -160,6 +160,8 @@ pub struct AppStoreData {
     pub overlay_resize_anchor: OverlayResizeAnchor,
     pub overlay_bounds: Option<OverlayBounds>,
     pub overlay_last_content_top_offset: Option<f64>,
+    #[serde(default)]
+    pub overlay_bounds_are_logical: bool,
 }
 
 impl Default for AppStoreData {
@@ -183,6 +185,7 @@ impl Default for AppStoreData {
             overlay_resize_anchor: OverlayResizeAnchor::TopLeft,
             overlay_bounds: None,
             overlay_last_content_top_offset: None,
+            overlay_bounds_are_logical: false,
         }
     }
 }

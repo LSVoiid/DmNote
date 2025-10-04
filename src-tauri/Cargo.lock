@@ -871,6 +871,7 @@ dependencies = [
  "tauri-runtime-wry",
  "thiserror 1.0.69",
  "willhook",
+ "windows",
 ]
 
 [[package]]

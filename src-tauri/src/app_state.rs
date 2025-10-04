@@ -14,9 +14,10 @@ use parking_lot::RwLock;
 use serde::Deserialize;
 use serde_json::json;
 use tauri::{
-    AppHandle, Emitter, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent,
+    AppHandle, Emitter, Manager, Monitor, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
+    WindowEvent,
 };
-use tauri_runtime_wry::wry::dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize};
+use tauri_runtime_wry::wry::dpi::{LogicalPosition, LogicalSize};
 
 use crate::{
     keyboard::KeyboardManager,
@@ -112,9 +113,9 @@ impl AppState {
     pub fn set_overlay_visibility(&self, app: &AppHandle, visible: bool) -> Result<()> {
         let window = self.ensure_overlay_window(app)?;
         if visible {
-            window.show()?;
+            show_overlay_window(&window)?;
         } else {
-            window.hide()?;
+            hide_overlay_window(&window)?;
         }
         *self.overlay_visible.write() = visible;
         app.emit("overlay:visibility", &json!({ "visible": visible }))?;
@@ -167,27 +168,29 @@ impl AppState {
         let width = width.clamp(100.0, 2000.0).round();
         let height = height.clamp(100.0, 2000.0).round();
 
+        let scale_factor = window.scale_factor().unwrap_or(1.0);
         let position = window
             .outer_position()
-            .unwrap_or(PhysicalPosition::new(0, 0));
-        let size = window.outer_size().unwrap_or(PhysicalSize::new(
-            DEFAULT_OVERLAY_WIDTH as u32,
-            DEFAULT_OVERLAY_HEIGHT as u32,
-        ));
+            .map(|value| value.to_logical::<f64>(scale_factor))
+            .unwrap_or_else(|_| LogicalPosition::new(0.0, 0.0));
+        let size = window
+            .outer_size()
+            .map(|value| value.to_logical::<f64>(scale_factor))
+            .unwrap_or_else(|_| LogicalSize::new(DEFAULT_OVERLAY_WIDTH, DEFAULT_OVERLAY_HEIGHT));
 
-        let mut new_x = position.x as f64;
-        let mut new_y = position.y as f64;
+        let mut new_x = position.x;
+        let mut new_y = position.y;
 
         match anchor {
-            OverlayResizeAnchor::BottomLeft => new_y += size.height as f64 - height,
-            OverlayResizeAnchor::TopRight => new_x += size.width as f64 - width,
+            OverlayResizeAnchor::BottomLeft => new_y += size.height - height,
+            OverlayResizeAnchor::TopRight => new_x += size.width - width,
             OverlayResizeAnchor::BottomRight => {
-                new_x += size.width as f64 - width;
-                new_y += size.height as f64 - height;
+                new_x += size.width - width;
+                new_y += size.height - height;
             }
             OverlayResizeAnchor::Center => {
-                new_x += (size.width as f64 - width) / 2.0;
-                new_y += (size.height as f64 - height) / 2.0;
+                new_x += (size.width - width) / 2.0;
+                new_y += (size.height - height) / 2.0;
             }
             OverlayResizeAnchor::TopLeft => {}
         }
@@ -225,6 +228,7 @@ impl AppState {
 
         let _ = self.store.update(|state| {
             state.overlay_bounds = Some(bounds.clone());
+            state.overlay_bounds_are_logical = true;
         })?;
 
         app.emit(
@@ -374,8 +378,20 @@ impl AppState {
         }
 
         let snapshot = self.store.snapshot();
-        let (mut bounds, had_bounds) = if let Some(bounds) = snapshot.overlay_bounds.clone() {
-            (bounds, true)
+        let monitor_data = MonitorData::gather(app);
+
+        let (mut bounds, had_bounds, mut bounds_are_logical) = if let Some(mut bounds) =
+            snapshot.overlay_bounds.clone()
+        {
+            let mut is_logical = snapshot.overlay_bounds_are_logical;
+            if !is_logical {
+                if let Some(converted) = convert_physical_bounds_to_logical(&bounds, &monitor_data)
+                {
+                    bounds = converted;
+                    is_logical = true;
+                }
+            }
+            (bounds, true, is_logical)
         } else {
             (
                 OverlayBounds {
@@ -385,12 +401,16 @@ impl AppState {
                     height: DEFAULT_OVERLAY_HEIGHT,
                 },
                 false,
+                true,
             )
         };
 
-        let position = self.compute_overlay_position(app, &bounds, had_bounds);
+        let position = self.compute_overlay_position(&bounds, had_bounds, &monitor_data);
         bounds.x = position.x;
         bounds.y = position.y;
+        if !monitor_data.is_empty() {
+            bounds_are_logical = true;
+        }
 
         let window = WebviewWindowBuilder::new(
             app,
@@ -411,14 +431,12 @@ impl AppState {
 
         window.set_ignore_cursor_events(snapshot.overlay_locked)?;
         window.set_always_on_top(snapshot.always_on_top)?;
-        if let Err(err) = window.set_focus() {
-            log::debug!("failed to focus overlay window: {err}");
-        }
 
         *self.overlay_visible.write() = true;
 
         let _ = self.store.update(|state| {
             state.overlay_bounds = Some(bounds.clone());
+            state.overlay_bounds_are_logical = bounds_are_logical;
         })?;
 
         self.configure_overlay_window(&window, app);
@@ -445,6 +463,9 @@ impl AppState {
                     log::error!("failed to emit overlay visibility change: {err}");
                 }
             }
+            WindowEvent::Focused(true) => {
+                focus_main_window(&app_handle);
+            }
             WindowEvent::Focused(false) => {
                 let snapshot = store.snapshot();
                 if let Err(err) = overlay_window.set_always_on_top(snapshot.always_on_top) {
@@ -462,41 +483,62 @@ impl AppState {
 
     fn compute_overlay_position(
         &self,
-        app: &AppHandle,
         bounds: &OverlayBounds,
         had_stored_bounds: bool,
+        monitors: &MonitorData,
     ) -> OverlayPosition {
-        if had_stored_bounds {
+        if monitors.is_empty() {
+            return if had_stored_bounds {
+                OverlayPosition {
+                    x: bounds.x,
+                    y: bounds.y,
+                }
+            } else {
+                OverlayPosition {
+                    x: OVERLAY_MARGIN,
+                    y: OVERLAY_MARGIN,
+                }
+            };
+        }
+
+        let fallback = monitors
+            .primary_spec()
+            .cloned()
+            .or_else(|| monitors.first().cloned());
+
+        let Some(fallback_spec) = fallback else {
             return OverlayPosition {
                 x: bounds.x,
                 y: bounds.y,
             };
-        }
+        };
 
-        if let Ok(Some(monitor)) = app.primary_monitor() {
-            let work_area = monitor.work_area();
+        let target_spec = if had_stored_bounds {
+            let center_x = bounds.x + bounds.width / 2.0;
+            let center_y = bounds.y + bounds.height / 2.0;
+            monitors
+                .find_by_logical(center_x, center_y)
+                .cloned()
+                .unwrap_or(fallback_spec.clone())
+        } else {
+            fallback_spec.clone()
+        };
 
-            let origin = work_area.position;
-            let size = work_area.size;
+        let base_x = if had_stored_bounds {
+            bounds.x
+        } else {
+            target_spec.logical_origin_x + target_spec.logical_width - bounds.width - OVERLAY_MARGIN
+        };
 
-            let origin_x = origin.x as f64;
-            let origin_y = origin.y as f64;
-            let work_width = size.width as f64;
-            let work_height = size.height as f64;
+        let base_y = if had_stored_bounds {
+            bounds.y
+        } else {
+            target_spec.logical_origin_y + target_spec.logical_height
+                - bounds.height
+                - OVERLAY_MARGIN
+        };
 
-            let x = origin_x + work_width - bounds.width - OVERLAY_MARGIN;
-            let y = origin_y + work_height - bounds.height - OVERLAY_MARGIN;
-
-            return OverlayPosition {
-                x: x.max(origin_x),
-                y: y.max(origin_y),
-            };
-        }
-
-        OverlayPosition {
-            x: OVERLAY_MARGIN,
-            y: OVERLAY_MARGIN,
-        }
+        target_spec.clamp(base_x, base_y, bounds.width, bounds.height)
     }
 
     fn apply_settings_effects(&self, diff: &SettingsDiff, app: &AppHandle) -> Result<()> {
@@ -514,19 +556,224 @@ impl AppState {
     }
 }
 
+fn focus_main_window(app: &AppHandle) {
+    if let Some(main) = app.get_webview_window("main") {
+        if let Err(err) = main.set_focus() {
+            log::debug!("failed to refocus main window: {err}");
+        }
+    }
+}
+
+fn show_overlay_window(window: &WebviewWindow) -> Result<()> {
+    #[cfg(target_os = "windows")]
+    {
+        use windows::Win32::UI::WindowsAndMessaging::{ShowWindow, SW_SHOWNOACTIVATE};
+
+        let hwnd = window.hwnd()?;
+        unsafe {
+            let _ = ShowWindow(hwnd, SW_SHOWNOACTIVATE);
+        }
+        Ok(())
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        window.show()?;
+        Ok(())
+    }
+}
+
+fn hide_overlay_window(window: &WebviewWindow) -> Result<()> {
+    #[cfg(target_os = "windows")]
+    {
+        use windows::Win32::UI::WindowsAndMessaging::{ShowWindow, SW_HIDE};
+
+        let hwnd = window.hwnd()?;
+        unsafe {
+            let _ = ShowWindow(hwnd, SW_HIDE);
+        }
+        Ok(())
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        window.hide()?;
+        Ok(())
+    }
+}
+
+fn convert_physical_bounds_to_logical(
+    bounds: &OverlayBounds,
+    monitors: &MonitorData,
+) -> Option<OverlayBounds> {
+    if monitors.is_empty() {
+        return None;
+    }
+
+    let center_x = bounds.x + bounds.width / 2.0;
+    let center_y = bounds.y + bounds.height / 2.0;
+
+    let scale = monitors
+        .find_by_physical(center_x, center_y)
+        .map(|spec| spec.scale_factor)
+        .unwrap_or_else(|| monitors.fallback_scale());
+
+    if !scale.is_finite() || scale <= 0.0 {
+        return None;
+    }
+
+    Some(OverlayBounds {
+        x: bounds.x / scale,
+        y: bounds.y / scale,
+        width: bounds.width / scale,
+        height: bounds.height / scale,
+    })
+}
+
+#[derive(Clone)]
+struct MonitorSpec {
+    logical_origin_x: f64,
+    logical_origin_y: f64,
+    logical_width: f64,
+    logical_height: f64,
+    physical_origin_x: f64,
+    physical_origin_y: f64,
+    physical_width: f64,
+    physical_height: f64,
+    scale_factor: f64,
+}
+
+impl MonitorSpec {
+    fn from_monitor(monitor: Monitor) -> Option<Self> {
+        let scale = monitor.scale_factor();
+        let work_area = monitor.work_area();
+        let origin = work_area.position;
+        let size = work_area.size;
+
+        let logical_origin = origin.to_logical::<f64>(scale);
+        let logical_size = size.to_logical::<f64>(scale);
+
+        Some(Self {
+            logical_origin_x: logical_origin.x,
+            logical_origin_y: logical_origin.y,
+            logical_width: logical_size.width,
+            logical_height: logical_size.height,
+            physical_origin_x: origin.x as f64,
+            physical_origin_y: origin.y as f64,
+            physical_width: size.width as f64,
+            physical_height: size.height as f64,
+            scale_factor: scale,
+        })
+    }
+
+    fn matches(&self, other: &Self) -> bool {
+        (self.physical_origin_x - other.physical_origin_x).abs() < 0.5
+            && (self.physical_origin_y - other.physical_origin_y).abs() < 0.5
+            && (self.physical_width - other.physical_width).abs() < 0.5
+            && (self.physical_height - other.physical_height).abs() < 0.5
+            && (self.scale_factor - other.scale_factor).abs() < f64::EPSILON
+    }
+
+    fn contains_logical(&self, x: f64, y: f64) -> bool {
+        x >= self.logical_origin_x
+            && x <= self.logical_origin_x + self.logical_width
+            && y >= self.logical_origin_y
+            && y <= self.logical_origin_y + self.logical_height
+    }
+
+    fn contains_physical(&self, x: f64, y: f64) -> bool {
+        x >= self.physical_origin_x
+            && x <= self.physical_origin_x + self.physical_width
+            && y >= self.physical_origin_y
+            && y <= self.physical_origin_y + self.physical_height
+    }
+
+    fn clamp(&self, x: f64, y: f64, width: f64, height: f64) -> OverlayPosition {
+        let max_x = self.logical_origin_x + (self.logical_width - width).max(0.0);
+        let max_y = self.logical_origin_y + (self.logical_height - height).max(0.0);
+
+        OverlayPosition {
+            x: x.clamp(self.logical_origin_x, max_x),
+            y: y.clamp(self.logical_origin_y, max_y),
+        }
+    }
+}
+
+struct MonitorData {
+    specs: Vec<MonitorSpec>,
+    primary_index: Option<usize>,
+}
+
+impl MonitorData {
+    fn gather(app: &AppHandle) -> Self {
+        let mut specs: Vec<MonitorSpec> = app
+            .available_monitors()
+            .ok()
+            .unwrap_or_default()
+            .into_iter()
+            .filter_map(MonitorSpec::from_monitor)
+            .collect();
+
+        let mut primary_index = None;
+        if let Ok(Some(primary)) = app.primary_monitor() {
+            if let Some(primary_spec) = MonitorSpec::from_monitor(primary) {
+                primary_index = specs.iter().position(|spec| spec.matches(&primary_spec));
+
+                if primary_index.is_none() {
+                    specs.push(primary_spec);
+                    primary_index = Some(specs.len() - 1);
+                }
+            }
+        }
+
+        Self {
+            specs,
+            primary_index,
+        }
+    }
+
+    fn is_empty(&self) -> bool {
+        self.specs.is_empty()
+    }
+
+    fn primary_spec(&self) -> Option<&MonitorSpec> {
+        self.primary_index
+            .and_then(|idx| self.specs.get(idx))
+            .or_else(|| self.specs.first())
+    }
+
+    fn fallback_scale(&self) -> f64 {
+        self.primary_spec()
+            .map(|spec| spec.scale_factor)
+            .unwrap_or(1.0)
+    }
+
+    fn find_by_physical(&self, x: f64, y: f64) -> Option<&MonitorSpec> {
+        self.specs.iter().find(|spec| spec.contains_physical(x, y))
+    }
+
+    fn find_by_logical(&self, x: f64, y: f64) -> Option<&MonitorSpec> {
+        self.specs.iter().find(|spec| spec.contains_logical(x, y))
+    }
+
+    fn first(&self) -> Option<&MonitorSpec> {
+        self.specs.first()
+    }
+}
+
 fn persist_overlay_bounds(window: &WebviewWindow, store: &Arc<AppStore>) -> Result<()> {
-    let position = window.outer_position()?;
-    let size = window.outer_size()?;
+    let scale_factor = window.scale_factor().unwrap_or(1.0);
+    let position = window.outer_position()?.to_logical::<f64>(scale_factor);
+    let size = window.outer_size()?.to_logical::<f64>(scale_factor);
 
     let bounds = OverlayBounds {
-        x: position.x as f64,
-        y: position.y as f64,
-        width: size.width as f64,
-        height: size.height as f64,
+        x: position.x,
+        y: position.y,
+        width: size.width,
+        height: size.height,
     };
 
     let _ = store.update(|state| {
         state.overlay_bounds = Some(bounds.clone());
+        state.overlay_bounds_are_logical = true;
     })?;
     Ok(())
 }
