@@ -21,6 +21,11 @@ use app_state::AppState;
 use store::AppStore;
 
 fn main() {
+    #[cfg(target_os = "windows")]
+    {
+        apply_webview2_additional_args("--disable-blink-features=VSync");
+    }
+
     if std::env::args().any(|arg| arg == "--keyboard-daemon") {
         if let Err(err) = keyboard_daemon::run() {
             eprintln!("keyboard daemon error: {err:?}");
@@ -89,6 +94,26 @@ fn main() {
         ])
         .run(context)
         .expect("error while running tauri application");
+}
+
+#[cfg(target_os = "windows")]
+fn apply_webview2_additional_args(arg: &str) {
+    use std::env;
+    const KEY: &str = "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS";
+    // Append the argument if it's not already present to preserve user-provided args.
+    let existing = env::var(KEY).unwrap_or_default();
+    let already_present = existing
+        .split_whitespace()
+        .any(|token| token.eq_ignore_ascii_case(arg));
+    if already_present {
+        return;
+    }
+    let new_value = if existing.trim().is_empty() {
+        arg.to_string()
+    } else {
+        format!("{existing} {arg}")
+    };
+    env::set_var(KEY, new_value);
 }
 
 fn setup_logging() -> Result<()> {

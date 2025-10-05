@@ -5,6 +5,10 @@ import { useCustomCssInjection } from "@hooks/useCustomCssInjection";
 import { useNoteSystem } from "@hooks/useNoteSystem";
 import { useAppBootstrap } from "@hooks/useAppBootstrap";
 import { useKeyStore } from "@stores/useKeyStore";
+import {
+  setKeyActive as setKeyActiveSignal,
+  resetAllKeySignals,
+} from "@stores/keySignals";
 import { useSettingsStore } from "@stores/useSettingsStore";
 import { getKeyInfoByGlobalKey } from "@utils/KeyMaps";
 import type { KeyPosition } from "@src/types/keys";
@@ -59,9 +63,7 @@ export default function App() {
   const trackHeight =
     noteSettings?.trackHeight ?? DEFAULT_NOTE_SETTINGS.trackHeight;
 
-  const [originalKeyStates, setOriginalKeyStates] = useState<
-    Record<string, boolean>
-  >({});
+  // 키 활성 상태는 signals로 관리하여 App 리렌더를 방지
   const [layoutVersion, setLayoutVersion] = useState(0);
 
   useEffect(() => {
@@ -77,18 +79,12 @@ export default function App() {
   useEffect(() => {
     const unsubscribe = window.api.keys.onKeyState(({ key, state }) => {
       const isDown = state === "DOWN";
-
-      setOriginalKeyStates((prev) => {
-        if (prev[key] === isDown) return prev;
-        return { ...prev, [key]: isDown };
-      });
-
+      // 개별 Key가 신호를 직접 구독
+      setKeyActiveSignal(key, isDown);
+      // 노트 이펙트는 rAF 타이밍에서 실행
       requestAnimationFrame(() => {
-        if (isDown) {
-          handleKeyDown(key);
-        } else {
-          handleKeyUp(key);
-        }
+        if (isDown) handleKeyDown(key);
+        else handleKeyUp(key);
       });
     });
 
@@ -98,6 +94,8 @@ export default function App() {
       } catch (error) {
         console.error("Failed to remove key state listener", error);
       }
+      // 안전하게 모든 키 신호 초기화(선택적)
+      resetAllKeySignals();
     };
   }, [handleKeyDown, handleKeyUp]);
 
@@ -233,7 +231,7 @@ export default function App() {
           <OverlayKey
             key={`${selectedKeyType}-${index}`}
             keyName={displayName}
-            active={originalKeyStates[key] ?? false}
+            globalKey={key}
             position={position}
           />
         );

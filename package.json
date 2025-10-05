@@ -27,6 +27,8 @@
   "license": "GPL-3.0-only",
   "devDependencies": {
     "@preact/preset-vite": "^2.3.0",
+    "@preact/signals-react": "^3.3.1",
+    "@tauri-apps/cli": "^2.0.0",
     "@types/node": "^22.15.27",
     "@types/react": "^19.1.6",
     "@types/react-dom": "^19.1.5",
@@ -39,17 +41,16 @@
     "tailwindcss": "^3.4.17",
     "typescript": "^5.8.3",
     "vite": "^7.1.5",
-    "vite-plugin-svgr": "^4.5.0",
-    "@tauri-apps/cli": "^2.0.0"
+    "vite-plugin-svgr": "^4.5.0"
   },
   "dependencies": {
     "@floating-ui/react": "^0.27.16",
+    "@tauri-apps/api": "^2.0.0",
     "ogl": "^1.0.11",
     "preact": "^10.18.0",
     "react-color-palette": "^7.3.1",
     "three": "^0.180.0",
     "zod": "^4.1.11",
-    "zustand": "^5.0.3",
-    "@tauri-apps/api": "^2.0.0"
+    "zustand": "^5.0.3"
   }
 }

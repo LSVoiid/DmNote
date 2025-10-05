@@ -1,4 +1,6 @@
 import React, { memo, useMemo } from "react";
+import { getKeySignal } from "@stores/keySignals";
+import { useSignals } from "@preact/signals-react/runtime";
 import { useDraggable } from "@hooks/useDraggable";
 import { getKeyInfoByGlobalKey } from "@utils/KeyMaps";
 
@@ -111,7 +113,12 @@ export default function DraggableKey({
 }
 
 export const Key = memo(
-  ({ keyName, active, position }) => {
+  ({ keyName, globalKey, position }) => {
+    // React 환경에서 신호 변경을 구독하도록 활성화
+    useSignals();
+    // 각 Key는 자신의 활성 상태 신호를 직접 구독
+    const selectorKey = globalKey || keyName;
+    const active = getKeySignal(selectorKey).value;
     const {
       dx,
       dy,
@@ -233,9 +240,8 @@ export const Key = memo(
     );
   },
   (prevProps, nextProps) => {
-    // position 객체 속성 비교
+    // active는 내부 selector로 구독하므로 여기서는 position/keyName만 비교
     return (
-      prevProps.active === nextProps.active &&
       prevProps.keyName === nextProps.keyName &&
       prevProps.position.dx === nextProps.position.dx &&
       prevProps.position.dy === nextProps.position.dy &&
