@@ -6,6 +6,7 @@ use std::{
         Arc,
     },
     thread::{self, JoinHandle},
+    time::Duration,
 };
 
 use std::io::BufRead;
@@ -42,6 +43,7 @@ pub struct AppState {
     pub settings: SettingsService,
     pub keyboard: KeyboardManager,
     overlay_visible: Arc<RwLock<bool>>,
+    overlay_force_close: Arc<AtomicBool>,
     keyboard_task: RwLock<Option<KeyboardDaemonTask>>,
 }
 
@@ -58,14 +60,40 @@ impl AppState {
             settings,
             keyboard,
             overlay_visible: Arc::new(RwLock::new(false)),
+            overlay_force_close: Arc::new(AtomicBool::new(false)),
             keyboard_task: RwLock::new(None),
         })
     }
 
     pub fn initialize_runtime(&self, app: &AppHandle) -> Result<()> {
+        self.attach_main_window_handlers(app);
         self.ensure_overlay_window(app)?;
         self.start_keyboard_hook(app.clone())?;
         Ok(())
+    }
+
+    fn attach_main_window_handlers(&self, app: &AppHandle) {
+        let overlay_force_close = self.overlay_force_close.clone();
+        if let Some(window) = app.get_webview_window("main") {
+            attach_main_window_close_handler(window, overlay_force_close, app.clone());
+            return;
+        }
+
+        let overlay_force_close = overlay_force_close.clone();
+        let app_handle = app.clone();
+        thread::spawn(move || {
+            for _ in 0..15 {
+                if let Some(window) = app_handle.get_webview_window("main") {
+                    attach_main_window_close_handler(
+                        window,
+                        overlay_force_close.clone(),
+                        app_handle.clone(),
+                    );
+                    break;
+                }
+                thread::sleep(Duration::from_millis(25));
+            }
+        });
     }
 
     pub fn bootstrap_payload(&self) -> BootstrapPayload {
@@ -445,6 +473,7 @@ impl AppState {
             OVERLAY_LABEL,
             WebviewUrl::App("overlay/index.html".into()),
         )
+        .title("DM Note - Overlay")
         .decorations(false)
         .resizable(false)
         .transparent(true)
@@ -459,6 +488,8 @@ impl AppState {
 
         window.set_ignore_cursor_events(snapshot.overlay_locked)?;
         window.set_always_on_top(snapshot.always_on_top)?;
+
+        self.overlay_force_close.store(false, Ordering::SeqCst);
 
         *self.overlay_visible.write() = true;
 
@@ -477,18 +508,23 @@ impl AppState {
         let store = self.store.clone();
         let app_handle = app.clone();
         let overlay_window = window.clone();
+        let force_close_flag = self.overlay_force_close.clone();
 
         window.on_window_event(move |event| match event {
             WindowEvent::CloseRequested { api, .. } => {
-                api.prevent_close();
-                if let Err(err) = overlay_window.hide() {
-                    log::error!("failed to hide overlay window on close: {err}");
-                }
-                *overlay_visible.write() = false;
-                if let Err(err) =
-                    app_handle.emit("overlay:visibility", &json!({ "visible": false }))
-                {
-                    log::error!("failed to emit overlay visibility change: {err}");
+                if force_close_flag.swap(false, Ordering::SeqCst) {
+                    *overlay_visible.write() = false;
+                } else {
+                    api.prevent_close();
+                    if let Err(err) = overlay_window.hide() {
+                        log::error!("failed to hide overlay window on close: {err}");
+                    }
+                    *overlay_visible.write() = false;
+                    if let Err(err) =
+                        app_handle.emit("overlay:visibility", &json!({ "visible": false }))
+                    {
+                        log::error!("failed to emit overlay visibility change: {err}");
+                    }
                 }
             }
             WindowEvent::Focused(true) => {
@@ -584,12 +620,42 @@ impl AppState {
     }
 }
 
+impl Drop for AppState {
+    fn drop(&mut self) {
+        self.shutdown();
+    }
+}
+
 fn focus_main_window(app: &AppHandle) {
     if let Some(main) = app.get_webview_window("main") {
         if let Err(err) = main.set_focus() {
             log::debug!("failed to refocus main window: {err}");
         }
     }
+}
+
+fn attach_main_window_close_handler(
+    window: WebviewWindow,
+    overlay_force_close: Arc<AtomicBool>,
+    app_handle: AppHandle,
+) {
+    window.on_window_event(move |event| {
+        if matches!(event, WindowEvent::CloseRequested { .. }) {
+            {
+                let state = app_handle.state::<AppState>();
+                state.shutdown();
+            }
+            overlay_force_close.store(true, Ordering::SeqCst);
+            if let Some(overlay) = app_handle.get_webview_window(OVERLAY_LABEL) {
+                if let Err(err) = overlay.close() {
+                    log::warn!(
+                        "failed to close overlay window during main window shutdown: {err}"
+                    );
+                }
+            }
+            app_handle.exit(0);
+        }
+    });
 }
 
 fn show_overlay_window(window: &WebviewWindow) -> Result<()> {
