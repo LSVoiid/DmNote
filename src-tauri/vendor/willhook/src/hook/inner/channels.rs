@@ -1,5 +1,6 @@
 use std::sync::Mutex;
 use std::sync::mpsc::{channel, Receiver, Sender};
+use std::time::Duration;
 
 use crate::hook::event::*;
 
@@ -29,6 +30,17 @@ impl HookChannels {
 
     pub fn try_recv(&self) -> Result<InputEvent, std::sync::mpsc::TryRecvError> {
         self.receiver.lock().unwrap().try_recv()
+    }
+
+    pub fn recv(&self) -> Result<InputEvent, std::sync::mpsc::RecvError> {
+        self.receiver.lock().unwrap().recv()
+    }
+
+    pub fn recv_timeout(
+        &self,
+        duration: Duration,
+    ) -> Result<InputEvent, std::sync::mpsc::RecvTimeoutError> {
+        self.receiver.lock().unwrap().recv_timeout(duration)
     }
 
     pub fn drain(&self) {

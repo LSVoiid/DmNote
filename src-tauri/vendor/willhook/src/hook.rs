@@ -1,6 +1,8 @@
 pub(super) mod inner;
 pub mod event;
 
+use std::time::Duration;
+
 use crate::hook::inner::InnerHook;
 
 use self::event::InputEvent;
@@ -63,6 +65,19 @@ impl Hook {
     /// ```
     pub fn try_recv(&self) -> Result<InputEvent, std::sync::mpsc::TryRecvError> {
         InnerHook::try_recv()
+    }
+
+    /// Blocks until the next event is received or the hook is dropped.
+    pub fn recv(&self) -> Result<InputEvent, std::sync::mpsc::RecvError> {
+        InnerHook::recv()
+    }
+
+    /// Waits for the next event up to the provided timeout duration.
+    pub fn recv_timeout(
+        &self,
+        duration: Duration,
+    ) -> Result<InputEvent, std::sync::mpsc::RecvTimeoutError> {
+        InnerHook::recv_timeout(duration)
     }
 }
 

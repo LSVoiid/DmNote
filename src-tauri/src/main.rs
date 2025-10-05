@@ -6,6 +6,7 @@ mod defaults;
 mod keyboard;
 mod keyboard_daemon;
 mod keyboard_labels;
+mod ipc;
 mod models;
 mod services;
 mod store;

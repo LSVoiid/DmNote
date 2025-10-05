@@ -4,6 +4,7 @@ pub mod defaults;
 pub mod keyboard;
 pub mod keyboard_daemon;
 pub mod keyboard_labels;
+pub mod ipc;
 pub mod models;
 pub mod services;
 pub mod store;

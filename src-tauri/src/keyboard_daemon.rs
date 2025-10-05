@@ -1,23 +1,29 @@
 use std::io::{self, Write};
 
-use anyhow::{anyhow, Context, Result};
-use serde::Serialize;
+use anyhow::{anyhow, Result};
+use bincode::Options;
 use willhook::{
     hook::event::{InputEvent, KeyPress},
     keyboard_hook,
 };
 
-use crate::keyboard_labels::{build_key_labels, should_skip_keyboard_event};
+use crate::{
+    ipc::{HookKeyState, HookMessage},
+    keyboard_labels::{build_key_labels, should_skip_keyboard_event},
+};
 
 pub fn run() -> Result<()> {
     let Some(hook) = keyboard_hook() else {
         return Err(anyhow!("failed to install global keyboard hook"));
     };
 
-    let mut stdout = io::BufWriter::new(io::stdout());
+    let mut stdout = io::BufWriter::with_capacity(4096, io::stdout());
+    let codec = bincode::DefaultOptions::new()
+        .with_fixint_encoding()
+        .allow_trailing_bytes();
 
     loop {
-        match hook.try_recv() {
+        match hook.recv() {
             Ok(InputEvent::Keyboard(event)) => {
                 if should_skip_keyboard_event(&event) {
                     continue;
@@ -42,37 +48,15 @@ pub fn run() -> Result<()> {
                     flags: event.flags,
                 };
 
-                serde_json::to_writer(&mut stdout, &message)
-                    .context("failed to serialize keyboard event")?;
-                stdout.write_all(b"\n")?;
+                codec
+                    .serialize_into(&mut stdout, &message)
+                    .map_err(|err| anyhow!("failed to serialize keyboard event: {err}"))?;
                 stdout.flush()?;
             }
             Ok(_) => {}
-            Err(std::sync::mpsc::TryRecvError::Empty) => {
-                std::thread::yield_now();
-            }
-            Err(std::sync::mpsc::TryRecvError::Disconnected) => break,
+            Err(_) => break,
         }
     }
 
     Ok(())
-}
-
-#[derive(Debug, Serialize)]
-struct HookMessage {
-    labels: Vec<String>,
-    state: HookKeyState,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    vk_code: Option<u32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    scan_code: Option<u32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    flags: Option<u32>,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "UPPERCASE")]
-enum HookKeyState {
-    Down,
-    Up,
 }

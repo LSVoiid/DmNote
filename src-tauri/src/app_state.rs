@@ -1,5 +1,5 @@
 use std::{
-    io::{BufRead, BufReader},
+    io::BufReader,
     process::{Child, Command, Stdio},
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -8,10 +8,12 @@ use std::{
     thread::{self, JoinHandle},
 };
 
+use std::io::BufRead;
+
 use anyhow::{anyhow, Context, Result};
+use bincode::Options;
 use log::{error, warn};
 use parking_lot::RwLock;
-use serde::Deserialize;
 use serde_json::json;
 use tauri::{
     AppHandle, Emitter, Manager, Monitor, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
@@ -20,6 +22,7 @@ use tauri::{
 use tauri_runtime_wry::wry::dpi::{LogicalPosition, LogicalSize};
 
 use crate::{
+    ipc::{HookKeyState, HookMessage},
     keyboard::KeyboardManager,
     models::{
         overlay_resize_anchor_from_str, BootstrapOverlayState, BootstrapPayload, OverlayBounds,
@@ -274,64 +277,85 @@ impl AppState {
             .name("keyboard-daemon-reader".into())
             .spawn(move || {
                 let mut reader = BufReader::new(stdout);
-                let mut line = String::new();
+                let mut overlay_window = app_handle.get_webview_window(OVERLAY_LABEL);
+                let codec = bincode::DefaultOptions::new()
+                    .with_fixint_encoding()
+                    .allow_trailing_bytes();
 
                 while running_reader.load(Ordering::SeqCst) {
-                    line.clear();
-                    match reader.read_line(&mut line) {
-                        Ok(0) => break,
-                        Ok(_) => {
-                            let trimmed = line.trim();
-                            if trimmed.is_empty() {
+                    match codec.deserialize_from::<_, HookMessage>(&mut reader) {
+                        Ok(message) => {
+                            if message.labels.is_empty() {
                                 continue;
                             }
 
-                            match serde_json::from_str::<HookMessage>(trimmed) {
-                                Ok(message) => {
-                                    if message.labels.is_empty() {
-                                        continue;
-                                    }
+                            let Some(key_label) = keyboard
+                                .match_candidate(
+                                    message.labels.iter().map(|label| label.as_str()),
+                                )
+                            else {
+                                continue;
+                            };
 
-                                    let Some(key_label) = keyboard
-                                        .match_candidate(
-                                            message.labels.iter().map(|label| label.as_str()),
-                                        )
-                                    else {
-                                        continue;
-                                    };
+                            let state = match message.state {
+                                HookKeyState::Down => "DOWN",
+                                HookKeyState::Up => "UP",
+                            };
 
-                                    let state = match message.state {
-                                        HookKeyState::Down => "DOWN",
-                                        HookKeyState::Up => "UP",
-                                    };
+                            let mode = keyboard.current_mode();
+                            let payload = json!({
+                                "key": key_label,
+                                "state": state,
+                                "mode": mode,
+                            });
 
-                                    let mode = keyboard.current_mode();
-                                    let payload = json!({
-                                        "key": key_label,
-                                        "state": state,
-                                        "mode": mode,
-                                    });
+                            let mut emitted = false;
 
-                                    // 오버레이 윈도우에만 이벤트 전송
-                                    if let Some(overlay) = app_handle.get_webview_window(OVERLAY_LABEL) {
-                                        if let Err(err) = overlay.emit("keys:state", &payload) {
-                                            error!("failed to emit keys:state to overlay: {err}");
-                                        }
-                                    } else if let Err(err) = app_handle.emit("keys:state", &payload) {
-                                        error!("failed to emit keys:state (fallback): {err}");
+                            if let Some(overlay) = overlay_window.as_ref() {
+                                match overlay.emit("keys:state", &payload) {
+                                    Ok(_) => emitted = true,
+                                    Err(err) => {
+                                        error!("failed to emit keys:state to overlay: {err}");
+                                        overlay_window = None;
                                     }
                                 }
-                                Err(err) => {
-                                    error!(
-                                        "failed to parse keyboard daemon message: {err}; payload={trimmed}"
-                                    );
+                            }
+
+                            if !emitted {
+                                if overlay_window.is_none() {
+                                    overlay_window = app_handle.get_webview_window(OVERLAY_LABEL);
+                                    if let Some(overlay) = overlay_window.as_ref() {
+                                        match overlay.emit("keys:state", &payload) {
+                                            Ok(_) => emitted = true,
+                                            Err(err) => {
+                                                error!("failed to emit keys:state to overlay: {err}");
+                                                overlay_window = None;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            if !emitted {
+                                if let Err(err) = app_handle.emit("keys:state", &payload) {
+                                    error!("failed to emit keys:state (fallback): {err}");
                                 }
                             }
                         }
                         Err(err) => {
-                            if running_reader.load(Ordering::SeqCst) {
-                                error!("error reading keyboard daemon output: {err}");
+                            if let bincode::ErrorKind::Io(io_err) = err.as_ref() {
+                                match io_err.kind() {
+                                    std::io::ErrorKind::UnexpectedEof => break,
+                                    std::io::ErrorKind::Interrupted
+                                    | std::io::ErrorKind::WouldBlock => continue,
+                                    _ => {}
+                                }
                             }
+
+                            if running_reader.load(Ordering::SeqCst) {
+                                error!("failed to decode keyboard daemon message: {err}");
+                            }
+
                             break;
                         }
                     }
@@ -818,21 +842,3 @@ struct OverlayPosition {
     y: f64,
 }
 
-#[derive(Debug, Deserialize)]
-struct HookMessage {
-    labels: Vec<String>,
-    state: HookKeyState,
-    #[allow(dead_code)]
-    vk_code: Option<u32>,
-    #[allow(dead_code)]
-    scan_code: Option<u32>,
-    #[allow(dead_code)]
-    flags: Option<u32>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "UPPERCASE")]
-enum HookKeyState {
-    Down,
-    Up,
-}

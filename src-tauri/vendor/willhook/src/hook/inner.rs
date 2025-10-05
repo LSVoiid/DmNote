@@ -9,7 +9,8 @@ use crate::hook::{
 
 use std::{
     thread::JoinHandle,
-    sync::{Arc, Condvar, Mutex}
+    sync::{Arc, Condvar, Mutex},
+    time::Duration,
 };
 
 use once_cell::sync::Lazy;
@@ -171,5 +172,15 @@ impl InnerHook {
 
     pub fn try_recv() -> Result<InputEvent, std::sync::mpsc::TryRecvError> {
         GLOBAL_CHANNEL.try_recv()
+    }
+
+    pub fn recv() -> Result<InputEvent, std::sync::mpsc::RecvError> {
+        GLOBAL_CHANNEL.recv()
+    }
+
+    pub fn recv_timeout(
+        duration: Duration,
+    ) -> Result<InputEvent, std::sync::mpsc::RecvTimeoutError> {
+        GLOBAL_CHANNEL.recv_timeout(duration)
     }
 }
