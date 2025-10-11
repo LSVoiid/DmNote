@@ -286,6 +286,28 @@ export default function Settings({ showAlert, showConfirm }) {
               </div>
               <div
                 className="flex flex-row justify-between items-center h-[40px] cursor-pointer"
+                onMouseEnter={() => setHoveredKey("keyCounter")}
+                onMouseLeave={() => setHoveredKey(null)}
+                onClick={handleKeyCounterToggle}
+              >
+                <p className="text-style-3 text-[#FFFFFF]">
+                  {t("settings.keyCounter")}
+                </p>
+                <div className="flex items-center gap-[8px]">
+                  <button
+                    onClick={handleResetCounters}
+                    className="py-[4px] px-[8px] bg-[#2A2A31] border-[1px] border-[#3A3944] rounded-[7px] text-style-2 text-[#DBDEE8] hover:bg-[#34343c]"
+                  >
+                    {t("settings.counterResetButton")}
+                  </button>
+                  <Checkbox
+                    checked={keyCounterEnabled}
+                    onChange={handleKeyCounterToggle}
+                  />
+                </div>
+              </div>
+              <div
+                className="flex flex-row justify-between items-center h-[40px] cursor-pointer"
                 onMouseEnter={() => setHoveredKey("customCSS")}
                 onMouseLeave={() => setHoveredKey(null)}
                 onClick={handleToggleCustomCSS}
@@ -339,28 +361,6 @@ export default function Settings({ showAlert, showConfirm }) {
                   checked={laboratoryEnabled}
                   onChange={handleLaboratoryToggle}
                 />
-              </div>
-              <div
-                className="flex flex-row justify-between items-center h-[40px] cursor-pointer"
-                onMouseEnter={() => setHoveredKey("keyCounter")}
-                onMouseLeave={() => setHoveredKey(null)}
-                onClick={handleKeyCounterToggle}
-              >
-                <p className="text-style-3 text-[#FFFFFF]">
-                  {t("settings.keyCounter")}
-                </p>
-                <div className="flex items-center gap-[8px]">
-                  <button
-                    onClick={handleResetCounters}
-                    className="py-[4px] px-[8px] bg-[#2A2A31] border-[1px] border-[#3A3944] rounded-[7px] text-style-2 text-[#DBDEE8] hover:bg-[#34343c]"
-                  >
-                    {t("settings.counterResetButton")}
-                  </button>
-                  <Checkbox
-                    checked={keyCounterEnabled}
-                    onChange={handleKeyCounterToggle}
-                  />
-                </div>
               </div>
               <div
                 className="flex flex-row justify-between items-center h-[40px]"

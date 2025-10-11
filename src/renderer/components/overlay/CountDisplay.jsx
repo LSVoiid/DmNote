@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 
-export default function CountDisplay({ count, position }) {
+export default function CountDisplay({ count }) {
   const [scale, setScale] = useState(1);
   const prevCount = useRef(count);
   const animationRef = useRef(null);
@@ -21,7 +21,6 @@ export default function CountDisplay({ count, position }) {
         if (elapsed > duration) return 1.0;
         const progress = elapsed / duration;
 
-        // easeOutQuad 적용
         const easeOutQuad = (t) => t * (2 - t);
         const easeProgress = easeOutQuad(progress);
 
@@ -41,21 +40,26 @@ export default function CountDisplay({ count, position }) {
 
       animationRef.current = requestAnimationFrame(animate);
     }
+
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+        animationRef.current = null;
+      }
+    };
   }, [count]);
 
   return (
-    <div
+    <span
       className="font-extrabold text-[16px] text-center bg-clip-text text-transparent bg-gradient-to-b from-[#FFFFFF] to-[#757575] [text-shadow:_0_0_0.2px_rgba(255,255,255,0.5)]"
       style={{
-        position: "absolute",
-        top: position.dy - 22,
-        left: position.dx,
-        width: position.width,
-        transform: `scale(${scale})`,
+        transform: `translateY(-6px) scale(${scale})`,
         transformOrigin: "center bottom",
+        display: "inline-block",
+        pointerEvents: "none",
       }}
     >
       {count || 0}
-    </div>
+    </span>
   );
 }

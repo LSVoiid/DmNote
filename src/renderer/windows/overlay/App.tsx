@@ -12,6 +12,7 @@ import {
 import { useSettingsStore } from "@stores/useSettingsStore";
 import { getKeyInfoByGlobalKey } from "@utils/KeyMaps";
 import type { KeyPosition } from "@src/types/keys";
+import KeyCounterLayer from "@components/overlay/KeyCounterLayer";
 
 const FALLBACK_POSITION: KeyPosition = {
   dx: 0,
@@ -251,10 +252,18 @@ export default function App() {
             globalKey={key}
             position={position}
             mode={selectedKeyType}
-            showCounter={keyCounterEnabled}
           />
         );
       })}
+      {keyCounterEnabled ? (
+        <KeyCounterLayer
+          keys={currentKeys}
+          positions={
+            displayPositions.length ? displayPositions : currentPositions
+          }
+          mode={selectedKeyType}
+        />
+      ) : null}
     </div>
   );
 }

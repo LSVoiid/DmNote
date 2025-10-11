@@ -4,6 +4,7 @@
     "alwaysOnTop": "Always on Top",
     "noteEffect": "Show Note Effect",
     "laboratory": "Enable experimental features",
+    "keyCounter": "Show Key Counter",
     "customCSS": "Enable Custom CSS",
     "noCssFile": "(No CSS file selected)",
     "loadCss": "Import CSS File",
@@ -29,7 +30,11 @@
     "noteEffectDesc": "Shows note effects when keys are pressed.",
     "laboratoryDesc": "Try experimental features.",
     "customCSSDesc": "Loads a custom CSS file to style the overlay.",
-    "resizeAnchorDesc": "Selects the resize anchor point for the overlay window."
+    "resizeAnchorDesc": "Selects the resize anchor point for the overlay window.",
+    "keyCounterDesc": "Track and display the number of presses for each key.",
+    "counterResetButton": "Reset",
+    "counterReset": "Key counters have been reset.",
+    "counterResetFailed": "Failed to reset key counters."
   },
   "keySetting": {
     "keyMapping": "Key Binding",

@@ -4,6 +4,7 @@
     "alwaysOnTop": "항상 위에 표시",
     "noteEffect": "노트 효과 표시",
     "laboratory": "실험적 기능 활성화",
+    "keyCounter": "키 카운터 표시",
     "customCSS": "커스텀 CSS 활성화",
     "noCssFile": "(선택된 CSS 파일 없음)",
     "loadCss": "CSS 파일 불러오기",
@@ -29,7 +30,11 @@
     "noteEffectDesc": "키 입력 시 노트 효과를 표시합니다.",
     "laboratoryDesc": "실험적인 기능을 사용해보세요.",
     "customCSSDesc": "커스텀 CSS 파일을 불러와 오버레이의 스타일을 변경합니다.",
-    "resizeAnchorDesc": "오버레이 창의 리사이즈 기준점을 선택합니다."
+    "resizeAnchorDesc": "오버레이 창의 리사이즈 기준점을 선택합니다.",
+    "keyCounterDesc": "각 키 입력 횟수를 기록하고 표시합니다.",
+    "counterResetButton": "초기화",
+    "counterReset": "키 카운터가 초기화되었습니다.",
+    "counterResetFailed": "키 카운터 초기화에 실패했습니다."
   },
   "keySetting": {
     "keyMapping": "키 매핑",
