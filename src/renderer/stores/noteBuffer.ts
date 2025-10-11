@@ -122,20 +122,70 @@ export class NoteBuffer {
     );
     const srgbTop = convertLinearToSRGB(top);
     const srgbBottom = convertLinearToSRGB(bottom);
+    const trackIndex = layout.trackIndex;
 
-    const index = this.activeCount;
+    let insertIndex = this.activeCount;
+    for (let i = 0; i < this.activeCount; i += 1) {
+      const existingTrackIndex = this.trackIndex[i];
+      if (existingTrackIndex > trackIndex) {
+        insertIndex = i;
+        break;
+      }
+    }
+
+    if (insertIndex < this.activeCount) {
+      this.noteInfo.copyWithin(
+        (insertIndex + 1) * 3,
+        insertIndex * 3,
+        this.activeCount * 3
+      );
+      this.noteSize.copyWithin(
+        (insertIndex + 1) * 2,
+        insertIndex * 2,
+        this.activeCount * 2
+      );
+      this.noteColorTop.copyWithin(
+        (insertIndex + 1) * 4,
+        insertIndex * 4,
+        this.activeCount * 4
+      );
+      this.noteColorBottom.copyWithin(
+        (insertIndex + 1) * 4,
+        insertIndex * 4,
+        this.activeCount * 4
+      );
+      this.noteRadius.copyWithin(
+        insertIndex + 1,
+        insertIndex,
+        this.activeCount
+      );
+      this.trackIndex.copyWithin(
+        insertIndex + 1,
+        insertIndex,
+        this.activeCount
+      );
+
+      for (let i = this.activeCount; i > insertIndex; i -= 1) {
+        const movedId = this.noteIdByIndex[i - 1];
+        this.noteIdByIndex[i] = movedId;
+        if (movedId) {
+          this.indexByNoteId.set(movedId, i);
+        }
+      }
+    }
+
     this.activeCount += 1;
 
-    const infoOffset = index * 3;
+    const infoOffset = insertIndex * 3;
     this.noteInfo[infoOffset] = startTime;
     this.noteInfo[infoOffset + 1] = 0;
     this.noteInfo[infoOffset + 2] = layout.position.dx;
 
-    const sizeOffset = index * 2;
+    const sizeOffset = insertIndex * 2;
     this.noteSize[sizeOffset] = layout.width;
     this.noteSize[sizeOffset + 1] = layout.position.dy;
 
-    const colorOffset = index * 4;
+    const colorOffset = insertIndex * 4;
     this.noteColorTop[colorOffset] = srgbTop[0];
     this.noteColorTop[colorOffset + 1] = srgbTop[1];
     this.noteColorTop[colorOffset + 2] = srgbTop[2];
@@ -146,14 +196,14 @@ export class NoteBuffer {
     this.noteColorBottom[colorOffset + 2] = srgbBottom[2];
     this.noteColorBottom[colorOffset + 3] = opacity;
 
-    this.noteRadius[index] =
+    this.noteRadius[insertIndex] =
       layout.borderRadius ?? DEFAULT_NOTE_SETTINGS.borderRadius;
-    this.trackIndex[index] = layout.trackIndex;
+    this.trackIndex[insertIndex] = trackIndex;
 
-    this.noteIdByIndex[index] = noteId;
-    this.indexByNoteId.set(noteId, index);
+    this.noteIdByIndex[insertIndex] = noteId;
+    this.indexByNoteId.set(noteId, insertIndex);
     this.version += 1;
-    return index;
+    return insertIndex;
   }
 
   finalize(noteId: string, endTime: number) {
@@ -176,14 +226,26 @@ export class NoteBuffer {
       return -1;
     }
 
-    if (index !== last) {
-      this.copySlot(last, index);
-      const movedId = this.noteIdByIndex[last];
-      if (movedId) {
-        this.indexByNoteId.set(movedId, index);
-        this.noteIdByIndex[index] = movedId;
-      } else {
-        this.noteIdByIndex[index] = null;
+    if (index < last) {
+      // Shift all subsequent slots forward to keep draw order stable
+      const nextIndex = index + 1;
+      const totalInfo = (last + 1) * 3;
+      const totalSize = (last + 1) * 2;
+      const totalColor = (last + 1) * 4;
+
+      this.noteInfo.copyWithin(index * 3, nextIndex * 3, totalInfo);
+      this.noteSize.copyWithin(index * 2, nextIndex * 2, totalSize);
+      this.noteColorTop.copyWithin(index * 4, nextIndex * 4, totalColor);
+      this.noteColorBottom.copyWithin(index * 4, nextIndex * 4, totalColor);
+      this.noteRadius.copyWithin(index, nextIndex, last + 1);
+      this.trackIndex.copyWithin(index, nextIndex, last + 1);
+
+      for (let i = index; i < last; i += 1) {
+        const movedId = this.noteIdByIndex[i + 1];
+        this.noteIdByIndex[i] = movedId;
+        if (movedId) {
+          this.indexByNoteId.set(movedId, i);
+        }
       }
     }
 
@@ -192,13 +254,10 @@ export class NoteBuffer {
     this.activeCount = Math.max(last, 0);
 
     const infoOffset = last * 3;
-    this.noteInfo[infoOffset] = 0;
-    this.noteInfo[infoOffset + 1] = 0;
-    this.noteInfo[infoOffset + 2] = 0;
+    this.noteInfo.fill(0, infoOffset, infoOffset + 3);
 
     const sizeOffset = last * 2;
-    this.noteSize[sizeOffset] = 0;
-    this.noteSize[sizeOffset + 1] = 0;
+    this.noteSize.fill(0, sizeOffset, sizeOffset + 2);
 
     const colorOffset = last * 4;
     this.noteColorTop.fill(0, colorOffset, colorOffset + 4);
