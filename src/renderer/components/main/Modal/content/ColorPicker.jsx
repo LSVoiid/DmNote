@@ -1,9 +1,4 @@
-import React, {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "@contexts/I18nContext";
 import { Saturation, Hue, useColor } from "react-color-palette";
 import "react-color-palette/css";
@@ -23,8 +18,14 @@ export default function ColorPickerWrapper({
   color,
   onColorChange,
   onClose,
+  solidOnly = false,
+  interactiveRefs = [],
 }) {
-  const initialMode = isGradientColor(color) ? MODES.gradient : MODES.solid;
+  const initialMode = solidOnly
+    ? MODES.solid
+    : isGradientColor(color)
+    ? MODES.gradient
+    : MODES.solid;
   const [mode, setMode] = useState(initialMode);
   const baseColor = normalizeColorInput(color);
   const [selectedColor, setSelectedColor] = useColor(baseColor);
@@ -104,7 +105,7 @@ export default function ColorPickerWrapper({
   }, [selectedColor.hex]);
 
   useEffect(() => {
-    if (mode !== MODES.gradient) {
+    if (mode !== MODES.gradient || solidOnly) {
       return;
     }
     if (suppressGradientBroadcastRef.current) {
@@ -112,14 +113,14 @@ export default function ColorPickerWrapper({
       return;
     }
     onColorChange?.(buildGradient(`#${gradientTop}`, `#${gradientBottom}`));
-  }, [mode, gradientTop, gradientBottom, onColorChange]);
+  }, [mode, gradientTop, gradientBottom, onColorChange, solidOnly]);
 
   const applyColor = useCallback(
     (next) => {
       const parsed = toColorObject(next);
       if (!parsed) return;
       setSelectedColor(parsed);
-      if (mode === MODES.gradient) {
+      if (!solidOnly && mode === MODES.gradient) {
         // when editing via Saturation/Hue in gradient mode, update the selected stop
         const newHex = parsed.hex.replace("#", "").toUpperCase();
 
@@ -135,7 +136,14 @@ export default function ColorPickerWrapper({
       }
       onColorChange?.(parsed.hex);
     },
-    [mode, onColorChange, gradientSelected, gradientTop, gradientBottom]
+    [
+      mode,
+      onColorChange,
+      gradientSelected,
+      gradientTop,
+      gradientBottom,
+      solidOnly,
+    ]
   );
 
   const handleChange = (nextColor) => {
@@ -218,15 +226,16 @@ export default function ColorPickerWrapper({
       offset={32}
       offsetY={-80}
       className="z-50"
+      interactiveRefs={interactiveRefs}
       onClose={onClose}
       autoClose={false}
     >
       <div className="flex flex-col p-[8px] gap-[8px] w-[146px] bg-[#1A191E] rounded-[13px] border-[1px] border-[#2A2A30]">
-        <ModeSwitch mode={mode} onChange={handleModeSwitch} />
+        {!solidOnly && <ModeSwitch mode={mode} onChange={handleModeSwitch} />}
 
         <Saturation height={92} color={selectedColor} onChange={handleChange} />
         <Hue color={selectedColor} onChange={handleChange} />
-        {mode === MODES.solid ? (
+        {solidOnly || mode === MODES.solid ? (
           <Input
             value={inputValue}
             onValueChange={handleInputChange}

@@ -1,8 +1,10 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "@contexts/I18nContext";
 import DraggableKey from "@components/Key";
 import { getKeyInfoByGlobalKey } from "@utils/KeyMaps";
 import KeySettingModal from "./Modal/content/KeySetting";
+import CounterSettingModal from "./Modal/content/CounterSetting";
+import ListPopup from "./Modal/ListPopup";
 import { useKeyStore } from "@stores/useKeyStore";
 
 export default function Grid({
@@ -21,6 +23,15 @@ export default function Grid({
 }) {
   const selectedKeyType = useKeyStore((state) => state.selectedKeyType);
   const { t } = useTranslation();
+
+  // 우클릭 컨텍스트 상태
+  const [isContextOpen, setIsContextOpen] = useState(false);
+  const [contextIndex, setContextIndex] = useState(null);
+  const contextRef = useRef(null);
+  const [contextPosition, setContextPosition] = useState(null);
+  const keyRefs = useRef([]);
+
+  const [isCounterModalOpen, setIsCounterModalOpen] = useState(false);
 
   useEffect(() => {
     if (
@@ -42,9 +53,13 @@ export default function Grid({
         position={position}
         keyName={keyMappings[selectedKeyType]?.[index] || ""}
         onPositionChange={onPositionChange}
-        onClick={() =>
-          setSelectedKey({ key: keyMappings[selectedKeyType][index], index })
-        }
+        onClick={() => {
+          if (isContextOpen) {
+            setIsContextOpen(false);
+            setContextPosition(null);
+          }
+          setSelectedKey({ key: keyMappings[selectedKeyType][index], index });
+        }}
         activeTool={activeTool}
         onEraserClick={() => {
           const globalKey = keyMappings[selectedKeyType]?.[index] || "";
@@ -56,6 +71,15 @@ export default function Grid({
             t("confirm.remove")
           );
         }}
+        onContextMenu={(e) => {
+          setContextIndex(index);
+          contextRef.current = keyRefs.current[index] || null;
+          setContextPosition({ x: e.clientX, y: e.clientY });
+          setIsContextOpen(true);
+        }}
+        setReferenceRef={(node) => {
+          keyRefs.current[index] = node;
+        }}
       />
     ));
   };
@@ -66,6 +90,39 @@ export default function Grid({
       style={{ backgroundColor: color === "transparent" ? "#3A3943" : color }}
     >
       {renderKeys()}
+      {/* 우클릭 리스트 팝업 */}
+      <div className="relative">
+        <ListPopup
+          open={isContextOpen}
+          referenceRef={contextRef}
+          position={contextPosition || undefined}
+          onClose={() => {
+            setIsContextOpen(false);
+            setContextPosition(null);
+          }}
+          items={[
+            { id: "delete", label: "키 삭제" },
+            { id: "counter", label: "카운터 설정" },
+          ]}
+          onSelect={(id) => {
+            if (contextIndex == null) return;
+            if (id === "delete") {
+              const globalKey = keyMappings[selectedKeyType]?.[contextIndex] || "";
+              const displayName =
+                getKeyInfoByGlobalKey(globalKey)?.displayName || globalKey;
+              showConfirm(
+                t("confirm.removeKey", { name: displayName }),
+                () => onKeyDelete(contextIndex),
+                t("confirm.remove")
+              );
+            } else if (id === "counter") {
+              setIsCounterModalOpen(true);
+            }
+            setIsContextOpen(false);
+            setContextPosition(null);
+          }}
+        />
+      </div>
       {selectedKey && (
         <KeySettingModal
           keyData={{
@@ -88,6 +145,10 @@ export default function Grid({
           onSave={onKeyUpdate}
           skipAnimation={shouldSkipModalAnimation}
         />
+      )}
+      {/* 카운터 세팅 모달 */}
+      {isCounterModalOpen && (
+        <CounterSettingModal onClose={() => setIsCounterModalOpen(false)} />
       )}
     </div>
   );

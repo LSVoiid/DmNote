@@ -14,6 +14,9 @@ type FloatingPopupProps = {
   offset?: number;
   offsetX?: number;
   offsetY?: number;
+  fixedX?: number;
+  fixedY?: number;
+  interactiveRefs?: Array<React.RefObject<HTMLElement>>;
   onClose?: () => void;
   className?: string;
   children?: React.ReactNode;
@@ -27,6 +30,9 @@ const FloatingPopup = ({
   offset = 20,
   offsetX = 0,
   offsetY = 0,
+  fixedX,
+  fixedY,
+  interactiveRefs = [],
   onClose,
   className = "",
   children,
@@ -93,10 +99,14 @@ const FloatingPopup = ({
 
     const handleDocumentDown = (event: PointerEvent) => {
       const target = event.target as Node;
+      const interactiveEls = interactiveRefs
+        .map((r) => r?.current)
+        .filter(Boolean) as HTMLElement[];
       if (!floatingEl) return;
 
       const isInsideFloating = floatingEl.contains(target);
       const isInsideReference = referenceEl?.contains(target) ?? false;
+      const isInsideInteractive = interactiveEls.some((el) => el.contains(target as Node));
 
       if (isInsideFloating) {
         pointerCapturedInside = true;
@@ -110,7 +120,7 @@ const FloatingPopup = ({
         pointerCapturedInside = false;
       }
 
-      if (isInsideReference) {
+      if (isInsideReference || isInsideInteractive) {
         pointerCapturedInside = false;
         return;
       }
@@ -137,13 +147,17 @@ const FloatingPopup = ({
 
   if (!open) return null;
 
+  const isFixed = typeof fixedX === "number" && typeof fixedY === "number";
+  const left = (isFixed ? (fixedX as number) : x ?? 0) + offsetX;
+  const top = (isFixed ? (fixedY as number) : y ?? 0) + offsetY;
+
   return (
     <div
       ref={refs.setFloating as any}
       style={{
-        position: strategy,
-        left: (x ?? 0) + offsetX,
-        top: (y ?? 0) + offsetY,
+        position: isFixed ? "fixed" : (strategy as any),
+        left,
+        top,
       }}
       className={`${className} tooltip-fade-in`}
       role="dialog"

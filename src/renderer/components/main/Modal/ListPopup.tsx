@@ -9,6 +9,7 @@ export type ListItem = {
 type ListPopupProps = {
   open: boolean;
   referenceRef?: React.RefObject<HTMLElement>;
+  position?: { x: number; y: number };
   onClose?: () => void;
   items: ListItem[];
   onSelect?: (id: string) => void;
@@ -20,6 +21,7 @@ type ListPopupProps = {
 const ListPopup = ({
   open,
   referenceRef,
+  position,
   onClose,
   items,
   onSelect,
@@ -39,6 +41,8 @@ const ListPopup = ({
       offset={25}
       offsetX={offsetX}
       offsetY={offsetY}
+      fixedX={position?.x}
+      fixedY={position?.y}
       onClose={onClose}
       className={effectiveClassName}
     >

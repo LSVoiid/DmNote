@@ -12,6 +12,8 @@ export default function DraggableKey({
   onClick,
   activeTool,
   onEraserClick,
+  onContextMenu,
+  setReferenceRef,
 }) {
   const { displayName } = getKeyInfoByGlobalKey(keyName);
   const {
@@ -87,15 +89,26 @@ export default function DraggableKey({
     []
   );
 
+  const attachRef = (node) => {
+    // 드래그 훅에 ref 연결
+    draggable.ref(node);
+    // 팝업 위치 지정을 위해 부모에 노드 전달
+    if (typeof setReferenceRef === "function") setReferenceRef(node);
+  };
+
   return (
     <div
-      ref={draggable.ref}
+      ref={attachRef}
       className={`absolute cursor-pointer ${
         draggable && draggable.wasMoved ? "" : ""
       } ${className || ""}`}
       style={keyStyle}
       data-state="inactive"
       onClick={handleClick}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        onContextMenu?.(e);
+      }}
       onDragStart={(e) => e.preventDefault()}
     >
       {inactiveImage ? (
