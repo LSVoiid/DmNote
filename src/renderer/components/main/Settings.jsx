@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useTranslation } from "@contexts/I18nContext";
 import { useSettingsStore } from "@stores/useSettingsStore";
 import { useKeyStore } from "@stores/useKeyStore";
@@ -50,6 +50,9 @@ export default function Settings({ showAlert, showConfirm }) {
     resizeAnchor:
       "https://raw.githubusercontent.com/lee-sihun/DmNote/master/src/renderer/assets/mp4/resize.mp4",
   };
+
+  // Video refs for instant playback without any delay
+  const videoRefs = useRef({});
 
   const RESIZE_ANCHOR_OPTIONS = [
     { value: "top-left", key: "topLeft" },
@@ -307,46 +310,46 @@ export default function Settings({ showAlert, showConfirm }) {
                 </div>
               </div>
               <div
-                className="flex flex-row justify-between items-center h-[40px] cursor-pointer"
-                onMouseEnter={() => setHoveredKey("customCSS")}
-                onMouseLeave={() => setHoveredKey(null)}
-                onClick={handleToggleCustomCSS}
-              >
-                <p className="text-style-3 text-[#FFFFFF]">
-                  {t("settings.customCSS")}
-                </p>
-                <Checkbox
-                  checked={useCustomCSS}
-                  onChange={handleToggleCustomCSS}
-                />
-              </div>
-              <div
-                className="flex flex-row justify-between items-center h-[40px]"
+                className="flex flex-col gap-[0px]"
                 onMouseEnter={() => setHoveredKey("customCSS")}
                 onMouseLeave={() => setHoveredKey(null)}
               >
-                <p
-                  className={
-                    "text-[12px] truncate max-w-[150px] " +
-                    (useCustomCSS ? "text-[#989BA6]" : "text-[#44464E]")
-                  }
+                <div
+                  className="flex flex-row justify-between items-center h-[40px] cursor-pointer"
+                  onClick={handleToggleCustomCSS}
                 >
-                  {customCSSPath && customCSSPath.length > 0
-                    ? customCSSPath
-                    : t("settings.noCssFile")}
-                </p>
-                <button
-                  onClick={handleLoadCustomCSS}
-                  disabled={!useCustomCSS}
-                  className={
-                    "py-[4px] px-[8px] bg-[#2A2A31] border-[1px] border-[#3A3944] rounded-[7px] text-style-2 " +
-                    (useCustomCSS
-                      ? "text-[#DBDEE8]"
-                      : "text-[#44464E] cursor-not-allowed bg-[#222228] border-[#31303C]")
-                  }
-                >
-                  {t("settings.loadCss")}
-                </button>
+                  <p className="text-style-3 text-[#FFFFFF]">
+                    {t("settings.customCSS")}
+                  </p>
+                  <Checkbox
+                    checked={useCustomCSS}
+                    onChange={handleToggleCustomCSS}
+                  />
+                </div>
+                <div className="flex flex-row justify-between items-center h-[40px]">
+                  <p
+                    className={
+                      "text-[12px] truncate max-w-[150px] " +
+                      (useCustomCSS ? "text-[#989BA6]" : "text-[#44464E]")
+                    }
+                  >
+                    {customCSSPath && customCSSPath.length > 0
+                      ? customCSSPath
+                      : t("settings.noCssFile")}
+                  </p>
+                  <button
+                    onClick={handleLoadCustomCSS}
+                    disabled={!useCustomCSS}
+                    className={
+                      "py-[4px] px-[8px] bg-[#2A2A31] border-[1px] border-[#3A3944] rounded-[7px] text-style-2 " +
+                      (useCustomCSS
+                        ? "text-[#DBDEE8]"
+                        : "text-[#44464E] cursor-not-allowed bg-[#222228] border-[#31303C]")
+                    }
+                  >
+                    {t("settings.loadCss")}
+                  </button>
+                </div>
               </div>
               <div
                 className="flex flex-row justify-between items-center h-[40px] cursor-pointer"
@@ -427,6 +430,22 @@ export default function Settings({ showAlert, showConfirm }) {
         </div>
       </div>
       <div className="absolute flex items-center justify-center top-[10px] right-[10px] w-[522px] h-[366px] bg-primary rounded-[7px] pointer-events-none overflow-hidden">
+        {/* Hidden preloaded videos for instant playback */}
+        {Object.entries(VIDEO_SOURCES).map(([key, url]) => (
+          <video
+            key={key}
+            ref={(el) => {
+              if (el) videoRefs.current[key] = el;
+            }}
+            src={url}
+            loop
+            muted
+            playsInline
+            preload="auto"
+            className="hidden"
+          />
+        ))}
+
         {hoveredKey && VIDEO_SOURCES[hoveredKey] ? (
           <div className="relative w-full h-full">
             <video
