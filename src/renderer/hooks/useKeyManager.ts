@@ -165,6 +165,34 @@ export function useKeyManager() {
     });
   };
 
+  // 미리보기 전용: 오버레이 실시간 업데이트를 위해 로컬 스토어만 갱신, 영구 저장은 하지 않음
+  const handleCounterSettingsPreview = (
+    index: number,
+    payload: CounterUpdatePayload
+  ) => {
+    const current = positions[selectedKeyType] || [];
+    if (!current[index]) return;
+
+    const normalized = normalizeCounterSettings(payload);
+    const updatedPositions: KeyPositions = {
+      ...positions,
+      [selectedKeyType]: current.map((pos, i) =>
+        i === index
+          ? {
+              ...pos,
+              counter: normalized,
+            }
+          : pos
+      ),
+    };
+
+    setPositions(updatedPositions);
+    // 미리보기라도 오버레이에 반영되도록 이벤트 브로드캐스트
+    window.api.keys.updatePositions(updatedPositions).catch((error) => {
+      console.error("Failed to preview counter settings", error);
+    });
+  };
+
   const handleDeleteKey = (indexToDelete: number) => {
     const mapping = keyMappings[selectedKeyType] || [];
     const pos = positions[selectedKeyType] || [];
@@ -209,6 +237,7 @@ export function useKeyManager() {
     handlePositionChange,
     handleKeyUpdate,
     handleCounterSettingsUpdate,
+    handleCounterSettingsPreview,
     handleAddKey,
     handleDeleteKey,
     handleResetCurrentMode,

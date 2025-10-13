@@ -11,6 +11,7 @@ import {
 export default function CounterSettingModal({
   onClose,
   onSave,
+  onPreview,
   initialSettings,
   keyName,
 }) {
@@ -44,6 +45,18 @@ export default function CounterSettingModal({
     setPickerOpen(false);
     setPickerFor(null);
   }, [resolvedSettings]);
+
+  // 실시간 프리뷰: 내부 상태가 변하면 즉시 onPreview 호출
+  useEffect(() => {
+    if (typeof onPreview !== "function") return;
+    const payload = {
+      placement,
+      align,
+      fill: { idle: fillIdle, active: fillActive },
+      stroke: { idle: strokeIdle, active: strokeActive },
+    };
+    onPreview(payload);
+  }, [placement, align, fillIdle, fillActive, strokeIdle, strokeActive]);
 
   const [pickerFor, setPickerFor] = useState(null); // 'fillIdle' | 'fillActive' | 'strokeIdle' | 'strokeActive'
   const [pickerOpen, setPickerOpen] = useState(false);

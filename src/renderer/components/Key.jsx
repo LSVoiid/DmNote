@@ -282,7 +282,7 @@ export const Key = memo(
             : [nameElement, counterElement];
         const containerClass = "flex w-full h-full items-center pointer-events-none select-none justify-between";
         return (
-          <div className={containerClass} style={{ padding: "5px" }}>
+          <div className={containerClass} style={{ padding: "6px" }}>
             {elements}
           </div>
         );
@@ -292,9 +292,7 @@ export const Key = memo(
         counterSettings.align === "top"
           ? [counterElement, nameElement]
           : [nameElement, counterElement];
-      const justifyClass =
-        counterSettings.align === "top" ? "justify-start" : "justify-end";
-      const containerClass = `flex flex-col w-full h-full items-center pointer-events-none select-none gap-[6px] ${justifyClass}`;
+      const containerClass = `flex flex-col w-full h-full items-center pointer-events-none select-none gapㅇ-[6px] justify-between`;
       return (
         <div className={containerClass} style={{ padding: "6px" }}>
           {elements}

@@ -16,6 +16,7 @@ export default function Grid({
   onPositionChange,
   onKeyUpdate,
   onCounterUpdate,
+  onCounterPreview,
   onKeyDelete,
   color,
   activeTool,
@@ -33,6 +34,8 @@ export default function Grid({
   const keyRefs = useRef([]);
 
   const [counterTargetIndex, setCounterTargetIndex] = useState(null);
+  const [counterOriginalSettings, setCounterOriginalSettings] = useState(null);
+  const [counterApplied, setCounterApplied] = useState(false);
 
   useEffect(() => {
     if (
@@ -118,6 +121,11 @@ export default function Grid({
                 t("confirm.remove")
               );
             } else if (id === "counter") {
+              // 스냅샷 저장 (모달 초기 상태 & 취소 시 복원용)
+              const original =
+                positions[selectedKeyType]?.[contextIndex]?.counter;
+              setCounterOriginalSettings(original || null);
+              setCounterApplied(false);
               setCounterTargetIndex(contextIndex);
             }
             setIsContextOpen(false);
@@ -151,21 +159,38 @@ export default function Grid({
       {/* 카운터 세팅 모달 */}
       {counterTargetIndex != null && (
         <CounterSettingModal
-          onClose={() => setCounterTargetIndex(null)}
+          onClose={() => {
+            // 적용하지 않고 닫히는 경우, 원본으로 되돌리기 (미리보기 롤백)
+            if (!counterApplied && typeof onCounterPreview === "function") {
+              const original =
+                counterOriginalSettings ??
+                positions[selectedKeyType]?.[counterTargetIndex]?.counter;
+              if (original) {
+                onCounterPreview(counterTargetIndex, original);
+              }
+            }
+            setCounterTargetIndex(null);
+          }}
           onSave={(settings) => {
             if (typeof onCounterUpdate === "function") {
               onCounterUpdate(counterTargetIndex, settings);
             }
+            // 저장되었음을 표시 (닫힐 때 롤백 방지)
+            setCounterApplied(true);
             setCounterTargetIndex(null);
+          }}
+          onPreview={(settings) => {
+            if (typeof onCounterPreview === "function") {
+              onCounterPreview(counterTargetIndex, settings);
+            }
           }}
           keyName={(() => {
             const keyCode =
               keyMappings[selectedKeyType]?.[counterTargetIndex] || "";
             return getKeyInfoByGlobalKey(keyCode)?.displayName || keyCode || "";
           })()}
-          initialSettings={
-            positions[selectedKeyType]?.[counterTargetIndex]?.counter
-          }
+          // 모달은 항상 최초 스냅샷으로 시작 (미리보기로 바뀐 값에 영향을 받지 않도록)
+          initialSettings={counterOriginalSettings}
         />
       )}
     </div>
