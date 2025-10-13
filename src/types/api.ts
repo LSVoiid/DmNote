@@ -88,6 +88,7 @@ export interface DMNoteAPI {
     onModeChanged(listener: (payload: ModeChangePayload) => void): Unsubscribe;
     onKeyState(listener: (payload: KeyStatePayload) => void): Unsubscribe;
     resetCounters(): Promise<KeyCounters>;
+    resetCountersMode(mode: string): Promise<KeyCounters>;
     onCounterChanged(
       listener: (payload: KeyCounterUpdate) => void
     ): Unsubscribe;

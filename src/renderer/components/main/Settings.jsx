@@ -297,12 +297,12 @@ export default function Settings({ showAlert, showConfirm }) {
                   {t("settings.keyCounter")}
                 </p>
                 <div className="flex items-center gap-[8px]">
-                  <button
+                  {/* <button
                     onClick={handleResetCounters}
                     className="py-[4px] px-[8px] bg-[#2A2A31] border-[1px] border-[#3A3944] rounded-[7px] text-style-2 text-[#DBDEE8] hover:bg-[#34343c]"
                   >
                     {t("settings.counterResetButton")}
-                  </button>
+                  </button> */}
                   <Checkbox
                     checked={keyCounterEnabled}
                     onChange={handleKeyCounterToggle}

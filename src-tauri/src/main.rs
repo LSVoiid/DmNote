@@ -71,6 +71,7 @@ fn main() {
             commands::keys::keys_reset_all,
             commands::keys::keys_reset_mode,
             commands::keys::keys_reset_counters,
+            commands::keys::keys_reset_counters_mode,
             commands::keys::custom_tabs_list,
             commands::keys::custom_tabs_create,
             commands::keys::custom_tabs_delete,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useTranslation } from "@contexts/I18nContext";
 import MoveIcon from "@assets/svgs/move.svg";
 import EraserIcon from "@assets/svgs/eraser.svg";
@@ -7,6 +7,7 @@ import PrimaryIcon from "@assets/svgs/primary.svg";
 import BroomIcon from "@assets/svgs/broom.svg";
 import FloatingTooltip from "../Modal/FloatingTooltip";
 import { TooltipGroup } from "../Modal/TooltipGroup";
+import ListPopup from "../Modal/ListPopup";
 
 type SelectableTool = "move" | "eraser";
 
@@ -15,6 +16,7 @@ type CanvasToolProps = {
   onTogglePalette: () => void;
   isPaletteOpen: boolean;
   onResetCurrentMode: () => void;
+  onResetCounters?: () => void;
   activeTool?: string;
   setActiveTool?: (tool: string) => void;
   primaryButtonRef?: React.RefObject<HTMLButtonElement>;
@@ -25,6 +27,7 @@ const CanvasTool = ({
   onTogglePalette,
   isPaletteOpen,
   onResetCurrentMode,
+  onResetCounters,
   activeTool,
   setActiveTool,
   primaryButtonRef,
@@ -33,6 +36,8 @@ const CanvasTool = ({
   const [selectedTool, setSelectedTool] = useState<SelectableTool | null>(
     (activeTool as SelectableTool) || "move"
   );
+  const [isResetPopupOpen, setIsResetPopupOpen] = useState(false);
+  const resetButtonRef = useRef<HTMLButtonElement | null>(null);
 
   // 상태 동기화
   useEffect(() => {
@@ -56,7 +61,7 @@ const CanvasTool = ({
       return;
     }
     if (key === "broom") {
-      onResetCurrentMode();
+      setIsResetPopupOpen((prev) => !prev);
       return;
     }
   };
@@ -109,7 +114,13 @@ const CanvasTool = ({
             }
           >
             <IconButton
-              ref={toolItem.key === "primary" ? primaryButtonRef : undefined}
+              ref={
+                toolItem.key === "primary"
+                  ? primaryButtonRef
+                  : toolItem.key === "broom"
+                  ? (resetButtonRef as unknown as React.Ref<HTMLButtonElement>)
+                  : undefined
+              }
               icon={toolItem.icon}
               isSelected={!!toolItem.selected}
               selectedVariant={toolItem.key === "primary" ? "hover" : "default"}
@@ -119,6 +130,22 @@ const CanvasTool = ({
           </FloatingTooltip>
         ))}
       </div>
+      <ListPopup
+        open={isResetPopupOpen}
+        referenceRef={resetButtonRef as unknown as React.RefObject<HTMLElement>}
+        onClose={() => setIsResetPopupOpen(false)}
+        items={[
+          { id: "resetTab", label: t("toolbar.resetTab") },
+          { id: "resetCounters", label: t("toolbar.resetCounters") },
+        ]}
+        onSelect={(id) => {
+          if (id === "resetTab") {
+            onResetCurrentMode();
+          } else if (id === "resetCounters") {
+            onResetCounters?.();
+          }
+        }}
+      />
     </TooltipGroup>
   );
 };

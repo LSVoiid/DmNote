@@ -84,6 +84,10 @@
     "noteSettings": "노트 설정",
     "laboratory": "실험적 기능"
   },
+  "toolbar": {
+    "resetTab": "탭 초기화",
+    "resetCounters": "카운터 초기화"
+  },
   "preset": {
     "import": "불러오기",
     "export": "내보내기",
@@ -100,6 +104,7 @@
   },
   "confirm": {
     "resetCurrentTab": "현재 탭의 설정을 초기화하시겠습니까?",
+    "resetCountersCurrentTab": "현재 탭의 카운터를 초기화하시겠습니까?",
     "reset": "초기화",
     "removeKey": "[{{name}}] 키를 제거하시겠습니까?",
     "remove": "제거하기"

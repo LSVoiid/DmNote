@@ -12,6 +12,7 @@ type Props = {
   onTogglePalette: () => void;
   isPaletteOpen: boolean;
   onResetCurrentMode: () => void;
+  onResetCounters?: () => void;
   activeTool: string;
   setActiveTool: (tool: string) => void;
   isSettingsOpen?: boolean;
@@ -28,6 +29,7 @@ const ToolBar = ({
   onTogglePalette,
   isPaletteOpen,
   onResetCurrentMode,
+  onResetCounters,
   activeTool,
   setActiveTool,
   isSettingsOpen = false,
@@ -90,6 +92,7 @@ const ToolBar = ({
             onTogglePalette={onTogglePalette}
             isPaletteOpen={isPaletteOpen}
             onResetCurrentMode={onResetCurrentMode}
+            onResetCounters={onResetCounters}
             activeTool={activeTool}
             setActiveTool={setActiveTool}
             primaryButtonRef={primaryButtonRef}

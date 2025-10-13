@@ -77,6 +77,8 @@ const api: DMNoteAPI = {
     resetMode: (mode: string) =>
       invoke<KeysModeResponse>("keys_reset_mode", { mode }),
     resetCounters: () => invoke<KeyCounters>("keys_reset_counters"),
+    resetCountersMode: (mode: string) =>
+      invoke<KeyCounters>("keys_reset_counters_mode", { mode }),
     onChanged: (listener: (keys: KeyMappings) => void) =>
       subscribe<KeyMappings>("keys:changed", listener),
     onPositionsChanged: (listener: (positions: KeyPositions) => void) =>

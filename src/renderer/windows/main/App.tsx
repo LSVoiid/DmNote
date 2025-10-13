@@ -156,6 +156,15 @@ export default function App() {
             t("confirm.reset")
           )
         }
+        onResetCounters={() =>
+          showConfirm(
+            t("confirm.resetCountersCurrentTab"),
+            async () => {
+              await window.api.keys.resetCountersMode(selectedKeyType);
+            },
+            t("confirm.reset")
+          )
+        }
         activeTool={activeTool}
         setActiveTool={setActiveTool}
         isSettingsOpen={isSettingsOpen}

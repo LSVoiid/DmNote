@@ -84,6 +84,10 @@
     "noteSettings": "Note Settings",
     "laboratory": "Experimental"
   },
+  "toolbar": {
+    "resetTab": "Reset Tab",
+    "resetCounters": "Reset Counters"
+  },
   "preset": {
     "import": "Import",
     "export": "Export",
@@ -100,6 +104,7 @@
   },
   "confirm": {
     "resetCurrentTab": "Reset settings for this tab?",
+    "resetCountersCurrentTab": "Reset counters for this tab?",
     "reset": "Reset",
     "removeKey": "Remove key [{{name}}]?",
     "remove": "Remove"
