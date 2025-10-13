@@ -1,6 +1,15 @@
 import { useState } from "react";
 import { useKeyStore } from "@stores/useKeyStore";
-import type { KeyMappings, KeyPositions, NoteColor } from "@src/types/keys";
+import type {
+  KeyMappings,
+  KeyPositions,
+  NoteColor,
+  KeyCounterSettings,
+} from "@src/types/keys";
+import {
+  createDefaultCounterSettings,
+  normalizeCounterSettings,
+} from "@src/types/keys";
 
 type SelectedKey = { key: string; index: number } | null;
 
@@ -14,6 +23,8 @@ type KeyUpdatePayload = {
   noteOpacity?: number;
   className?: string;
 };
+
+type CounterUpdatePayload = KeyCounterSettings;
 
 export function useKeyManager() {
   const selectedKeyType = useKeyStore((state) => state.selectedKeyType);
@@ -112,6 +123,7 @@ export function useKeyManager() {
           noteColor: "#FFFFFF",
           noteOpacity: 80,
           className: "",
+          counter: createDefaultCounterSettings(),
         },
       ],
     };
@@ -124,6 +136,32 @@ export function useKeyManager() {
       window.api.keys.updatePositions(updatedPositions),
     ]).catch((error) => {
       console.error("Failed to persist new key", error);
+    });
+  };
+
+  const handleCounterSettingsUpdate = (
+    index: number,
+    payload: CounterUpdatePayload
+  ) => {
+    const current = positions[selectedKeyType] || [];
+    if (!current[index]) return;
+
+    const normalized = normalizeCounterSettings(payload);
+    const updatedPositions: KeyPositions = {
+      ...positions,
+      [selectedKeyType]: current.map((pos, i) =>
+        i === index
+          ? {
+              ...pos,
+              counter: normalized,
+            }
+          : pos
+      ),
+    };
+
+    setPositions(updatedPositions);
+    window.api.keys.updatePositions(updatedPositions).catch((error) => {
+      console.error("Failed to update counter settings", error);
     });
   };
 
@@ -170,6 +208,7 @@ export function useKeyManager() {
     positions,
     handlePositionChange,
     handleKeyUpdate,
+    handleCounterSettingsUpdate,
     handleAddKey,
     handleDeleteKey,
     handleResetCurrentMode,

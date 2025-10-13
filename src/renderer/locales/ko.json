@@ -133,5 +133,25 @@
   "colorPicker": {
     "solid": "단색",
     "gradient": "그레디언트"
+  },
+  "contextMenu": {
+    "deleteKey": "키 삭제",
+    "counterSetting": "카운터 설정"
+  },
+  "counterSetting": {
+    "placementArea": "배치 영역",
+    "placementInside": "내부",
+    "placementOutside": "외부",
+    "alignDirection": "정렬 방향",
+    "alignTop": "상단",
+    "alignBottom": "하단",
+    "alignLeft": "좌측",
+    "alignRight": "우측",
+    "fill": "채우기",
+    "stroke": "외곽선",
+    "idle": "대기",
+    "active": "입력",
+    "apply": "적용하기",
+    "cancel": "취소"
   }
 }

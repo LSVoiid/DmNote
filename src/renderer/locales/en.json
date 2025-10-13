@@ -133,5 +133,25 @@
   "colorPicker": {
     "solid": "Solid",
     "gradient": "Gradient"
+  },
+  "contextMenu": {
+    "deleteKey": "Delete Key",
+    "counterSetting": "Counter Settings"
+  },
+  "counterSetting": {
+    "placementArea": "Placement",
+    "placementInside": "Inside",
+    "placementOutside": "Outside",
+    "alignDirection": "Alignment",
+    "alignTop": "Top",
+    "alignBottom": "Bottom",
+    "alignLeft": "Left",
+    "alignRight": "Right",
+    "fill": "Fill",
+    "stroke": "Stroke",
+    "idle": "Idle",
+    "active": "Pressed",
+    "apply": "Apply",
+    "cancel": "Cancel"
   }
 }

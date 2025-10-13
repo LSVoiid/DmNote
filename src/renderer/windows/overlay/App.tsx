@@ -11,7 +11,10 @@ import {
 } from "@stores/keySignals";
 import { useSettingsStore } from "@stores/useSettingsStore";
 import { getKeyInfoByGlobalKey } from "@utils/KeyMaps";
-import type { KeyPosition } from "@src/types/keys";
+import {
+  createDefaultCounterSettings,
+  type KeyPosition,
+} from "@src/types/keys";
 import KeyCounterLayer from "@components/overlay/KeyCounterLayer";
 
 const FALLBACK_POSITION: KeyPosition = {
@@ -25,6 +28,7 @@ const FALLBACK_POSITION: KeyPosition = {
   noteColor: "#FFFFFF",
   noteOpacity: 80,
   className: "",
+  counter: createDefaultCounterSettings(),
 };
 
 const PADDING = 30;
@@ -252,6 +256,7 @@ export default function App() {
             globalKey={key}
             position={position}
             mode={selectedKeyType}
+            counterEnabled={keyCounterEnabled}
           />
         );
       })}

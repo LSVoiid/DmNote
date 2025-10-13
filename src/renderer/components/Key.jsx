@@ -1,8 +1,13 @@
 import React, { memo, useMemo } from "react";
 import { getKeySignal } from "@stores/keySignals";
+import { getKeyCounterSignal } from "@stores/keyCounterSignals";
 import { useSignals } from "@preact/signals-react/runtime";
 import { useDraggable } from "@hooks/useDraggable";
 import { getKeyInfoByGlobalKey } from "@utils/KeyMaps";
+import {
+  createDefaultCounterSettings,
+  normalizeCounterSettings,
+} from "@src/types/keys";
 
 export default function DraggableKey({
   index,
@@ -126,7 +131,7 @@ export default function DraggableKey({
 }
 
 export const Key = memo(
-  ({ keyName, globalKey, position }) => {
+  ({ keyName, globalKey, position, mode, counterEnabled = false }) => {
     // React 환경에서 신호 변경을 구독하도록 활성화
     useSignals();
     // 각 Key는 자신의 활성 상태 신호를 직접 구독
@@ -209,7 +214,93 @@ export const Key = memo(
     );
 
     // 텍스트 표시 조건: 현재 상태에 사용할 이미지가 없을 때만 텍스트를 표시
+    const counterSettings = normalizeCounterSettings(
+      position?.counter ?? createDefaultCounterSettings()
+    );
+    const showInsideCounter =
+      counterEnabled && counterSettings.placement === "inside";
+
+    let counterSignal;
+    if (showInsideCounter) {
+      counterSignal = getKeyCounterSignal(mode ?? "", globalKey);
+    }
+
+    const counterValue = counterSignal?.value ?? 0;
+
     const showText = !currentImage;
+
+    const counterFillColor = active
+      ? counterSettings.fill.active
+      : counterSettings.fill.idle;
+    const counterStrokeColor = active
+      ? counterSettings.stroke.active
+      : counterSettings.stroke.idle;
+
+    const renderInsideLayout = () => {
+      if (!showInsideCounter) {
+        return null;
+      }
+
+      const displayValue = counterValue || 0;
+      const strokeWidth = counterStrokeColor ? "1px" : "0px";
+
+      const counterElement = (
+        <span
+          key="counter"
+          className="counter-text pointer-events-none select-none"
+          data-text={displayValue}
+          style={{
+            color: counterFillColor,
+            fontSize: "16px",
+            fontWeight: 800,
+            lineHeight: 1,
+            "--counter-stroke-color": counterStrokeColor || "transparent",
+            "--counter-stroke-width": strokeWidth,
+          }}
+        >
+          {displayValue}
+        </span>
+      );
+
+      const nameElement = (
+        <span
+          key="label"
+          className="font-bold text-[14px] pointer-events-none select-none"
+          style={textStyle}
+        >
+          {keyName}
+        </span>
+      );
+
+      if (
+        counterSettings.align === "left" ||
+        counterSettings.align === "right"
+      ) {
+        const elements =
+          counterSettings.align === "left"
+            ? [counterElement, nameElement]
+            : [nameElement, counterElement];
+        const containerClass = "flex w-full h-full items-center pointer-events-none select-none justify-between";
+        return (
+          <div className={containerClass} style={{ padding: "5px" }}>
+            {elements}
+          </div>
+        );
+      }
+
+      const elements =
+        counterSettings.align === "top"
+          ? [counterElement, nameElement]
+          : [nameElement, counterElement];
+      const justifyClass =
+        counterSettings.align === "top" ? "justify-start" : "justify-end";
+      const containerClass = `flex flex-col w-full h-full items-center pointer-events-none select-none gap-[6px] ${justifyClass}`;
+      return (
+        <div className={containerClass} style={{ padding: "6px" }}>
+          {elements}
+        </div>
+      );
+    };
 
     return (
       <div
@@ -220,12 +311,16 @@ export const Key = memo(
         {currentImage ? (
           <img src={currentImage} alt="" style={imageStyle} draggable={false} />
         ) : showText ? (
-          <div
-            className="flex items-center justify-center h-full font-bold"
-            style={textStyle}
-          >
-            {keyName}
-          </div>
+          showInsideCounter ? (
+            renderInsideLayout()
+          ) : (
+            <div
+              className="flex items-center justify-center h-full font-bold"
+              style={textStyle}
+            >
+              {keyName}
+            </div>
+          )
         ) : null}
         {active && !activeImage && inactiveImage ? (
           <div
@@ -255,13 +350,26 @@ export const Key = memo(
     // active는 내부 selector로 구독하므로 여기서는 position/keyName만 비교
     return (
       prevProps.keyName === nextProps.keyName &&
+      prevProps.mode === nextProps.mode &&
+      prevProps.counterEnabled === nextProps.counterEnabled &&
       prevProps.position.dx === nextProps.position.dx &&
       prevProps.position.dy === nextProps.position.dy &&
       prevProps.position.width === nextProps.position.width &&
       prevProps.position.height === nextProps.position.height &&
       prevProps.position.activeImage === nextProps.position.activeImage &&
       prevProps.position.inactiveImage === nextProps.position.inactiveImage &&
-      prevProps.position.className === nextProps.position.className
+      prevProps.position.className === nextProps.position.className &&
+      prevProps.position.counter?.placement ===
+        nextProps.position.counter?.placement &&
+      prevProps.position.counter?.align === nextProps.position.counter?.align &&
+      prevProps.position.counter?.fill?.idle ===
+        nextProps.position.counter?.fill?.idle &&
+      prevProps.position.counter?.fill?.active ===
+        nextProps.position.counter?.fill?.active &&
+      prevProps.position.counter?.stroke?.idle ===
+        nextProps.position.counter?.stroke?.idle &&
+      prevProps.position.counter?.stroke?.active ===
+        nextProps.position.counter?.stroke?.active
     );
   }
 );

@@ -15,6 +15,7 @@ export default function Grid({
   positions,
   onPositionChange,
   onKeyUpdate,
+  onCounterUpdate,
   onKeyDelete,
   color,
   activeTool,
@@ -31,7 +32,7 @@ export default function Grid({
   const [contextPosition, setContextPosition] = useState(null);
   const keyRefs = useRef([]);
 
-  const [isCounterModalOpen, setIsCounterModalOpen] = useState(false);
+  const [counterTargetIndex, setCounterTargetIndex] = useState(null);
 
   useEffect(() => {
     if (
@@ -101,13 +102,14 @@ export default function Grid({
             setContextPosition(null);
           }}
           items={[
-            { id: "delete", label: "키 삭제" },
-            { id: "counter", label: "카운터 설정" },
+            { id: "delete", label: t("contextMenu.deleteKey") },
+            { id: "counter", label: t("contextMenu.counterSetting") },
           ]}
           onSelect={(id) => {
             if (contextIndex == null) return;
             if (id === "delete") {
-              const globalKey = keyMappings[selectedKeyType]?.[contextIndex] || "";
+              const globalKey =
+                keyMappings[selectedKeyType]?.[contextIndex] || "";
               const displayName =
                 getKeyInfoByGlobalKey(globalKey)?.displayName || globalKey;
               showConfirm(
@@ -116,7 +118,7 @@ export default function Grid({
                 t("confirm.remove")
               );
             } else if (id === "counter") {
-              setIsCounterModalOpen(true);
+              setCounterTargetIndex(contextIndex);
             }
             setIsContextOpen(false);
             setContextPosition(null);
@@ -147,8 +149,24 @@ export default function Grid({
         />
       )}
       {/* 카운터 세팅 모달 */}
-      {isCounterModalOpen && (
-        <CounterSettingModal onClose={() => setIsCounterModalOpen(false)} />
+      {counterTargetIndex != null && (
+        <CounterSettingModal
+          onClose={() => setCounterTargetIndex(null)}
+          onSave={(settings) => {
+            if (typeof onCounterUpdate === "function") {
+              onCounterUpdate(counterTargetIndex, settings);
+            }
+            setCounterTargetIndex(null);
+          }}
+          keyName={(() => {
+            const keyCode =
+              keyMappings[selectedKeyType]?.[counterTargetIndex] || "";
+            return getKeyInfoByGlobalKey(keyCode)?.displayName || keyCode || "";
+          })()}
+          initialSettings={
+            positions[selectedKeyType]?.[counterTargetIndex]?.counter
+          }
+        />
       )}
     </div>
   );

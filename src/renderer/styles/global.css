@@ -173,3 +173,20 @@ input[type="number"]::-webkit-outer-spin-button {
   border: 2px solid white !important;
   border-radius: 100% !important;
 }
+
+.counter-text {
+  position: relative;
+  display: inline-block;
+  pointer-events: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+.counter-text::before {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  color: var(--counter-stroke-color, transparent);
+  -webkit-text-stroke: var(--counter-stroke-width, 0px)
+    var(--counter-stroke-color, transparent);
+}

@@ -83,6 +83,83 @@ pub struct KeyPosition {
     pub note_opacity: u32,
     #[serde(default)]
     pub class_name: Option<String>,
+    #[serde(default)]
+    pub counter: KeyCounterSettings,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "kebab-case")]
+pub enum KeyCounterPlacement {
+    Inside,
+    Outside,
+}
+
+impl Default for KeyCounterPlacement {
+    fn default() -> Self {
+        KeyCounterPlacement::Outside
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "kebab-case")]
+pub enum KeyCounterAlign {
+    Top,
+    Bottom,
+    Left,
+    Right,
+}
+
+impl Default for KeyCounterAlign {
+    fn default() -> Self {
+        KeyCounterAlign::Top
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct KeyCounterColor {
+    pub idle: String,
+    pub active: String,
+}
+
+impl Default for KeyCounterColor {
+    fn default() -> Self {
+        Self {
+            idle: "#FFFFFF".to_string(),
+            active: "#000000".to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct KeyCounterSettings {
+    #[serde(default)]
+    pub placement: KeyCounterPlacement,
+    #[serde(default)]
+    pub align: KeyCounterAlign,
+    #[serde(default)]
+    pub fill: KeyCounterColor,
+    #[serde(default = "default_stroke_color")]
+    pub stroke: KeyCounterColor,
+}
+
+fn default_stroke_color() -> KeyCounterColor {
+    KeyCounterColor {
+        idle: "#000000".to_string(),
+        active: "#FFFFFF".to_string(),
+    }
+}
+
+impl Default for KeyCounterSettings {
+    fn default() -> Self {
+        Self {
+            placement: KeyCounterPlacement::Outside,
+            align: KeyCounterAlign::Top,
+            fill: KeyCounterColor::default(),
+            stroke: default_stroke_color(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

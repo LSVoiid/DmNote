@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 
-export default function CountDisplay({ count }) {
+export default function CountDisplay({ count, fillColor, strokeColor }) {
   const [scale, setScale] = useState(1);
   const prevCount = useRef(count);
   const animationRef = useRef(null);
@@ -49,17 +49,27 @@ export default function CountDisplay({ count }) {
     };
   }, [count]);
 
+  const displayValue = count || 0;
+  const strokeWidth = strokeColor ? "1px" : "0px";
+
   return (
     <span
-      className="font-extrabold text-[16px] text-center bg-clip-text text-transparent bg-gradient-to-b from-[#FFFFFF] to-[#757575] [text-shadow:_0_0_0.2px_rgba(255,255,255,0.5)]"
+      className="counter-text"
+      data-text={displayValue}
       style={{
-        transform: `translateY(-6px) scale(${scale})`,
+        transform: `scale(${scale})`,
         transformOrigin: "center bottom",
-        display: "inline-block",
+        color: fillColor || "#FFFFFF",
+        fontSize: "16px",
+        fontWeight: 800,
+        textAlign: "center",
         pointerEvents: "none",
+        lineHeight: 1,
+        "--counter-stroke-color": strokeColor || "transparent",
+        "--counter-stroke-width": strokeWidth,
       }}
     >
-      {count || 0}
+      {displayValue}
     </span>
   );
 }

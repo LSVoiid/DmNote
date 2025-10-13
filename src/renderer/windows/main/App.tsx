@@ -30,6 +30,7 @@ export default function App() {
     positions,
     handlePositionChange,
     handleKeyUpdate,
+    handleCounterSettingsUpdate,
     handleAddKey,
     handleDeleteKey,
     handleResetCurrentMode,
@@ -128,6 +129,7 @@ export default function App() {
             positions={positions}
             onPositionChange={handlePositionChange}
             onKeyUpdate={handleKeyUpdate}
+            onCounterUpdate={handleCounterSettingsUpdate}
             onKeyDelete={handleDeleteKey}
             color={color}
             activeTool={activeTool}

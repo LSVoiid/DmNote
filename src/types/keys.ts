@@ -1,5 +1,88 @@
 import { z } from "zod";
 
+export const keyCounterPlacementSchema = z.union([
+  z.literal("inside"),
+  z.literal("outside"),
+]);
+
+export const keyCounterAlignSchema = z.union([
+  z.literal("top"),
+  z.literal("bottom"),
+  z.literal("left"),
+  z.literal("right"),
+]);
+
+export const keyCounterColorSchema = z.object({
+  idle: z.string(),
+  active: z.string(),
+});
+
+const keyCounterSettingsInputSchema = z
+  .object({
+    placement: keyCounterPlacementSchema.optional(),
+    align: keyCounterAlignSchema.optional(),
+    fill: keyCounterColorSchema.partial().optional(),
+    stroke: keyCounterColorSchema.partial().optional(),
+  })
+  .partial();
+
+export type KeyCounterPlacement = z.infer<typeof keyCounterPlacementSchema>;
+export type KeyCounterAlign = z.infer<typeof keyCounterAlignSchema>;
+export type KeyCounterColor = z.infer<typeof keyCounterColorSchema>;
+
+export interface KeyCounterSettings {
+  placement: KeyCounterPlacement;
+  align: KeyCounterAlign;
+  fill: KeyCounterColor;
+  stroke: KeyCounterColor;
+}
+
+const COUNTER_DEFAULTS: KeyCounterSettings = Object.freeze({
+  placement: "outside" as KeyCounterPlacement,
+  align: "top" as KeyCounterAlign,
+  // fill: idle white, active black
+  fill: Object.freeze({ idle: "#FFFFFF", active: "#000000" }),
+  // stroke: idle black, active white
+  stroke: Object.freeze({ idle: "#000000", active: "#FFFFFF" }),
+});
+
+export function createDefaultCounterSettings(): KeyCounterSettings {
+  return {
+    placement: COUNTER_DEFAULTS.placement,
+    align: COUNTER_DEFAULTS.align,
+    fill: {
+      idle: COUNTER_DEFAULTS.fill.idle,
+      active: COUNTER_DEFAULTS.fill.active,
+    },
+    stroke: {
+      idle: COUNTER_DEFAULTS.stroke.idle,
+      active: COUNTER_DEFAULTS.stroke.active,
+    },
+  };
+}
+
+export function normalizeCounterSettings(raw: unknown): KeyCounterSettings {
+  const fallback = createDefaultCounterSettings();
+  const parsed = keyCounterSettingsInputSchema.safeParse(raw);
+  if (!parsed.success) {
+    return fallback;
+  }
+
+  const { placement, align, fill, stroke } = parsed.data;
+  return {
+    placement: placement ?? fallback.placement,
+    align: align ?? fallback.align,
+    fill: {
+      idle: fill?.idle ?? fallback.fill.idle,
+      active: fill?.active ?? fallback.fill.active,
+    },
+    stroke: {
+      idle: stroke?.idle ?? fallback.stroke.idle,
+      active: stroke?.active ?? fallback.stroke.active,
+    },
+  };
+}
+
 export const keySchema = z.string();
 
 export const keyModeSchema = z.union([
@@ -35,6 +118,10 @@ export const keyPositionSchema = z.object({
   noteColor: noteColorSchema,
   noteOpacity: z.number().int().min(0).max(100),
   className: z.string().optional().or(z.literal("")),
+  counter: z
+    .any()
+    .transform((value) => normalizeCounterSettings(value))
+    .default(createDefaultCounterSettings()),
 });
 
 export type KeyPosition = z.infer<typeof keyPositionSchema>;

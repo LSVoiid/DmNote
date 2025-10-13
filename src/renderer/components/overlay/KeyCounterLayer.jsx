@@ -1,29 +1,109 @@
-import React, { memo } from "react";
+import React, { memo, useMemo } from "react";
 import { useSignals } from "@preact/signals-react/runtime";
 import { getKeyCounterSignal } from "@stores/keyCounterSignals";
 import CountDisplay from "@components/overlay/CountDisplay";
+import { getKeySignal } from "@stores/keySignals";
+import {
+  createDefaultCounterSettings,
+  normalizeCounterSettings,
+} from "@src/types/keys";
+
+const OUTSIDE_OFFSET = 5;
+
+const computeOutsideStyle = (align, dx, dy, width, height) => {
+  const base = {
+    position: "absolute",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    pointerEvents: "none",
+  };
+
+  switch (align) {
+    case "bottom":
+      return {
+        ...base,
+        left: `${dx + width / 2}px`,
+        top: `${dy + height + OUTSIDE_OFFSET}px`,
+        transform: "translate(-50%, 0)",
+        minWidth: `${width}px`,
+      };
+    case "left":
+      return {
+        ...base,
+        left: `${dx - OUTSIDE_OFFSET}px`,
+        top: `${dy + height / 2}px`,
+        transform: "translate(-100%, -50%)",
+      };
+    case "right":
+      return {
+        ...base,
+        left: `${dx + width + OUTSIDE_OFFSET}px`,
+        top: `${dy + height / 2}px`,
+        transform: "translate(0, -50%)",
+      };
+    case "top":
+    default:
+      return {
+        ...base,
+        left: `${dx + width / 2}px`,
+        top: `${dy - OUTSIDE_OFFSET}px`,
+        transform: "translate(-50%, -100%)",
+        minWidth: `${width}px`,
+      };
+  }
+};
 
 const KeyCounter = memo(({ globalKey, position, mode }) => {
   useSignals();
   const counterSignal = getKeyCounterSignal(mode ?? "", globalKey);
   const count = counterSignal?.value ?? 0;
+  const active = getKeySignal(globalKey).value;
 
   const dx = Number.isFinite(position?.dx) ? position.dx : 0;
   const dy = Number.isFinite(position?.dy) ? position.dy : 0;
   const width = Number.isFinite(position?.width) ? position.width : 0;
   const height = Number.isFinite(position?.height) ? position.height : 0;
+  const counterSettings = useMemo(() => {
+    if (position?.counter) {
+      return normalizeCounterSettings(position.counter);
+    }
+    return createDefaultCounterSettings();
+  }, [position?.counter]);
+
+  if (counterSettings.placement !== "outside") {
+    return null;
+  }
+
+  const style = computeOutsideStyle(
+    counterSettings.align,
+    dx,
+    dy,
+    width,
+    height
+  );
+
+  const fillColor = active
+    ? counterSettings.fill.active
+    : counterSettings.fill.idle;
+  const strokeColor = active
+    ? counterSettings.stroke.active
+    : counterSettings.stroke.idle;
+  const offsetY =
+    counterSettings.align === "top"
+      ? -6
+      : counterSettings.align === "bottom"
+      ? 6
+      : 0;
 
   return (
-    <div
-      className="absolute flex justify-center pointer-events-none"
-      style={{
-        top: `${dy - 16}px`,
-        left: `${dx}px`,
-        width: `${width}px`,
-        height: `${height}px`,
-      }}
-    >
-      <CountDisplay count={count} />
+    <div className="pointer-events-none" style={style}>
+      <CountDisplay
+        count={count}
+        fillColor={fillColor}
+        strokeColor={strokeColor}
+        offsetY={offsetY}
+      />
     </div>
   );
 });
