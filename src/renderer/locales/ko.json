@@ -152,6 +152,7 @@
     "alignBottom": "하단",
     "alignLeft": "좌측",
     "alignRight": "우측",
+    "gap": "간격",
     "fill": "채우기",
     "stroke": "외곽선",
     "idle": "대기",

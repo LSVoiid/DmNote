@@ -23,6 +23,7 @@ const keyCounterSettingsInputSchema = z
     align: keyCounterAlignSchema.optional(),
     fill: keyCounterColorSchema.partial().optional(),
     stroke: keyCounterColorSchema.partial().optional(),
+    gap: z.number().int().min(0).optional(),
   })
   .partial();
 
@@ -35,6 +36,7 @@ export interface KeyCounterSettings {
   align: KeyCounterAlign;
   fill: KeyCounterColor;
   stroke: KeyCounterColor;
+  gap: number; // px 단위 간격
 }
 
 const COUNTER_DEFAULTS: KeyCounterSettings = Object.freeze({
@@ -44,6 +46,7 @@ const COUNTER_DEFAULTS: KeyCounterSettings = Object.freeze({
   fill: Object.freeze({ idle: "#FFFFFF", active: "#000000" }),
   // stroke: idle black, active white
   stroke: Object.freeze({ idle: "#000000", active: "#FFFFFF" }),
+  gap: 6,
 });
 
 export function createDefaultCounterSettings(): KeyCounterSettings {
@@ -58,6 +61,7 @@ export function createDefaultCounterSettings(): KeyCounterSettings {
       idle: COUNTER_DEFAULTS.stroke.idle,
       active: COUNTER_DEFAULTS.stroke.active,
     },
+    gap: COUNTER_DEFAULTS.gap,
   };
 }
 
@@ -68,7 +72,7 @@ export function normalizeCounterSettings(raw: unknown): KeyCounterSettings {
     return fallback;
   }
 
-  const { placement, align, fill, stroke } = parsed.data;
+  const { placement, align, fill, stroke, gap } = parsed.data;
   return {
     placement: placement ?? fallback.placement,
     align: align ?? fallback.align,
@@ -80,6 +84,10 @@ export function normalizeCounterSettings(raw: unknown): KeyCounterSettings {
       idle: stroke?.idle ?? fallback.stroke.idle,
       active: stroke?.active ?? fallback.stroke.active,
     },
+    gap:
+      typeof gap === "number" && Number.isFinite(gap) && gap >= 0
+        ? gap
+        : fallback.gap,
   };
 }
 

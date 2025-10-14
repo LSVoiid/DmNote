@@ -142,6 +142,8 @@ pub struct KeyCounterSettings {
     pub fill: KeyCounterColor,
     #[serde(default = "default_stroke_color")]
     pub stroke: KeyCounterColor,
+    #[serde(default = "default_gap")]
+    pub gap: u32,
 }
 
 fn default_stroke_color() -> KeyCounterColor {
@@ -158,9 +160,12 @@ impl Default for KeyCounterSettings {
             align: KeyCounterAlign::Top,
             fill: KeyCounterColor::default(),
             stroke: default_stroke_color(),
+            gap: default_gap(),
         }
     }
 }
+
+fn default_gap() -> u32 { 6 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]

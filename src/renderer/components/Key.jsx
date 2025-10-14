@@ -237,6 +237,10 @@ export const Key = memo(
       ? counterSettings.stroke.active
       : counterSettings.stroke.idle;
 
+    const contentGap = Number.isFinite(counterSettings.gap)
+      ? counterSettings.gap
+      : 6;
+
     const renderInsideLayout = () => {
       if (!showInsideCounter) {
         return null;
@@ -273,29 +277,26 @@ export const Key = memo(
         </span>
       );
 
-      if (
-        counterSettings.align === "left" ||
-        counterSettings.align === "right"
-      ) {
-        const elements =
-          counterSettings.align === "left"
-            ? [counterElement, nameElement]
-            : [nameElement, counterElement];
-        const containerClass = "flex w-full h-full items-center pointer-events-none select-none justify-between";
-        return (
-          <div className={containerClass} style={{ padding: "6px" }}>
-            {elements}
-          </div>
-        );
-      }
+      const isHorizontal =
+        counterSettings.align === "left" || counterSettings.align === "right";
 
-      const elements =
-        counterSettings.align === "top"
+      const elements = isHorizontal
+        ? counterSettings.align === "left"
           ? [counterElement, nameElement]
-          : [nameElement, counterElement];
-      const containerClass = `flex flex-col w-full h-full items-center pointer-events-none select-none gapㅇ-[6px] justify-between`;
+          : [nameElement, counterElement]
+        : counterSettings.align === "top"
+        ? [counterElement, nameElement]
+        : [nameElement, counterElement];
+
+      const containerClass = `flex ${
+        isHorizontal ? "" : "flex-col"
+      } w-full h-full items-center pointer-events-none select-none justify-center`;
+
       return (
-        <div className={containerClass} style={{ padding: "6px" }}>
+        <div
+          className={containerClass}
+          style={{ padding: "0px", gap: `${contentGap}px` }}
+        >
           {elements}
         </div>
       );
@@ -368,7 +369,9 @@ export const Key = memo(
       prevProps.position.counter?.stroke?.idle ===
         nextProps.position.counter?.stroke?.idle &&
       prevProps.position.counter?.stroke?.active ===
-        nextProps.position.counter?.stroke?.active
+        nextProps.position.counter?.stroke?.active &&
+      (prevProps.position.counter?.gap ?? 6) ===
+        (nextProps.position.counter?.gap ?? 6)
     );
   }
 );

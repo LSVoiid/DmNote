@@ -152,6 +152,7 @@
     "alignBottom": "Bottom",
     "alignLeft": "Left",
     "alignRight": "Right",
+    "gap": "Gap",
     "fill": "Fill",
     "stroke": "Stroke",
     "idle": "Idle",

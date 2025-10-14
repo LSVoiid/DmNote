@@ -10,7 +10,7 @@ import {
 
 const OUTSIDE_OFFSET = 5;
 
-const computeOutsideStyle = (align, dx, dy, width, height) => {
+const computeOutsideStyle = (align, dx, dy, width, height, gap) => {
   const base = {
     position: "absolute",
     display: "flex",
@@ -19,26 +19,28 @@ const computeOutsideStyle = (align, dx, dy, width, height) => {
     pointerEvents: "none",
   };
 
+  const offset = Number.isFinite(gap) ? gap : OUTSIDE_OFFSET;
+
   switch (align) {
     case "bottom":
       return {
         ...base,
         left: `${dx + width / 2}px`,
-        top: `${dy + height + OUTSIDE_OFFSET}px`,
+        top: `${dy + height + offset}px`,
         transform: "translate(-50%, 0)",
         minWidth: `${width}px`,
       };
     case "left":
       return {
         ...base,
-        left: `${dx - OUTSIDE_OFFSET}px`,
+        left: `${dx - offset}px`,
         top: `${dy + height / 2}px`,
         transform: "translate(-100%, -50%)",
       };
     case "right":
       return {
         ...base,
-        left: `${dx + width + OUTSIDE_OFFSET}px`,
+        left: `${dx + width + offset}px`,
         top: `${dy + height / 2}px`,
         transform: "translate(0, -50%)",
       };
@@ -47,7 +49,7 @@ const computeOutsideStyle = (align, dx, dy, width, height) => {
       return {
         ...base,
         left: `${dx + width / 2}px`,
-        top: `${dy - OUTSIDE_OFFSET}px`,
+        top: `${dy - offset}px`,
         transform: "translate(-50%, -100%)",
         minWidth: `${width}px`,
       };
@@ -80,7 +82,8 @@ const KeyCounter = memo(({ globalKey, position, mode }) => {
     dx,
     dy,
     width,
-    height
+    height,
+    counterSettings.gap
   );
 
   const fillColor = active

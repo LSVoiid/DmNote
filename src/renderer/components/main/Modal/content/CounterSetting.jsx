@@ -27,6 +27,11 @@ export default function CounterSettingModal({
 
   const [placement, setPlacement] = useState(resolvedSettings.placement);
   const [align, setAlign] = useState(resolvedSettings.align);
+  const [gap, setGap] = useState(resolvedSettings.gap ?? 6);
+  const [isGapFocused, setIsGapFocused] = useState(false);
+  const [displayGap, setDisplayGap] = useState(
+    `${resolvedSettings.gap ?? 6}px`
+  );
 
   const [fillIdle, setFillIdle] = useState(resolvedSettings.fill.idle);
   const [fillActive, setFillActive] = useState(resolvedSettings.fill.active);
@@ -35,9 +40,49 @@ export default function CounterSettingModal({
     resolvedSettings.stroke.active
   );
 
+  // 정렬 드롭다운과 동일한 폭으로 간격 인풋 너비를 맞추기 위한 참조 및 상태
+  const alignDropdownWrapperRef = useRef(null);
+  const [alignDropdownWidth, setAlignDropdownWidth] = useState(0);
+
+  useEffect(() => {
+    const measure = () => {
+      if (!alignDropdownWrapperRef.current) return;
+      const btn = alignDropdownWrapperRef.current.querySelector("button");
+      if (btn) {
+        const w = btn.offsetWidth;
+        if (w && w !== alignDropdownWidth) setAlignDropdownWidth(w);
+      }
+    };
+
+    // 초기 측정
+    measure();
+
+    // 버튼 자체 크기 변화를 감지
+    let ro;
+    const btn = alignDropdownWrapperRef.current
+      ? alignDropdownWrapperRef.current.querySelector("button")
+      : null;
+    if (btn && typeof ResizeObserver !== "undefined") {
+      ro = new ResizeObserver(() => measure());
+      ro.observe(btn);
+    }
+
+    // 윈도우 리사이즈 대응
+    window.addEventListener("resize", measure);
+
+    return () => {
+      window.removeEventListener("resize", measure);
+      if (ro) ro.disconnect();
+    };
+    // align 값/라벨 변경 시에도 재측정
+  }, [align]);
+
   useEffect(() => {
     setPlacement(resolvedSettings.placement);
     setAlign(resolvedSettings.align);
+    setGap(resolvedSettings.gap ?? 6);
+    setDisplayGap(`${resolvedSettings.gap ?? 6}px`);
+    setIsGapFocused(false);
     setFillIdle(resolvedSettings.fill.idle);
     setFillActive(resolvedSettings.fill.active);
     setStrokeIdle(resolvedSettings.stroke.idle);
@@ -52,11 +97,12 @@ export default function CounterSettingModal({
     const payload = {
       placement,
       align,
+      gap,
       fill: { idle: fillIdle, active: fillActive },
       stroke: { idle: strokeIdle, active: strokeActive },
     };
     onPreview(payload);
-  }, [placement, align, fillIdle, fillActive, strokeIdle, strokeActive]);
+  }, [placement, align, gap, fillIdle, fillActive, strokeIdle, strokeActive]);
 
   const [pickerFor, setPickerFor] = useState(null); // 'fillIdle' | 'fillActive' | 'strokeIdle' | 'strokeActive'
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -93,7 +139,7 @@ export default function CounterSettingModal({
   ];
 
   const colorButtonClass = (active) =>
-    `relative w-[80px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] flex items-center justify-center ${
+    `relative px-[7px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] flex items-center justify-center ${
       active ? "border-[#459BF8]" : "border-[#3A3943]"
     } text-[#DBDEE8] text-style-2`;
 
@@ -161,6 +207,7 @@ export default function CounterSettingModal({
     const payload = {
       placement,
       align,
+      gap,
       fill: {
         idle: fillIdle,
         active: fillActive,
@@ -198,7 +245,51 @@ export default function CounterSettingModal({
           <p className="text-white text-style-2">
             {t("counterSetting.alignDirection")}
           </p>
-          <Dropdown options={alignOptions} value={align} onChange={setAlign} />
+          <div ref={alignDropdownWrapperRef}>
+            <Dropdown
+              options={alignOptions}
+              value={align}
+              onChange={setAlign}
+            />
+          </div>
+        </div>
+
+        {/* 간격 */}
+        <div className="flex justify-between w-full items-center">
+          <p className="text-white text-style-2">{t("counterSetting.gap")}</p>
+          <input
+            type="text"
+            value={displayGap}
+            onChange={(e) => {
+              const newValue = e.target.value.replace(/[^0-9]/g, "");
+              if (newValue === "") {
+                setDisplayGap("");
+              } else {
+                setDisplayGap(newValue);
+              }
+            }}
+            onFocus={() => {
+              setIsGapFocused(true);
+              setDisplayGap(String(gap));
+            }}
+            onBlur={(e) => {
+              setIsGapFocused(false);
+              const inputValue = e.target.value.replace(/[^0-9]/g, "");
+              if (inputValue === "" || Number.isNaN(parseInt(inputValue, 10))) {
+                setGap(0);
+                setDisplayGap("0px");
+              } else {
+                const numValue = parseInt(inputValue, 10);
+                const clamped = Math.max(numValue, 0);
+                setGap(clamped);
+                setDisplayGap(`${clamped}px`);
+              }
+            }}
+            className="text-center h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943] focus:border-[#459BF8] text-style-4 text-[#DBDEE8]"
+            style={{
+              width: alignDropdownWidth ? `${alignDropdownWidth}px` : undefined,
+            }}
+          />
         </div>
 
         {/* 채우기 */}
