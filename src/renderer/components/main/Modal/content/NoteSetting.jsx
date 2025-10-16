@@ -3,6 +3,10 @@ import Checkbox from "@components/main/common/Checkbox";
 import Dropdown from "@components/main/common/Dropdown";
 import Modal from "../Modal";
 import { useTranslation } from "@contexts/I18nContext";
+import {
+  NOTE_SETTINGS_CONSTRAINTS,
+  clampValue,
+} from "../../../../../types/noteSettingsConstraints";
 
 export default function NoteSetting({ onClose, settings, onSave }) {
   const { t } = useTranslation();
@@ -34,9 +38,20 @@ export default function NoteSetting({ onClose, settings, onSave }) {
   const handleSave = async () => {
     const normalized = {
       ...settings,
-      borderRadius: Math.max(1, Math.min(parseInt(borderRadius || 1), 100)),
-      speed: Math.max(70, Math.min(parseInt(speed || 70), 1000)),
-      trackHeight: Math.min(Math.max(trackHeight, 50), 500),
+      borderRadius: clampValue(
+        parseInt(
+          borderRadius || NOTE_SETTINGS_CONSTRAINTS.borderRadius.default
+        ),
+        "borderRadius"
+      ),
+      speed: clampValue(
+        parseInt(speed || NOTE_SETTINGS_CONSTRAINTS.speed.default),
+        "speed"
+      ),
+      trackHeight: clampValue(
+        parseInt(trackHeight || NOTE_SETTINGS_CONSTRAINTS.trackHeight.default),
+        "trackHeight"
+      ),
       reverse,
       fadePosition,
     };
@@ -60,8 +75,8 @@ export default function NoteSetting({ onClose, settings, onSave }) {
           </p>
           <input
             type="number"
-            min={1}
-            max={100}
+            min={NOTE_SETTINGS_CONSTRAINTS.borderRadius.min}
+            max={NOTE_SETTINGS_CONSTRAINTS.borderRadius.max}
             value={borderRadius}
             onChange={(e) => {
               const v = e.target.value;
@@ -70,16 +85,16 @@ export default function NoteSetting({ onClose, settings, onSave }) {
               } else {
                 const num = parseInt(v);
                 if (!Number.isNaN(num)) {
-                  setBorderRadius(Math.min(Math.max(num, 1), 100));
+                  setBorderRadius(clampValue(num, "borderRadius"));
                 }
               }
             }}
             onBlur={(e) => {
               if (e.target.value === "" || isNaN(parseInt(e.target.value))) {
-                setBorderRadius(2);
+                setBorderRadius(NOTE_SETTINGS_CONSTRAINTS.borderRadius.default);
               } else {
                 const num = parseInt(e.target.value);
-                setBorderRadius(Math.min(Math.max(num, 1), 100));
+                setBorderRadius(clampValue(num, "borderRadius"));
               }
             }}
             className="text-center w-[47px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943] focus:border-[#459BF8] text-style-4 text-[#DBDEE8]"
@@ -90,8 +105,8 @@ export default function NoteSetting({ onClose, settings, onSave }) {
           <p className="text-white text-style-2">{t("noteSetting.speed")}</p>
           <input
             type="number"
-            min={70}
-            max={1000}
+            min={NOTE_SETTINGS_CONSTRAINTS.speed.min}
+            max={NOTE_SETTINGS_CONSTRAINTS.speed.max}
             value={speed}
             onChange={(e) => {
               const v = e.target.value;
@@ -106,10 +121,10 @@ export default function NoteSetting({ onClose, settings, onSave }) {
             }}
             onBlur={(e) => {
               if (e.target.value === "" || isNaN(parseInt(e.target.value))) {
-                setSpeed(180);
+                setSpeed(NOTE_SETTINGS_CONSTRAINTS.speed.default);
               } else {
                 const num = parseInt(e.target.value);
-                setSpeed(Math.min(Math.max(num, 70), 1000));
+                setSpeed(clampValue(num, "speed"));
               }
             }}
             className="text-center w-[47px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943] focus:border-[#459BF8] text-style-4 text-[#DBDEE8]"
@@ -122,8 +137,8 @@ export default function NoteSetting({ onClose, settings, onSave }) {
           </p>
           <input
             type="number"
-            min={50}
-            max={500}
+            min={NOTE_SETTINGS_CONSTRAINTS.trackHeight.min}
+            max={NOTE_SETTINGS_CONSTRAINTS.trackHeight.max}
             value={trackHeight}
             onChange={(e) => {
               const v = e.target.value;
@@ -138,10 +153,10 @@ export default function NoteSetting({ onClose, settings, onSave }) {
             }}
             onBlur={(e) => {
               if (e.target.value === "" || isNaN(parseInt(e.target.value))) {
-                setTrackHeight(150);
+                setTrackHeight(NOTE_SETTINGS_CONSTRAINTS.trackHeight.default);
               } else {
                 const num = parseInt(e.target.value);
-                setTrackHeight(Math.min(Math.max(num, 50), 500));
+                setTrackHeight(clampValue(num, "trackHeight"));
               }
             }}
             className="text-center w-[47px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943] focus:border-[#459BF8] text-style-4 text-[#DBDEE8]"
