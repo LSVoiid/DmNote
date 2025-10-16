@@ -5,6 +5,17 @@ const LLKHF_EXTENDED: u32 = 0x01;
 pub fn build_key_labels(event: &KeyboardEvent) -> Vec<String> {
     let mut labels = Vec::new();
 
+    // Handle Right Alt / Han/Eng key specifically by VK code first
+    // VK_RMENU (0xA5/165): Right Alt in US keyboard layout -> map to "21"
+    // VK_HANGUL (0x15/21): Han/Eng toggle in Korean IME (same physical key) -> use "21"
+    if let Some(vk_code) = event.vk_code {
+        if vk_code == 0xA5 || vk_code == 0x15 {
+            labels.push("21".to_string());
+            labels.push("RIGHT ALT".to_string());
+            return labels;
+        }
+    }
+
     if let Some(label) = numpad_override_label(event) {
         labels.push(label.to_string());
     } else if let Some(key) = event.key {
