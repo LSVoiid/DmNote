@@ -189,19 +189,26 @@ input[type="number"]::-webkit-outer-spin-button {
   border-radius: 100% !important;
 }
 
-.counter-text {
+.counter {
   position: relative;
   display: inline-block;
   pointer-events: none;
   -webkit-font-smoothing: antialiased;
+  color: var(--counter-color, var(--counter-color-default, #ffffff));
 }
 
-.counter-text::before {
+.counter::before {
   content: attr(data-text);
   position: absolute;
   inset: 0;
   z-index: -1;
-  color: var(--counter-stroke-color, transparent);
-  -webkit-text-stroke: var(--counter-stroke-width, 0px)
-    var(--counter-stroke-color, transparent);
+  -webkit-text-stroke-width: var(
+    --counter-stroke-width,
+    var(--counter-stroke-width-default, 0px)
+  );
+  -webkit-text-stroke-color: var(
+    --counter-stroke-color,
+    var(--counter-stroke-color-default, transparent)
+  );
+  color: transparent;
 }

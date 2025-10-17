@@ -1,7 +1,13 @@
 import React, { useState, useRef, useEffect } from "react";
 import { toCssRgba } from "@utils/colorUtils";
 
-export default function CountDisplay({ count, fillColor, strokeColor }) {
+export default function CountDisplay({
+  count,
+  fillColor,
+  strokeColor,
+  globalKey,
+  active,
+}) {
   const [scale, setScale] = useState(1);
   const prevCount = useRef(count);
   const animationRef = useRef(null);
@@ -57,19 +63,20 @@ export default function CountDisplay({ count, fillColor, strokeColor }) {
 
   return (
     <span
-      className="counter-text"
+      className="counter"
       data-text={displayValue}
+      data-counter-state={active ? "active" : "inactive"}
       style={{
         transform: `scale(${scale})`,
         transformOrigin: "center bottom",
-        color: fill.css,
         fontSize: "16px",
         fontWeight: 800,
         textAlign: "center",
         pointerEvents: "none",
         lineHeight: 1,
-        "--counter-stroke-color": stroke.css,
-        "--counter-stroke-width": strokeWidth,
+        "--counter-color-default": fill.css,
+        "--counter-stroke-color-default": stroke.css,
+        "--counter-stroke-width-default": strokeWidth,
       }}
     >
       {displayValue}

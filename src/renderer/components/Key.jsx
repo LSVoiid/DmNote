@@ -256,15 +256,16 @@ export const Key = memo(
       const counterElement = (
         <span
           key="counter"
-          className="counter-text pointer-events-none select-none"
+          className="counter pointer-events-none select-none"
           data-text={displayValue}
+          data-counter-state={active ? "active" : "inactive"}
           style={{
-            color: fillColorCss.css,
             fontSize: "16px",
             fontWeight: 800,
             lineHeight: 1,
-            "--counter-stroke-color": strokeColorCss.css,
-            "--counter-stroke-width": strokeWidth,
+            "--counter-color-default": fillColorCss.css,
+            "--counter-stroke-color-default": strokeColorCss.css,
+            "--counter-stroke-width-default": strokeWidth,
           }}
         >
           {displayValue}

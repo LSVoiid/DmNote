@@ -105,6 +105,8 @@ const KeyCounter = memo(({ globalKey, position, mode }) => {
         count={count}
         fillColor={fillColor}
         strokeColor={strokeColor}
+        globalKey={globalKey}
+        active={active}
         offsetY={offsetY}
       />
     </div>

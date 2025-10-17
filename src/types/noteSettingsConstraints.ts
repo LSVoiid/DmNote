@@ -22,12 +22,12 @@ export const NOTE_SETTINGS_CONSTRAINTS = {
   shortNoteThresholdMs: {
     min: 0,
     max: 2000,
-    default: 120,
+    default: 50,
   },
   shortNoteMinLengthPx: {
     min: 1,
     max: 9999,
-    default: 10,
+    default: 30,
   },
 } as const;
 
