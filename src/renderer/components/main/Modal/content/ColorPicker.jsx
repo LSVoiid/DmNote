@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "@contexts/I18nContext";
-import { Saturation, Hue, useColor } from "react-color-palette";
+import { Saturation, Hue, Alpha, useColor } from "react-color-palette";
 import "react-color-palette/css";
 import FloatingPopup from "../FloatingPopup";
 import {
@@ -11,6 +11,27 @@ import {
   parseHexColor,
   toColorObject,
 } from "@utils/colorUtils";
+
+// RGBA 문자열 또는 Hex에서 alpha 추출
+const extractAlphaFromColor = (colorValue) => {
+  if (typeof colorValue === "string") {
+    if (colorValue.startsWith("rgba(")) {
+      const match = colorValue.match(
+        /rgba\((\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)/
+      );
+      if (match) {
+        return parseFloat(match[4]);
+      }
+    }
+    // Hex 처리
+    const normalized = normalizeColorInput(colorValue);
+    const parsed = parseHexColor(normalized);
+    if (parsed && parsed.rgb.a !== undefined) {
+      return parsed.rgb.a;
+    }
+  }
+  return 1;
+};
 
 export default function ColorPickerWrapper({
   open,
@@ -29,6 +50,7 @@ export default function ColorPickerWrapper({
   const [mode, setMode] = useState(initialMode);
   const baseColor = normalizeColorInput(color);
   const [selectedColor, setSelectedColor] = useColor(baseColor);
+  const [alpha, setAlpha] = useState(() => extractAlphaFromColor(color));
   const [gradientTop, setGradientTop] = useState(() =>
     isGradientColor(color)
       ? color.top.replace("#", "")
@@ -79,6 +101,10 @@ export default function ColorPickerWrapper({
       const parsed = parseHexColor(normalized);
       if (parsed) {
         setSelectedColor(parsed);
+        // RGBA에서 alpha 추출하여 설정
+        const newAlpha = extractAlphaFromColor(color);
+        setAlpha(newAlpha);
+
         if (
           !suppressGradientResetRef.current &&
           !hasSeededGradientFromSolidRef.current
@@ -103,6 +129,9 @@ export default function ColorPickerWrapper({
   useEffect(() => {
     setInputValue(selectedColor.hex.replace("#", "").toUpperCase());
   }, [selectedColor.hex]);
+
+  // solidOnly 모드에서 Alpha 값 변경 반영 - useEffect 제거하여 무한 루프 방지
+  // Alpha 슬라이더는 onChangeComplete에서 처리
 
   useEffect(() => {
     if (mode !== MODES.gradient || solidOnly) {
@@ -134,7 +163,19 @@ export default function ColorPickerWrapper({
         }
         return;
       }
-      onColorChange?.(parsed.hex);
+      if (solidOnly) {
+        // solidOnly 모드에서는 현재 alpha 값을 유지
+        const rgbaValue = `rgba(${parseInt(
+          parsed.hex.slice(1, 3),
+          16
+        )}, ${parseInt(parsed.hex.slice(3, 5), 16)}, ${parseInt(
+          parsed.hex.slice(5, 7),
+          16
+        )}, ${alpha})`;
+        onColorChange?.(rgbaValue);
+      } else {
+        onColorChange?.(parsed.hex);
+      }
     },
     [
       mode,
@@ -143,6 +184,7 @@ export default function ColorPickerWrapper({
       gradientTop,
       gradientBottom,
       solidOnly,
+      alpha,
     ]
   );
 
@@ -235,12 +277,45 @@ export default function ColorPickerWrapper({
 
         <Saturation height={92} color={selectedColor} onChange={handleChange} />
         <Hue color={selectedColor} onChange={handleChange} />
+        {solidOnly && (
+          <Alpha
+            color={selectedColor}
+            onChange={(color) => {
+              // 드래그 중 selectedColor와 alpha 상태 모두 업데이트 (핸들 실시간 이동)
+              setSelectedColor(color);
+              setAlpha(color.rgb.a);
+              // 실시간으로 부모에게도 전달
+              const rgbaValue = `rgba(${parseInt(
+                color.hex.slice(1, 3),
+                16
+              )}, ${parseInt(color.hex.slice(3, 5), 16)}, ${parseInt(
+                color.hex.slice(5, 7),
+                16
+              )}, ${color.rgb.a})`;
+              onColorChange?.(rgbaValue);
+            }}
+            onChangeComplete={(color) => {
+              // 드래그 완료 시에도 최종 값 전달 (필요시 추가 처리)
+              setSelectedColor(color);
+              setAlpha(color.rgb.a);
+              const rgbaValue = `rgba(${parseInt(
+                color.hex.slice(1, 3),
+                16
+              )}, ${parseInt(color.hex.slice(3, 5), 16)}, ${parseInt(
+                color.hex.slice(5, 7),
+                16
+              )}, ${color.rgb.a})`;
+              onColorChange?.(rgbaValue);
+            }}
+          />
+        )}
         {solidOnly || mode === MODES.solid ? (
           <Input
             value={inputValue}
             onValueChange={handleInputChange}
             onValueCommit={commitSolidInput}
             previewColor={selectedColor.hex}
+            alpha={solidOnly ? alpha : undefined}
           />
         ) : (
           <GradientInputs
@@ -292,20 +367,45 @@ function ModeSwitch({ mode, onChange }) {
   );
 }
 
-const Input = ({ value = "", onValueChange, onValueCommit, previewColor }) => {
+const Input = ({
+  value = "",
+  onValueChange,
+  onValueCommit,
+  previewColor,
+  alpha,
+}) => {
   const handleChange = (e) => {
     onValueChange?.(e.target.value);
   };
+
+  const displayValue =
+    alpha !== undefined
+      ? `${value}${Math.round(alpha * 255)
+          .toString(16)
+          .toUpperCase()
+          .padStart(2, "0")}`
+      : value;
+
+  // previewColor를 RGBA로 변환
+  const rgbaPreview =
+    alpha !== undefined && previewColor
+      ? previewColor.startsWith("#")
+        ? `rgba(${parseInt(previewColor.slice(1, 3), 16)}, ${parseInt(
+            previewColor.slice(3, 5),
+            16
+          )}, ${parseInt(previewColor.slice(5, 7), 16)}, ${alpha})`
+        : previewColor
+      : previewColor;
 
   return (
     <div className="relative w-full">
       <div
         className="absolute left-[6px] top-[7px] w-[11px] h-[11px] rounded-[2px] border border-[#3A3943]"
-        style={{ background: previewColor }}
+        style={{ background: rgbaPreview }}
       />
       <input
         type="text"
-        value={value}
+        value={displayValue}
         onChange={handleChange}
         onBlur={onValueCommit}
         onKeyDown={(event) => {
@@ -314,6 +414,7 @@ const Input = ({ value = "", onValueChange, onValueCommit, previewColor }) => {
           }
         }}
         className="pl-[23px] text-left w-full h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943] focus:border-[#459BF8] text-style-4 text-[#DBDEE8] uppercase pt-[1px] leading-[23px]"
+        readOnly={alpha !== undefined}
       />
     </div>
   );

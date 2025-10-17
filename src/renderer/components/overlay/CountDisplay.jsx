@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { toCssRgba } from "@utils/colorUtils";
 
 export default function CountDisplay({ count, fillColor, strokeColor }) {
   const [scale, setScale] = useState(1);
@@ -50,7 +51,9 @@ export default function CountDisplay({ count, fillColor, strokeColor }) {
   }, [count]);
 
   const displayValue = count || 0;
-  const strokeWidth = strokeColor ? "1px" : "0px";
+  const fill = toCssRgba(fillColor, "#FFFFFF");
+  const stroke = toCssRgba(strokeColor, "transparent");
+  const strokeWidth = stroke.alpha > 0 ? "1px" : "0px";
 
   return (
     <span
@@ -59,13 +62,13 @@ export default function CountDisplay({ count, fillColor, strokeColor }) {
       style={{
         transform: `scale(${scale})`,
         transformOrigin: "center bottom",
-        color: fillColor || "#FFFFFF",
+        color: fill.css,
         fontSize: "16px",
         fontWeight: 800,
         textAlign: "center",
         pointerEvents: "none",
         lineHeight: 1,
-        "--counter-stroke-color": strokeColor || "transparent",
+        "--counter-stroke-color": stroke.css,
         "--counter-stroke-width": strokeWidth,
       }}
     >

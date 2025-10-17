@@ -8,6 +8,7 @@ import {
   createDefaultCounterSettings,
   normalizeCounterSettings,
 } from "@src/types/keys";
+import { toCssRgba } from "@utils/colorUtils";
 
 export default function DraggableKey({
   index,
@@ -241,13 +242,16 @@ export const Key = memo(
       ? counterSettings.gap
       : 6;
 
+    const fillColorCss = toCssRgba(counterFillColor, "#FFFFFF");
+    const strokeColorCss = toCssRgba(counterStrokeColor, "transparent");
+
     const renderInsideLayout = () => {
       if (!showInsideCounter) {
         return null;
       }
 
       const displayValue = counterValue || 0;
-      const strokeWidth = counterStrokeColor ? "1px" : "0px";
+      const strokeWidth = strokeColorCss.alpha > 0 ? "1px" : "0px";
 
       const counterElement = (
         <span
@@ -255,11 +259,11 @@ export const Key = memo(
           className="counter-text pointer-events-none select-none"
           data-text={displayValue}
           style={{
-            color: counterFillColor,
+            color: fillColorCss.css,
             fontSize: "16px",
             fontWeight: 800,
             lineHeight: 1,
-            "--counter-stroke-color": counterStrokeColor || "transparent",
+            "--counter-stroke-color": strokeColorCss.css,
             "--counter-stroke-width": strokeWidth,
           }}
         >
