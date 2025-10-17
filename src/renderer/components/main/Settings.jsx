@@ -45,6 +45,8 @@ export default function Settings({ showAlert, showConfirm }) {
       "https://raw.githubusercontent.com/lee-sihun/DmNote/master/src/renderer/assets/mp4/alwaysontop.mp4",
     noteEffect:
       "https://raw.githubusercontent.com/lee-sihun/DmNote/master/src/renderer/assets/mp4/noteeffect.mp4",
+    keyCounter:
+      "https://raw.githubusercontent.com/lee-sihun/DmNote/master/src/renderer/assets/mp4/counter.mp4",
     customCSS:
       "https://raw.githubusercontent.com/lee-sihun/DmNote/master/src/renderer/assets/mp4/css.mp4",
     resizeAnchor:
