@@ -44,7 +44,7 @@ export default function Modal({
 
   return (
     <div
-      className={`fixed top-[40px] left-[1px] flex items-center justify-center w-[900px] h-[387px] bg-[#000000] bg-opacity-70 z-50 ${backdropAnimClass}`}
+      className={`fixed top-[31px] left-[1px] flex items-center justify-center w-[900px] h-[396px] bg-[#000000] bg-opacity-70 z-50 ${backdropAnimClass}`}
       onClick={handleBackdropClick}
     >
       <div
