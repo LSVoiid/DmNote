@@ -18,6 +18,8 @@ type KeyUpdatePayload = {
   key: string;
   activeImage?: string;
   inactiveImage?: string;
+  activeTransparent?: boolean;
+  idleTransparent?: boolean;
   width: number;
   height: number;
   noteColor?: NoteColor;
@@ -97,6 +99,10 @@ export function useKeyManager() {
                 ...value,
                 activeImage: keyData.activeImage ?? value.activeImage,
                 inactiveImage: keyData.inactiveImage ?? value.inactiveImage,
+                activeTransparent:
+                  keyData.activeTransparent ?? value.activeTransparent ?? false,
+                idleTransparent:
+                  keyData.idleTransparent ?? value.idleTransparent ?? false,
                 width: keyData.width,
                 height: keyData.height,
                 noteColor: keyData.noteColor ?? value.noteColor ?? "#FFFFFF",
@@ -143,6 +149,8 @@ export function useKeyManager() {
           height: 60,
           activeImage: "",
           inactiveImage: "",
+          activeTransparent: false,
+          idleTransparent: false,
           count: 0,
           noteColor: "#FFFFFF",
           noteOpacity: 80,
@@ -185,6 +193,8 @@ export function useKeyManager() {
           height: 60,
           activeImage: "",
           inactiveImage: "",
+          activeTransparent: false,
+          idleTransparent: false,
           count: 0,
           noteColor: "#FFFFFF",
           noteOpacity: 80,

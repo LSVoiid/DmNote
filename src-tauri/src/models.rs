@@ -78,6 +78,10 @@ pub struct KeyPosition {
     pub active_image: Option<String>,
     #[serde(default)]
     pub inactive_image: Option<String>,
+    #[serde(default)]
+    pub active_transparent: bool,
+    #[serde(default)]
+    pub idle_transparent: bool,
     pub count: u32,
     pub note_color: NoteColor,
     pub note_opacity: u32,

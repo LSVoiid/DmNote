@@ -122,6 +122,8 @@ export const keyPositionSchema = z.object({
   height: z.number().positive(),
   activeImage: z.string().optional().or(z.literal("")),
   inactiveImage: z.string().optional().or(z.literal("")),
+  activeTransparent: z.boolean().optional(),
+  idleTransparent: z.boolean().optional(),
   count: z.number().int().nonnegative(),
   noteColor: noteColorSchema,
   noteOpacity: z.number().int().min(0).max(100),

@@ -146,8 +146,18 @@ export const Key = memo(
       height = 60,
       activeImage,
       inactiveImage,
+      activeTransparent = false,
+      idleTransparent = false,
       className, // 단일 클래스 네임으로 통일
     } = position;
+
+    // 투명화 옵션 체크
+    const isTransparent = active ? activeTransparent : idleTransparent;
+
+    // 투명화가 활성화되어 있으면 아무것도 렌더링하지 않음
+    if (isTransparent) {
+      return null;
+    }
 
     // 활성 상태에서 activeImage가 없으면 inactiveImage를 fallback으로 사용
     const currentImage =
@@ -363,6 +373,10 @@ export const Key = memo(
       prevProps.position.height === nextProps.position.height &&
       prevProps.position.activeImage === nextProps.position.activeImage &&
       prevProps.position.inactiveImage === nextProps.position.inactiveImage &&
+      prevProps.position.activeTransparent ===
+        nextProps.position.activeTransparent &&
+      prevProps.position.idleTransparent ===
+        nextProps.position.idleTransparent &&
       prevProps.position.className === nextProps.position.className &&
       prevProps.position.counter?.placement ===
         nextProps.position.counter?.placement &&

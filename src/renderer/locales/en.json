@@ -45,9 +45,17 @@
     "noteOpacity": "Note Opacity",
     "inactiveState": "Idle",
     "activeState": "Pressed",
+    "customImage": "Custom Image",
+    "configure": "Configure",
     "className": "Class Name",
     "save": "Apply",
     "cancel": "Cancel"
+  },
+  "imagePicker": {
+    "idle": "Idle",
+    "active": "Pressed",
+    "transparent": "Transparent",
+    "reset": "Reset Image"
   },
   "noteSetting": {
     "borderRadius": "Corner Radius",

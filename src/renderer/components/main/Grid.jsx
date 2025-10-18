@@ -412,6 +412,12 @@ export default function Grid({
               positions[selectedKeyType][selectedKey.index].activeImage,
             inactiveImage:
               positions[selectedKeyType][selectedKey.index].inactiveImage,
+            activeTransparent:
+              positions[selectedKeyType][selectedKey.index].activeTransparent ||
+              false,
+            idleTransparent:
+              positions[selectedKeyType][selectedKey.index].idleTransparent ||
+              false,
             width: positions[selectedKeyType][selectedKey.index].width,
             height: positions[selectedKeyType][selectedKey.index].height,
             noteColor:

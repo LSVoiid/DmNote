@@ -45,9 +45,17 @@
     "noteOpacity": "노트 투명도",
     "inactiveState": "대기 상태",
     "activeState": "입력 상태",
+    "customImage": "커스텀 이미지",
+    "configure": "설정하기",
     "className": "클래스 이름",
     "save": "저장",
     "cancel": "취소"
+  },
+  "imagePicker": {
+    "idle": "대기",
+    "active": "입력",
+    "transparent": "키 투명화",
+    "reset": "이미지 초기화"
   },
   "noteSetting": {
     "borderRadius": "라운딩",

@@ -3,6 +3,7 @@ import { useTranslation } from "@contexts/I18nContext";
 import { getKeyInfo, getKeyInfoByGlobalKey } from "@utils/KeyMaps";
 import { useSettingsStore } from "@stores/useSettingsStore";
 import ColorPicker from "./ColorPicker";
+import ImagePicker from "./ImagePicker";
 import Modal from "../Modal";
 
 const COLOR_MODES = {
@@ -53,6 +54,13 @@ export default function KeySetting({
   );
   const [noteOpacity, setNoteOpacity] = useState(keyData.noteOpacity || 80);
   const [showPicker, setShowPicker] = useState(false);
+  const [showImagePicker, setShowImagePicker] = useState(false);
+  const [idleTransparent, setIdleTransparent] = useState(
+    keyData.idleTransparent || false
+  );
+  const [activeTransparent, setActiveTransparent] = useState(
+    keyData.activeTransparent || false
+  );
 
   const [className, setClassName] = useState(keyData.className || "");
 
@@ -68,6 +76,7 @@ export default function KeySetting({
   const activeInputRef = useRef(null);
   const inactiveInputRef = useRef(null);
   const colorButtonRef = useRef(null);
+  const imageButtonRef = useRef(null);
   const initialSkipRef = useRef(skipAnimation);
 
   useEffect(() => {
@@ -109,6 +118,8 @@ export default function KeySetting({
       noteColor: colorValue,
       noteOpacity,
       className,
+      idleTransparent,
+      activeTransparent,
     });
   };
 
@@ -145,6 +156,14 @@ export default function KeySetting({
 
   const handlePickerClose = () => {
     setShowPicker(false);
+  };
+
+  const handleImageButtonClick = () => {
+    setShowImagePicker((prev) => !prev);
+  };
+
+  const handleImagePickerClose = () => {
+    setShowImagePicker(false);
   };
 
   const renderColorPreview = () => {
@@ -187,7 +206,7 @@ export default function KeySetting({
             <p className="text-white text-style-2">{t("keySetting.keySize")}</p>
             <div className="flex items-center gap-[10.5px]">
               <div
-                className={`relative w-[48px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] ${
+                className={`relative w-[54px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] ${
                   widthFocused ? "border-[#459BF8]" : "border-[#3A3943]"
                 }`}
               >
@@ -222,7 +241,7 @@ export default function KeySetting({
                 />
               </div>
               <div
-                className={`relative w-[48px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] ${
+                className={`relative w-[54px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] ${
                   heightFocused ? "border-[#459BF8]" : "border-[#3A3943]"
                 }`}
               >
@@ -325,54 +344,21 @@ export default function KeySetting({
               </div>
             </>
           )}
-          {/* 입력/대기 이미지 */}
+          {/* 커스텀 이미지 */}
           <div className="flex justify-between w-full items-center">
-            <div className="flex items-center justify-between gap-[20px]">
-              <p className="text-white text-style-2">
-                {t("keySetting.inactiveState")}
-              </p>
-              <input
-                type="file"
-                accept="image/*"
-                ref={inactiveInputRef}
-                className="hidden"
-                onChange={(e) => handleImageSelect(e, false)}
-              />
-              <button
-                className="key-bg flex w-[30px] h-[30px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943]"
-                onClick={() => inactiveInputRef.current.click()}
-                style={{
-                  backgroundImage: inactiveImage
-                    ? `url(${inactiveImage})`
-                    : "none",
-                  backgroundSize: "cover",
-                  width: "30px",
-                  height: "30px",
-                }}
-              ></button>
-            </div>
-            <div className="flex items-center justify-between gap-[20px]">
-              <p className="text-white text-style-2">
-                {t("keySetting.activeState")}
-              </p>
-              <input
-                type="file"
-                accept="image/*"
-                ref={activeInputRef}
-                className="hidden"
-                onChange={(e) => handleImageSelect(e, true)}
-              />
-              <button
-                className="key-bg flex w-[30px] h-[30px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943]"
-                onClick={() => activeInputRef.current.click()}
-                style={{
-                  backgroundImage: activeImage ? `url(${activeImage})` : "none",
-                  backgroundSize: "cover",
-                  width: "30px",
-                  height: "30px",
-                }}
-              ></button>
-            </div>
+            <p className="text-white text-style-2">
+              {t("keySetting.customImage")}
+            </p>
+            <button
+              ref={imageButtonRef}
+              type="button"
+              className={`px-[7px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] flex items-center justify-center ${
+                showImagePicker ? "border-[#459BF8]" : "border-[#3A3943]"
+              } text-[#DBDEE8] text-style-4`}
+              onClick={handleImageButtonClick}
+            >
+              {t("keySetting.configure")}
+            </button>
           </div>
           {/* 클래스 이름 - 커스텀 CSS 활성화 시에만 표시 */}
           {useCustomCSS && (
@@ -417,6 +403,23 @@ export default function KeySetting({
             }
             onColorChange={handleColorChange}
             onClose={handlePickerClose}
+          />
+        )}
+        {showImagePicker && (
+          <ImagePicker
+            open={showImagePicker}
+            referenceRef={imageButtonRef}
+            idleImage={inactiveImage}
+            activeImage={activeImage}
+            idleTransparent={idleTransparent}
+            activeTransparent={activeTransparent}
+            onIdleImageChange={setInactiveImage}
+            onActiveImageChange={setActiveImage}
+            onIdleTransparentChange={setIdleTransparent}
+            onActiveTransparentChange={setActiveTransparent}
+            onIdleImageReset={() => setInactiveImage("")}
+            onActiveImageReset={() => setActiveImage("")}
+            onClose={handleImagePickerClose}
           />
         )}
       </div>

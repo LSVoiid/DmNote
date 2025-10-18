@@ -24,6 +24,8 @@ const FALLBACK_POSITION: KeyPosition = {
   height: 60,
   activeImage: "",
   inactiveImage: "",
+  activeTransparent: false,
+  idleTransparent: false,
   count: 0,
   noteColor: "#FFFFFF",
   noteOpacity: 80,
