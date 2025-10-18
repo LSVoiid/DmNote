@@ -97,8 +97,7 @@ DmNote/
 │  └─ vendor/                    # willhook 패치 버전
 ├─ package.json                  # 프로젝트 의존성 및 실행 스크립트
 ├─ tsconfig.json                 # TypeScript 설정
-├─ vite.config.ts                # Vite 설정
-└─ dist/                         # 빌드 결과물
+└─ vite.config.ts                # Vite 설정
 ```
 
 ### 기본 설치 및 실행
@@ -155,4 +154,5 @@ npm run tauri:dev
 - 동시 입력 간격 밀리초(ms) 표시
 - 입력 통계 분석 기능
  -->
+
 
