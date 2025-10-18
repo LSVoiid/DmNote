@@ -77,7 +77,7 @@ export default function ImagePicker({
       referenceRef={referenceRef}
       placement="right-start"
       offset={32}
-      offsetY={-80}
+      offsetY={-93}
       className="z-50"
       interactiveRefs={interactiveRefs}
       onClose={onClose}

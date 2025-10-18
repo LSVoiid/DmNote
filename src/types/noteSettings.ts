@@ -41,14 +41,14 @@ export const noteSettingsSchema = z.object({
 export type NoteSettings = z.infer<typeof noteSettingsSchema>;
 
 export const NOTE_SETTINGS_DEFAULTS: NoteSettings = Object.freeze({
-  borderRadius: 2,
-  speed: 180,
-  trackHeight: 150,
+  borderRadius: NOTE_SETTINGS_CONSTRAINTS.borderRadius.default,
+  speed: NOTE_SETTINGS_CONSTRAINTS.speed.default,
+  trackHeight: NOTE_SETTINGS_CONSTRAINTS.trackHeight.default,
   reverse: false,
   fadePosition: "auto",
   delayedNoteEnabled: false,
-  shortNoteThresholdMs: 120,
-  shortNoteMinLengthPx: 10,
+  shortNoteThresholdMs: NOTE_SETTINGS_CONSTRAINTS.shortNoteThresholdMs.default,
+  shortNoteMinLengthPx: NOTE_SETTINGS_CONSTRAINTS.shortNoteMinLengthPx.default,
 });
 
 export function normalizeNoteSettings(raw: unknown): NoteSettings {

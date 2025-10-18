@@ -201,8 +201,8 @@ impl Default for NoteSettings {
             reverse: false,
             fade_position: FadePosition::Auto,
             delayed_note_enabled: false,
-            short_note_threshold_ms: 120,
-            short_note_min_length_px: 10,
+            short_note_threshold_ms: 50,
+            short_note_min_length_px: 30,
         }
     }
 }
