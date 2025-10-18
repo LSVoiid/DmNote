@@ -21,8 +21,8 @@ https://github.com/user-attachments/assets/20fb118d-3982-4925-9004-9ce0936590c2
 
 ## 🌟 개요
 
-**DM Note**는 DJMAX RESPECT V에서 사용하기 위해 만들어진 키뷰어 프로그램입니다. Electron과 React로 구축 되었으며
-키보드 후킹을 위해 [node-global-key-listener-extended](https://github.com/lee-sihun/node-global-key-listener) 패키지를 사용합니다.
+**DM Note**는 DJMAX RESPECT V에서 사용하기 위해 만들어진 키뷰어 프로그램입니다. Tauri와 React로 구축 되었으며
+키보드 후킹을 위해 [willhook](https://github.com/myood/willhook-rs) 패키지를 사용합니다.
 간편한 설정으로 스트리밍이나 플레이 영상 제작 시 키 입력을 시각적으로 보여줄 수 있습니다. 현재는 windows 환경만 지원하며, 리듬게임 이외의 다른 게임에서도 사용이 가능합니다.
 
 [DM NOTE v1.3.0 다운로드](https://github.com/lee-sihun/DmNote/releases/download/1.3.0/DM.NOTE.v.1.3.0.zip)
@@ -68,27 +68,16 @@ https://github.com/user-attachments/assets/20fb118d-3982-4925-9004-9ce0936590c2
 ### 기술 스택
 
 - **프론트엔드**: React 19 + Typescript + Vite 7
-- **백엔드**: Electron
+- **백엔드**: Tauri
 - **스타일링**: Tailwind CSS 3
-- **키보드 후킹**: [node-global-key-listener-extended](https://github.com/lee-sihun/node-global-key-listener)
+- **키보드 후킹**: [willhook](https://github.com/myood/willhook-rs)
 - **패키지 매니저**: npm
 
 ### 폴더 구조
 
 ```
 DmNote/
-├─ src/                          # 소스 코드
-│  ├─ main/                      # Electron 메인 프로세스
-│  │  ├─ app/                    # Application 부트스트랩
-│  │  ├─ core/                   # ipcRouter, windowRegistry
-│  │  ├─ domains/                # 도메인 라우팅 (app, settings, keys, overlay, css, preset, system)
-│  │  │  ├─ keys/                # 키 매핑 기본값
-│  │  │  └─ positions/           # 키 포지션 기본값
-│  │  ├─ services/               # 서비스 (키보드 리스너 등)
-│  │  ├─ store/                  # electron-store + zod 스키마
-│  │  ├─ windows/                # BrowserWindow 래퍼 + config
-│  │  ├─ preload.ts              # contextBridge API 노출(window.api)
-│  │  └─ main.ts                 # 메인 진입점
+├─ src/                          # 프론트엔드
 │  ├─ renderer/                  # React 렌더러
 │  │  ├─ components/             # UI 컴포넌트
 │  │  ├─ hooks/                  # 상태/동기화 훅
@@ -97,43 +86,27 @@ DmNote/
 │  │  ├─ styles/                 # 전역/공통 스타일
 │  │  └─ assets/                 # 정적 리소스
 │  └─ types/                     # 공유 타입/스키마
+├─ src-tauri/                    # Tauri 백엔드
+│  ├─ src/                       # 커맨드, 서비스
+│  ├─ default_keys.json          # 키 매핑 기본값
+│  ├─ default_positions.json     # 키 포지션 기본값
+│  └─ vendor/                    # willhook 패치 버전
 ├─ package.json                  # 프로젝트 의존성 및 실행 스크립트
-├─ tsconfig.json                 # TypeScript (렌더러/공용) 설정
-├─ tsconfig.main.json            # TypeScript (메인) 전용 설정
-├─ vite.config.ts                # Vite (렌더러) 설정
+├─ tsconfig.json                 # TypeScript 설정
+├─ vite.config.ts                # Vite 설정
 └─ dist/                         # 빌드 결과물
 ```
 
 ### 기본 설치 및 실행
 
-이 프로젝트는 전역 키보드 후킹을 위해 `node-gyp`를 이용하는 [node-global-key-listener-extended](https://github.com/lee-sihun/node-global-key-listener) 패키지를 사용하고 있습니다. 해당 패키지는 네이티브 C++ 코드를 빌드해야 하므로 다음 개발 환경이 설치되어 있어야 합니다.
-
-- **Node.js**
-- **Python 3.x**
-- **Visual Studio Build Tools** (C++ 데스크톱 개발 워크로드 포함)
-
-위의 개발 환경이 모두 준비되었다면, 터미널에서 다음 명령어를 순서대로 입력하세요.
+터미널에서 다음 명령어를 순서대로 입력하세요.
 
 ```bash
 git clone https://github.com/lee-sihun/DmNote.git
 cd DmNote
 npm install
-npm run start
+npm run tauri:dev
 ```
-
-### (선택) C++ 빌드 도구 없이 빠르게 테스트
-
-개발 환경에 C++ 빌드 환경 구성이 어려운 경우, 패키지의 사전 빌드된 버전을 사용해서 테스트를 진행할 수 있습니다. `package.json`의 `postinstall` 스크립트를 제거하고 `dependencies` 항목을 아래와 같이 변경해주세요.
-
-```json
-{
-  "dependencies": {
-    "node-global-key-listener-extended": "github:lee-sihun/node-global-key-listener#win-keyserver-version"
-  }
-}
-```
-
-파일을 수정한 뒤, 터미널에서 `npm install`와 `npm run start`를 실행해주세요.
 
 ## 🖼️ 스크린샷
 
@@ -168,8 +141,8 @@ npm run start
 
 ## ❤️ Special Thanks!
 
-- [electron/electron](https://github.com/electron/electron)
-- [LaunchMenu/node-global-key-listener](https://github.com/LaunchMenu/node-global-key-listener)
+- [tauri-apps/tauri](https://github.com/tauri-apps/tauri)
+- [myood/willhook-rs](https://github.com/myood/willhook-rs)
 
 <!--
 ## 🔜 업데이트 예정
