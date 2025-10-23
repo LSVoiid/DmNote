@@ -54,7 +54,7 @@ export default function DraggableKey({
     () => ({
       width: `${width}px`,
       height: `${height}px`,
-      transform: `translate3d(${renderDx}px, ${renderDy}px, 0)`,
+      transform: `translate3d(calc(${renderDx}px + var(--key-offset-x, 0px)), calc(${renderDy}px + var(--key-offset-y, 0px)), 0)`,
       backgroundColor: `var(--key-bg, ${
         inactiveImage ? "transparent" : "rgba(46, 46, 47, 0.9)"
       })`,
@@ -171,7 +171,7 @@ export const Key = memo(
       () => ({
         width: `${width}px`,
         height: `${height}px`,
-        transform: `translate3d(${dx}px, ${dy}px, 0)`,
+        transform: `translate3d(calc(${dx}px + var(--key-offset-x, 0px)), calc(${dy}px + var(--key-offset-y, 0px)), 0)`,
         backgroundColor: `var(--key-bg, ${
           currentImage
             ? "transparent"
