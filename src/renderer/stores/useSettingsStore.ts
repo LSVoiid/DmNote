@@ -4,6 +4,7 @@ import {
   type NoteSettings,
 } from "@src/types/noteSettings";
 import type { OverlayResizeAnchor } from "@src/types/settings";
+import type { JsPlugin } from "@src/types/js";
 
 interface SettingsState {
   hardwareAcceleration: boolean;
@@ -16,8 +17,7 @@ interface SettingsState {
   customCSSContent: string;
   customCSSPath: string | null;
   useCustomJS: boolean;
-  customJSContent: string;
-  customJSPath: string | null;
+  jsPlugins: JsPlugin[];
   backgroundColor: string;
   language: string;
   laboratoryEnabled: boolean;
@@ -32,8 +32,7 @@ interface SettingsState {
   setCustomCSSContent: (value: string) => void;
   setCustomCSSPath: (value: string | null) => void;
   setUseCustomJS: (value: boolean) => void;
-  setCustomJSContent: (value: string) => void;
-  setCustomJSPath: (value: string | null) => void;
+  setJsPlugins: (value: JsPlugin[]) => void;
   setOverlayLocked: (value: boolean) => void;
   setAngleMode: (value: string) => void;
   setNoteEffect: (value: boolean) => void;
@@ -55,8 +54,7 @@ export type SettingsStateSnapshot = Omit<
   | "setCustomCSSContent"
   | "setCustomCSSPath"
   | "setUseCustomJS"
-  | "setCustomJSContent"
-  | "setCustomJSPath"
+  | "setJsPlugins"
   | "setOverlayLocked"
   | "setAngleMode"
   | "setNoteEffect"
@@ -78,8 +76,7 @@ const initialState: SettingsStateSnapshot = {
   customCSSContent: "",
   customCSSPath: null,
   useCustomJS: false,
-  customJSContent: "",
-  customJSPath: null,
+  jsPlugins: [],
   backgroundColor: "transparent",
   language: "ko",
   laboratoryEnabled: false,
@@ -109,9 +106,10 @@ function mergeSnapshot(
     next.customCSSContent = patch.customCSSContent ?? prev.customCSSContent;
     next.customCSSPath = patch.customCSSPath ?? prev.customCSSPath;
   }
-  if (patch.customJSContent !== undefined || patch.customJSPath !== undefined) {
-    next.customJSContent = patch.customJSContent ?? prev.customJSContent;
-    next.customJSPath = patch.customJSPath ?? prev.customJSPath;
+  if (patch.jsPlugins !== undefined) {
+    next.jsPlugins = patch.jsPlugins
+      ? patch.jsPlugins.map((plugin) => ({ ...plugin }))
+      : prev.jsPlugins;
   }
   return next;
 }
@@ -126,8 +124,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   setCustomCSSContent: (value) => set({ customCSSContent: value }),
   setCustomCSSPath: (value) => set({ customCSSPath: value }),
   setUseCustomJS: (value) => set({ useCustomJS: value }),
-  setCustomJSContent: (value) => set({ customJSContent: value }),
-  setCustomJSPath: (value) => set({ customJSPath: value }),
+  setJsPlugins: (value) => set({ jsPlugins: value }),
   setOverlayLocked: (value) => set({ overlayLocked: value }),
   setAngleMode: (value) => set({ angleMode: value }),
   setNoteEffect: (value) => set({ noteEffect: value }),

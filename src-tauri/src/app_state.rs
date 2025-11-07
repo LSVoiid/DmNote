@@ -107,6 +107,8 @@ impl AppState {
 
     pub fn bootstrap_payload(&self) -> BootstrapPayload {
         let state = self.store.snapshot();
+        let mut custom_js = state.custom_js.clone();
+        let _ = custom_js.normalize();
         BootstrapPayload {
             settings: SettingsState {
                 hardware_acceleration: state.hardware_acceleration,
@@ -121,7 +123,7 @@ impl AppState {
                 use_custom_css: state.use_custom_css,
                 custom_css: state.custom_css.clone(),
                 use_custom_js: state.use_custom_js,
-                custom_js: state.custom_js.clone(),
+                custom_js,
                 overlay_resize_anchor: state.overlay_resize_anchor.clone(),
                 key_counter_enabled: state.key_counter_enabled,
             },

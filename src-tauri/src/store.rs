@@ -210,6 +210,8 @@ fn normalize_state(mut data: AppStoreData) -> AppStoreData {
         data.selected_key_type = "4key".to_string();
     }
 
+    let _ = data.custom_js.normalize();
+
     data
 }
 
@@ -261,6 +263,9 @@ fn merge_default_counters(target: &mut KeyCounters, keys: &KeyMappings) {
 }
 
 fn settings_from_store(store: &AppStoreData) -> SettingsState {
+    let mut custom_js = store.custom_js.clone();
+    let _ = custom_js.normalize();
+
     SettingsState {
         hardware_acceleration: store.hardware_acceleration,
         always_on_top: store.always_on_top,
@@ -274,7 +279,7 @@ fn settings_from_store(store: &AppStoreData) -> SettingsState {
         use_custom_css: store.use_custom_css,
         custom_css: store.custom_css.clone(),
         use_custom_js: store.use_custom_js,
-        custom_js: store.custom_js.clone(),
+        custom_js,
         overlay_resize_anchor: store.overlay_resize_anchor.clone(),
         key_counter_enabled: store.key_counter_enabled,
     }
@@ -407,6 +412,7 @@ fn repair_legacy_state(raw: &str) -> AppStoreData {
             data.key_counter_enabled = v;
         }
     }
+        let _ = data.custom_js.normalize();
     normalize_state(data)
 }
 

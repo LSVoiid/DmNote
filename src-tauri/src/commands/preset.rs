@@ -158,6 +158,7 @@ pub fn preset_load(
             custom_js: Some(CustomJsPatch {
                 path: Some(custom_js.path.clone()),
                 content: Some(custom_js.content.clone()),
+                plugins: Some(custom_js.plugins.clone()),
             }),
             ..SettingsPatchInput::default()
         })

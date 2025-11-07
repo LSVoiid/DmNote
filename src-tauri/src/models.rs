@@ -2,6 +2,8 @@ use serde::{Deserialize, Serialize, Serializer, Deserializer};
 use serde::ser::SerializeMap;
 use serde::de::Error as DeError;
 use std::collections::HashMap;
+use std::path::Path;
+use uuid::Uuid;
 
 pub type KeyMappings = HashMap<String, Vec<String>>;
 pub type KeyPositions = HashMap<String, Vec<KeyPosition>>;
@@ -225,9 +227,23 @@ impl Default for CustomCss {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct CustomJs {
+pub struct JsPlugin {
+    pub id: String,
+    pub name: String,
     pub path: Option<String>,
     pub content: String,
+    pub enabled: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct CustomJs {
+    #[serde(default)]
+    pub path: Option<String>,
+    #[serde(default)]
+    pub content: String,
+    #[serde(default)]
+    pub plugins: Vec<JsPlugin>,
 }
 
 impl Default for CustomJs {
@@ -235,7 +251,54 @@ impl Default for CustomJs {
         Self {
             path: None,
             content: String::new(),
+            plugins: Vec::new(),
         }
+    }
+}
+
+impl CustomJs {
+    pub fn normalize(&mut self) -> bool {
+        let mut mutated = false;
+
+        for plugin in self.plugins.iter_mut() {
+            if plugin.id.trim().is_empty() {
+                plugin.id = Uuid::new_v4().to_string();
+                mutated = true;
+            }
+            if plugin.name.trim().is_empty() {
+                plugin.name = plugin
+                    .path
+                    .as_deref()
+                    .and_then(|value| Path::new(value).file_name())
+                    .and_then(|value| value.to_str())
+                    .map(|value| value.to_string())
+                    .unwrap_or_else(|| "plugin.js".to_string());
+                mutated = true;
+            }
+        }
+
+        if self.plugins.is_empty() && (self.path.is_some() || !self.content.is_empty()) {
+            let name = self
+                .path
+                .as_deref()
+                .and_then(|value| Path::new(value).file_name())
+                .and_then(|value| value.to_str())
+                .map(|value| value.to_string())
+                .unwrap_or_else(|| "custom.js".to_string());
+            let plugin = JsPlugin {
+                id: Uuid::new_v4().to_string(),
+                name,
+                path: self.path.clone(),
+                content: self.content.clone(),
+                enabled: true,
+            };
+            self.plugins.push(plugin);
+            self.path = None;
+            self.content.clear();
+            mutated = true;
+        }
+
+        mutated
     }
 }
 
@@ -499,6 +562,8 @@ pub struct CustomJsPatch {
     pub path: Option<Option<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub content: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub plugins: Option<Vec<JsPlugin>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

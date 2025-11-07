@@ -44,7 +44,7 @@ export const DEFAULT_SETTINGS_STATE: SettingsState = {
   useCustomCSS: false,
   customCSS: { path: null, content: "" },
   useCustomJS: false,
-  customJS: { path: null, content: "" },
+  customJS: { path: null, content: "", plugins: [] },
   overlayResizeAnchor: "top-left",
   keyCounterEnabled: false,
 };

@@ -1,6 +1,6 @@
 import { BootstrapPayload } from "@src/types/app";
 import { CustomCss } from "@src/types/css";
-import { CustomJs } from "@src/types/js";
+import { CustomJs, JsPlugin } from "@src/types/js";
 import {
   CustomTab,
   KeyMappings,
@@ -42,11 +42,25 @@ export type CssLoadResult = {
 
 export type JsTogglePayload = { enabled: boolean };
 export type JsSetContentResult = { success: boolean; error?: string };
+export type JsPluginError = { path: string; error: string };
 export type JsLoadResult = {
   success: boolean;
+  added: JsPlugin[];
+  errors?: JsPluginError[];
+};
+export type JsReloadResult = {
+  updated: JsPlugin[];
+  errors?: JsPluginError[];
+};
+export type JsRemoveResult = {
+  success: boolean;
+  removedId?: string;
   error?: string;
-  content?: string;
-  path?: string;
+};
+export type JsPluginUpdateResult = {
+  success: boolean;
+  plugin?: JsPlugin;
+  error?: string;
 };
 
 export type KeysModeResponse = { success: boolean; mode: string };
@@ -146,10 +160,16 @@ export interface DMNoteAPI {
     getUse(): Promise<boolean>;
     toggle(enabled: boolean): Promise<JsTogglePayload>;
     load(): Promise<JsLoadResult>;
+    reload(): Promise<JsReloadResult>;
+    remove(id: string): Promise<JsRemoveResult>;
+    setPluginEnabled(
+      id: string,
+      enabled: boolean
+    ): Promise<JsPluginUpdateResult>;
     setContent(content: string): Promise<JsSetContentResult>;
     reset(): Promise<void>;
     onUse(listener: (payload: JsTogglePayload) => void): Unsubscribe;
-    onContent(listener: (payload: CustomJs) => void): Unsubscribe;
+    onState(listener: (payload: CustomJs) => void): Unsubscribe;
   };
   presets: {
     save(): Promise<PresetOperationResult>;

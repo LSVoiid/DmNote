@@ -196,5 +196,9 @@ fn apply_js_patch(mut script: CustomJs, patch: &CustomJsPatch) -> CustomJs {
     if let Some(content) = patch.content.as_ref() {
         script.content = content.clone();
     }
+    if let Some(plugins) = patch.plugins.as_ref() {
+        script.plugins = plugins.clone();
+    }
+    let _ = script.normalize();
     script
 }

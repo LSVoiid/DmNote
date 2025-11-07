@@ -7,6 +7,32 @@ import {
 import { applyCounterSnapshot, setKeyCounter } from "@stores/keyCounterSignals";
 import type { SettingsDiff } from "@src/types/settings";
 import type { OverlayResizeAnchor } from "@src/types/settings";
+import type { CustomJs, JsPlugin } from "@src/types/js";
+
+function clonePlugins(source?: CustomJs | null): JsPlugin[] {
+  if (!source) return [];
+  const fromPlugins = Array.isArray(source.plugins) ? source.plugins : [];
+  if (fromPlugins.length > 0) {
+    return fromPlugins.map((plugin) => ({ ...plugin }));
+  }
+
+  const legacyPath = source.path ?? null;
+  const legacyContent = source.content ?? "";
+  if (!legacyPath && !legacyContent) {
+    return [];
+  }
+
+  const fallbackName = legacyPath?.split(/\\|\//).pop() || "legacy.js";
+  return [
+    {
+      id: `legacy-${Date.now().toString(36)}`,
+      name: fallbackName,
+      path: legacyPath,
+      content: legacyContent,
+      enabled: true,
+    },
+  ];
+}
 
 // 앱 초기 구동 시 메인 스냅샷을 가져오고,
 // 이후 변경 이벤트를 구독해 Zustand 스토어를 최신 상태로 유지
@@ -38,8 +64,7 @@ export function useAppBootstrap() {
       }
       if (diff.changed.customJS) {
         useSettingsStore.setState({
-          customJSContent: diff.changed.customJS.content,
-          customJSPath: diff.changed.customJS.path ?? null,
+          jsPlugins: clonePlugins(diff.changed.customJS),
         });
       }
       const { noteSettings, customCSS, customJS, ...rest } = diff.changed;
@@ -67,8 +92,7 @@ export function useAppBootstrap() {
         customCSSContent: bootstrap.settings.customCSS.content,
         customCSSPath: bootstrap.settings.customCSS.path,
         useCustomJS: bootstrap.settings.useCustomJS,
-        customJSContent: bootstrap.settings.customJS.content,
-        customJSPath: bootstrap.settings.customJS.path,
+        jsPlugins: clonePlugins(bootstrap.settings.customJS),
         backgroundColor: bootstrap.settings.backgroundColor,
         language: bootstrap.settings.language,
         laboratoryEnabled: bootstrap.settings.laboratoryEnabled,
@@ -135,10 +159,9 @@ export function useAppBootstrap() {
       window.api.js.onUse(({ enabled }) => {
         useSettingsStore.setState({ useCustomJS: enabled });
       }),
-      window.api.js.onContent((script) => {
+      window.api.js.onState((script) => {
         useSettingsStore.setState({
-          customJSContent: script.content,
-          customJSPath: script.path,
+          jsPlugins: clonePlugins(script),
         });
       }),
     ];

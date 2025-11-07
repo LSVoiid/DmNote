@@ -1,78 +1,126 @@
 import { useEffect } from "react";
+import type { JsPlugin } from "@src/types/js";
 
-const SCRIPT_ELEMENT_ID = "dmn-custom-js";
+const SCRIPT_ID_PREFIX = "dmn-custom-js-";
+
+type CleanupAwareWindow = Window & {
+  __dmn_custom_js_cleanup?: () => void;
+};
 
 export function useCustomJsInjection() {
   useEffect(() => {
-    let scriptEl = document.getElementById(
-      SCRIPT_ELEMENT_ID
-    ) as HTMLScriptElement | null;
+    const anyWindow = window as unknown as CleanupAwareWindow;
+    const activeElements = new Map<
+      string,
+      { element: HTMLScriptElement; cleanup?: () => void }
+    >();
     let enabled = false;
-    let currentContent = "";
     let disposed = false;
+    let currentPlugins: JsPlugin[] = [];
 
-    const runCleanup = () => {
+    const safeRun = (fn?: () => void, label?: string) => {
+      if (typeof fn !== "function") return;
       try {
-        const anyWindow = window as unknown as {
-          __dmn_custom_js_cleanup?: () => void;
-        };
-        if (typeof anyWindow.__dmn_custom_js_cleanup === "function") {
-          anyWindow.__dmn_custom_js_cleanup();
-        }
+        fn();
       } catch (error) {
-        console.error("Error during custom JS cleanup", error);
+        const tag = label ? ` (${label})` : "";
+        console.error(`Error during custom JS cleanup${tag}`, error);
       }
     };
 
-    const removeElement = () => {
-      if (scriptEl) {
-        scriptEl.remove();
-        scriptEl = null;
+    const removeAll = () => {
+      for (const [id, { element, cleanup }] of activeElements.entries()) {
+        safeRun(cleanup, id);
+        if (element && element.parentNode) {
+          element.remove();
+        }
       }
+      activeElements.clear();
     };
 
-    const injectContent = () => {
-      if (!enabled) {
-        // 비활성화할 때 스크립트가 제공한 cleanup 작업을 실행
-        runCleanup();
-        removeElement();
-        return;
-      }
-      runCleanup();
-      removeElement();
-      if (!currentContent) return;
-      const el = document.createElement("script");
-      el.id = SCRIPT_ELEMENT_ID;
-      el.type = "text/javascript";
-      el.textContent = currentContent;
-      document.head.appendChild(el);
-      scriptEl = el;
+    const injectAll = () => {
+      removeAll();
+      if (!enabled) return;
+
+      currentPlugins
+        .filter((plugin) => plugin.enabled && plugin.content)
+        .forEach((plugin) => {
+          try {
+            const previousCleanup = anyWindow.__dmn_custom_js_cleanup;
+            if (previousCleanup) {
+              delete anyWindow.__dmn_custom_js_cleanup;
+            }
+
+            const element = document.createElement("script");
+            element.id = `${SCRIPT_ID_PREFIX}${plugin.id}`;
+            element.type = "text/javascript";
+            element.textContent = plugin.content;
+            document.head.appendChild(element);
+
+            const pluginCleanup = anyWindow.__dmn_custom_js_cleanup;
+
+            if (previousCleanup) {
+              anyWindow.__dmn_custom_js_cleanup = previousCleanup;
+            } else {
+              delete anyWindow.__dmn_custom_js_cleanup;
+            }
+
+            activeElements.set(plugin.id, {
+              element,
+              cleanup:
+                typeof pluginCleanup === "function" ? pluginCleanup : undefined,
+            });
+          } catch (error) {
+            console.error(`Failed to inject JS plugin '${plugin.name}'`, error);
+          }
+        });
     };
 
-    window.api.js.get().then((data) => {
-      if (disposed) return;
-      currentContent = data.content ?? "";
+    const syncPlugins = (next: JsPlugin[]) => {
+      currentPlugins = next.map((plugin) => ({ ...plugin }));
       if (enabled) {
-        injectContent();
+        injectAll();
+      } else {
+        removeAll();
       }
-    });
+    };
 
-    window.api.js.getUse().then((value) => {
-      if (disposed) return;
-      enabled = value;
-      injectContent();
-    });
+    window.api.js
+      .get()
+      .then((data) => {
+        if (disposed) return;
+        syncPlugins(Array.isArray(data.plugins) ? data.plugins : []);
+      })
+      .catch((error) => {
+        console.error("Failed to fetch JS plugins", error);
+      });
+
+    window.api.js
+      .getUse()
+      .then((value) => {
+        if (disposed) return;
+        enabled = value;
+        if (enabled) {
+          injectAll();
+        } else {
+          removeAll();
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to fetch JS plugin toggle state", error);
+      });
 
     const unsubUse = window.api.js.onUse(({ enabled: next }) => {
       enabled = next;
-      injectContent();
+      if (enabled) {
+        injectAll();
+      } else {
+        removeAll();
+      }
     });
 
-    const unsubContent = window.api.js.onContent((payload) => {
-      currentContent = payload.content ?? "";
-      if (enabled) {
-        injectContent();
-      }
+    const unsubState = window.api.js.onState((payload) => {
+      syncPlugins(Array.isArray(payload.plugins) ? payload.plugins : []);
     });
 
     return () => {
@@ -83,13 +131,11 @@ export function useCustomJsInjection() {
         console.error("Failed to unsubscribe JS use handler", error);
       }
       try {
-        unsubContent();
+        unsubState();
       } catch (error) {
-        console.error("Failed to unsubscribe JS content handler", error);
+        console.error("Failed to unsubscribe JS state handler", error);
       }
-      // 주입된 스크립트가 핸들러나 UI를 추가했을 경우를 대비한 cleanup
-      runCleanup();
-      removeElement();
+      removeAll();
     };
   }, []);
 }

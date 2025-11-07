@@ -28,18 +28,18 @@
 
 ```typescript
 interface BootstrapPayload {
-  settings: SettingsState;           // 현재 설정
-  keys: KeyMappings;                 // 모든 키 모드의 키 매핑
-  positions: KeyPositions;           // 모든 키 모드의 위치
-  customTabs: CustomTab[];           // 커스텀 탭 목록
-  selectedKeyType: string;           // 현재 선택된 키 모드
-  currentMode: string;               // 현재 활성 모드
+  settings: SettingsState; // 현재 설정
+  keys: KeyMappings; // 모든 키 모드의 키 매핑
+  positions: KeyPositions; // 모든 키 모드의 위치
+  customTabs: CustomTab[]; // 커스텀 탭 목록
+  selectedKeyType: string; // 현재 선택된 키 모드
+  currentMode: string; // 현재 활성 모드
   overlay: {
     visible: boolean;
     locked: boolean;
     anchor: string;
   };
-  keyCounters: KeyCounters;          // 키별 누적 카운트
+  keyCounters: KeyCounters; // 키별 누적 카운트
 }
 ```
 
@@ -121,34 +121,39 @@ await window.api.window.close();
 
 ```typescript
 interface SettingsState {
-  hardwareAcceleration: boolean;              // GPU 가속 사용 여부
-  alwaysOnTop: boolean;                       // 항상 위 모드
-  overlayLocked: boolean;                     // 오버레이 잠금 여부
-  noteEffect: boolean;                        // 노트 이펙트 활성화
-  noteSettings: NoteSettings;                 // 노트 설정
-  angleMode: string;                          // 렌더링 모드 (예: "d3d11")
-  language: string;                           // 언어 코드 (예: "ko", "en")
-  laboratoryEnabled: boolean;                 // 실험실 기능 활성화
-  backgroundColor: string;                    // 배경 색상 (CSS 색상값)
-  useCustomCSS: boolean;                      // 커스텀 CSS 활성화
+  hardwareAcceleration: boolean; // GPU 가속 사용 여부
+  alwaysOnTop: boolean; // 항상 위 모드
+  overlayLocked: boolean; // 오버레이 잠금 여부
+  noteEffect: boolean; // 노트 이펙트 활성화
+  noteSettings: NoteSettings; // 노트 설정
+  angleMode: string; // 렌더링 모드 (예: "d3d11")
+  language: string; // 언어 코드 (예: "ko", "en")
+  laboratoryEnabled: boolean; // 실험실 기능 활성화
+  backgroundColor: string; // 배경 색상 (CSS 색상값)
+  useCustomCSS: boolean; // 커스텀 CSS 활성화
   customCSS: { path: string | null; content: string };
-  useCustomJS: boolean;                       // 커스텀 JS 활성화
+  useCustomJS: boolean; // 커스텀 JS 활성화
   customJS: { path: string | null; content: string };
-  overlayResizeAnchor: OverlayResizeAnchor;   // 오버레이 리사이징 앵커
-  keyCounterEnabled: boolean;                 // 키 카운터 표시 여부
+  overlayResizeAnchor: OverlayResizeAnchor; // 오버레이 리사이징 앵커
+  keyCounterEnabled: boolean; // 키 카운터 표시 여부
 }
 
-type OverlayResizeAnchor = "top-left" | "top-right" | "bottom-left" | "bottom-right" | "center";
+type OverlayResizeAnchor =
+  | "top-left"
+  | "top-right"
+  | "bottom-left"
+  | "bottom-right"
+  | "center";
 
 interface NoteSettings {
-  borderRadius: number;               // 노트 모서리 반경 (px)
-  speed: number;                      // 노트 하강 속도 (배수)
-  trackHeight: number;                // 트랙 높이 (px)
-  reverse: boolean;                   // 역방향 모드
-  fadePosition: string;               // 페이드 위치
-  delayedNoteEnabled: boolean;        // 지연 노트 활성화
-  shortNoteThresholdMs: number;       // 짧은 노트 판정 시간 (ms)
-  shortNoteMinLengthPx: number;       // 짧은 노트 최소 길이 (px)
+  borderRadius: number; // 노트 모서리 반경 (px)
+  speed: number; // 노트 하강 속도 (배수)
+  trackHeight: number; // 트랙 높이 (px)
+  reverse: boolean; // 역방향 모드
+  fadePosition: string; // 페이드 위치
+  delayedNoteEnabled: boolean; // 지연 노트 활성화
+  shortNoteThresholdMs: number; // 짧은 노트 판정 시간 (ms)
+  shortNoteMinLengthPx: number; // 짧은 노트 최소 길이 (px)
 }
 ```
 
@@ -209,8 +214,8 @@ await window.api.settings.update({
 
 ```typescript
 interface SettingsDiff {
-  changed: Partial<SettingsState>;    // 변경된 필드만
-  full: SettingsState;                // 전체 설정 스냅샷
+  changed: Partial<SettingsState>; // 변경된 필드만
+  full: SettingsState; // 전체 설정 스냅샷
 }
 ```
 
@@ -282,27 +287,27 @@ const updated = await window.api.keys.update(current);
 type KeyPositions = Record<string, KeyPosition[]>;
 
 interface KeyPosition {
-  dx: number;                                    // X 오프셋 (px)
-  dy: number;                                    // Y 오프셋 (px)
-  width: number;                                 // 너비 (px)
-  height: number;                                // 높이 (px)
-  activeImage?: string;                          // 활성 상태 이미지 URL
-  inactiveImage?: string;                        // 비활성 상태 이미지 URL
-  activeTransparent?: boolean;                   // 활성 투명 모드
-  idleTransparent?: boolean;                     // 비활성 투명 모드
-  count: number;                                 // 누적 카운트
+  dx: number; // X 오프셋 (px)
+  dy: number; // Y 오프셋 (px)
+  width: number; // 너비 (px)
+  height: number; // 높이 (px)
+  activeImage?: string; // 활성 상태 이미지 URL
+  inactiveImage?: string; // 비활성 상태 이미지 URL
+  activeTransparent?: boolean; // 활성 투명 모드
+  idleTransparent?: boolean; // 비활성 투명 모드
+  count: number; // 누적 카운트
   noteColor: string | { type: "gradient"; top: string; bottom: string };
-  noteOpacity: number;                           // 노트 불투명도 (0-100)
-  className?: string;                            // 커스텀 CSS 클래스
-  counter: KeyCounterSettings;                   // 키 카운터 설정
+  noteOpacity: number; // 노트 불투명도 (0-100)
+  className?: string; // 커스텀 CSS 클래스
+  counter: KeyCounterSettings; // 키 카운터 설정
 }
 
 interface KeyCounterSettings {
   placement: "inside" | "outside";
   align: "top" | "bottom" | "left" | "right";
-  fill: { idle: string; active: string };       // CSS 색상값
+  fill: { idle: string; active: string }; // CSS 색상값
   stroke: { idle: string; active: string };
-  gap: number;                                   // 간격 (px)
+  gap: number; // 간격 (px)
 }
 ```
 
@@ -327,7 +332,7 @@ console.log("4key 위치:", positions["4key"]);
 
 ```javascript
 const current = await window.api.keys.getPositions();
-current["4key"][0].dx = 100;  // 첫 번째 키 X 좌표 변경
+current["4key"][0].dx = 100; // 첫 번째 키 X 좌표 변경
 await window.api.keys.updatePositions(current);
 ```
 
@@ -339,7 +344,7 @@ await window.api.keys.updatePositions(current);
 
 **매개변수**:
 
-- `mode: string` - 모드 ID (예: "4key", "5key", "8key", "custom-*")
+- `mode: string` - 모드 ID (예: "4key", "5key", "8key", "custom-\*")
 
 **반환형**: `Promise<{ success: boolean; mode: string }>`
 
@@ -484,9 +489,9 @@ const unsub = window.api.keys.onModeChanged(({ mode }) => {
 
 ```typescript
 interface KeyStatePayload {
-  key: string;    // 키 코드 (예: "KeyD", "KeyF")
-  state: string;  // "DOWN" | "UP"
-  mode: string;   // 현재 모드 (예: "4key")
+  key: string; // 키 코드 (예: "KeyD", "KeyF")
+  state: string; // "DOWN" | "UP"
+  mode: string; // 현재 모드 (예: "4key")
 }
 ```
 
@@ -548,8 +553,8 @@ const unsub = window.api.keys.onCountersChanged((counters) => {
 
 ```typescript
 interface CustomTab {
-  id: string;      // 고유 ID (timestamp 기반)
-  name: string;    // 탭 이름
+  id: string; // 고유 ID (timestamp 기반)
+  name: string; // 탭 이름
 }
 ```
 
@@ -629,10 +634,12 @@ await window.api.keys.customTabs.select("custom-123");
 **반환형**: `Unsubscribe`
 
 ```javascript
-const unsub = window.api.keys.customTabs.onChanged(({ customTabs, selectedKeyType }) => {
-  console.log("탭 목록:", customTabs);
-  console.log("선택된 탭:", selectedKeyType);
-});
+const unsub = window.api.keys.customTabs.onChanged(
+  ({ customTabs, selectedKeyType }) => {
+    console.log("탭 목록:", customTabs);
+    console.log("선택된 탭:", selectedKeyType);
+  }
+);
 ```
 
 ---
@@ -647,9 +654,9 @@ const unsub = window.api.keys.customTabs.onChanged(({ customTabs, selectedKeyTyp
 
 ```typescript
 interface OverlayState {
-  visible: boolean;   // 표시 여부
-  locked: boolean;    // 잠금 여부
-  anchor: string;     // 앵커 위치 (예: "top-left")
+  visible: boolean; // 표시 여부
+  locked: boolean; // 잠금 여부
+  anchor: string; // 앵커 위치 (예: "top-left")
 }
 ```
 
@@ -688,8 +695,8 @@ await window.api.overlay.setVisible(false);
 **반환형**: `Promise<void>`
 
 ```javascript
-await window.api.overlay.setLock(true);    // 잠금
-await window.api.overlay.setLock(false);   // 해제
+await window.api.overlay.setLock(true); // 잠금
+await window.api.overlay.setLock(false); // 해제
 ```
 
 ---
@@ -718,10 +725,10 @@ const anchor = await window.api.overlay.setAnchor("top-left");
 
 ```typescript
 interface ResizePayload {
-  width: number;              // 너비 (px)
-  height: number;             // 높이 (px)
-  anchor?: string;            // 앵커 (선택사항)
-  contentTopOffset?: number;  // 컨텐츠 상단 오프셋 (선택사항)
+  width: number; // 너비 (px)
+  height: number; // 높이 (px)
+  anchor?: string; // 앵커 (선택사항)
+  contentTopOffset?: number; // 컨텐츠 상단 오프셋 (선택사항)
 }
 ```
 
@@ -729,9 +736,9 @@ interface ResizePayload {
 
 ```typescript
 interface OverlayBounds {
-  x: number;      // 좌측 좌표
-  y: number;      // 상단 좌표
-  width: number;  // 너비
+  x: number; // 좌측 좌표
+  y: number; // 상단 좌표
+  width: number; // 너비
   height: number; // 높이
 }
 ```
@@ -956,14 +963,25 @@ const unsub = window.api.css.onContent(({ path, content }) => {
 
 ### `window.api.js.get()`
 
-현재 커스텀 JavaScript를 조회합니다.
+현재 등록된 JS 플러그인 목록(및 레거시 필드)을 조회합니다.
 
-**반환형**: `Promise<{ path: string | null; content: string }>`
+**반환형**: `Promise<{ path?: string | null; content?: string; plugins: JsPlugin[] }>`
+
+```typescript
+type JsPlugin = {
+  id: string;
+  name: string;
+  path: string | null;
+  content: string;
+  enabled: boolean;
+};
+```
 
 ```javascript
 const js = await window.api.js.get();
-console.log("JS 경로:", js.path);
-console.log("JS 내용:", js.content);
+js.plugins.forEach((plugin) => {
+  console.log(plugin.name, plugin.enabled);
+});
 ```
 
 ---
@@ -999,23 +1017,62 @@ const result = await window.api.js.toggle(true);
 
 ### `window.api.js.load()`
 
-파일 대화상자에서 JavaScript 파일(.js, .mjs)을 선택하여 로드합니다.
+파일 대화상자에서 하나 이상의 JavaScript 파일(.js, .mjs)을 선택하여 플러그인으로 추가합니다.
 
-**반환형**: `Promise<{ success: boolean; error?: string; content?: string; path?: string }>`
+**반환형**: `Promise<{ success: boolean; added: JsPlugin[]; errors: { path: string; error: string }[] }>`
 
 ```javascript
 const result = await window.api.js.load();
 if (result.success) {
-  console.log("파일 경로:", result.path);
-  console.log("내용:", result.content);
+  console.log(`${result.added.length}개의 플러그인을 추가했습니다.`);
 }
+if (result.errors.length) {
+  console.warn("불러오지 못한 플러그인", result.errors);
+}
+```
+
+---
+
+### `window.api.js.reload()`
+
+저장된 경로를 기준으로 모든 플러그인 파일을 다시 읽어 들입니다.
+
+**반환형**: `Promise<{ updated: JsPlugin[]; errors: { path: string; error: string }[] }>`
+
+```javascript
+const result = await window.api.js.reload();
+console.log("다시 읽은 플러그인 수:", result.updated.length);
+```
+
+---
+
+### `window.api.js.remove(id: string)`
+
+플러그인 목록에서 지정한 `id`의 플러그인을 제거합니다.
+
+**반환형**: `Promise<{ success: boolean; removedId?: string; error?: string }>`
+
+```javascript
+await window.api.js.remove(plugin.id);
+```
+
+---
+
+### `window.api.js.setPluginEnabled(id: string, enabled: boolean)`
+
+플러그인 별 활성/비활성 상태를 토글합니다.
+
+**반환형**: `Promise<{ success: boolean; plugin?: JsPlugin; error?: string }>`
+
+```javascript
+await window.api.js.setPluginEnabled(plugin.id, !plugin.enabled);
 ```
 
 ---
 
 ### `window.api.js.setContent(content: string)`
 
-JavaScript 내용을 직접 설정합니다.
+첫 번째 활성화된 플러그인의 내용을 직접 설정합니다. (활성 플러그인이 없다면 첫 번째 플러그인이 갱신됩니다.)
 
 **매개변수**:
 
@@ -1061,19 +1118,19 @@ const unsub = window.api.js.onUse(({ enabled }) => {
 
 ---
 
-#### `window.api.js.onContent(listener)`
+#### `window.api.js.onState(listener)`
 
-JavaScript 내용 변경 이벤트를 구독합니다.
+플러그인 목록 또는 콘텐츠가 변경될 때마다 호출됩니다.
 
 **매개변수**:
 
-- `listener: (payload: { path: string | null; content: string }) => void`
+- `listener: (payload: { plugins: JsPlugin[]; path?: string | null; content?: string }) => void`
 
 **반환형**: `Unsubscribe`
 
 ```javascript
-const unsub = window.api.js.onContent(({ path, content }) => {
-  console.log("JS 변경됨:", path);
+const unsub = window.api.js.onState(({ plugins }) => {
+  console.log("현재 플러그인 수:", plugins.length);
 });
 ```
 

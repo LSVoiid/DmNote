@@ -880,6 +880,7 @@ dependencies = [
  "tauri-build",
  "tauri-runtime-wry",
  "thiserror 1.0.69",
+ "uuid",
  "willhook",
  "windows",
 ]

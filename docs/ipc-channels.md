@@ -215,10 +215,12 @@
 - `css:get` (invoke)
 
   - 응답: `{ path?: string; content: string }` (현재 커스텀 CSS 정보)
+  - 비고: `path`/`content`는 첫 번째 플러그인 정보를 위한 하위 호환 필드입니다.
 
 - `css:get-use` (invoke)
 
   - 응답: `boolean` (CSS 활성화 여부)
+  - 비고: 브로드캐스트 역시 하위 호환을 위해 첫 번째 플러그인의 `path`/`content`가 유지됩니다.
 
 - `css:toggle` (invoke)
 
@@ -250,11 +252,13 @@
 
 ## js
 
+> JsPlugin 구조: `{ id: string; name: string; path: string | null; content: string; enabled: boolean }`
+
 ### 커맨드 (invoke)
 
 - `js:get` (invoke)
 
-  - 응답: `{ path?: string; content: string }` (현재 커스텀 JavaScript 정보)
+  - 응답: `{ path?: string; content?: string; plugins: JsPlugin[] }`
 
 - `js:get-use` (invoke)
 
@@ -267,13 +271,28 @@
 
 - `js:load` (invoke)
 
-  - 기능: 파일 대화상자에서 JavaScript 파일(.js, .mjs)을 선택하여 로드
-  - 응답: `{ success: boolean; error?: string; content?: string; path?: string }`
+  - 기능: 파일 대화상자에서 하나 이상의 JavaScript 파일(.js, .mjs)을 선택하여 플러그인으로 추가
+  - 응답: `{ success: boolean; added: JsPlugin[]; errors: { path: string; error: string }[] }`
+
+- `js:reload` (invoke)
+
+  - 기능: 저장된 경로를 기준으로 모든 플러그인을 다시 읽어 들임
+  - 응답: `{ updated: JsPlugin[]; errors: { path: string; error: string }[] }`
+
+- `js:remove-plugin` (invoke)
+
+  - 요청: `{ id: string }`
+  - 응답: `{ success: boolean; removedId?: string; error?: string }`
+
+- `js:set-plugin-enabled` (invoke)
+
+  - 요청: `{ id: string; enabled: boolean }`
+  - 응답: `{ success: boolean; plugin?: JsPlugin; error?: string }`
 
 - `js:set-content` (invoke)
 
   - 요청: `{ content: string }` (JavaScript 코드)
-  - 응답: `{ success: boolean; error?: string }`
+  - 응답: `{ success: boolean; error?: string }` (첫 활성 플러그인의 내용을 갱신)
 
 - `js:reset` (invoke)
   - 기능: 커스텀 JavaScript를 비우고 비활성화
@@ -286,7 +305,7 @@
   - 페이로드: `{ enabled: boolean }`
 
 - `js:content` (emit)
-  - 페이로드: `{ path?: string; content: string }`
+  - 페이로드: `{ path?: string; content?: string; plugins: JsPlugin[] }`
 
 ## preset
 
