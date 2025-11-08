@@ -5,6 +5,7 @@ import { useKeyStore } from "@stores/useKeyStore";
 import Checkbox from "@components/main/common/Checkbox";
 import Dropdown from "@components/main/common/Dropdown";
 import FlaskIcon from "@assets/svgs/flask.svg";
+import { PluginManagerModal } from "@components/main/Modal/content/PluginManagerModal";
 import { applyCounterSnapshot } from "@stores/keyCounterSignals";
 
 export default function Settings({ showAlert, showConfirm }) {
@@ -22,6 +23,8 @@ export default function Settings({ showAlert, showConfirm }) {
     setNoteEffect,
     laboratoryEnabled,
     setLaboratoryEnabled,
+    developerModeEnabled,
+    setDeveloperModeEnabled,
     useCustomCSS,
     setUseCustomCSS,
     customCSSContent,
@@ -30,10 +33,7 @@ export default function Settings({ showAlert, showConfirm }) {
     setCustomCSSPath,
     useCustomJS,
     setUseCustomJS,
-    customJSContent,
-    setCustomJSContent,
-    customJSPath,
-    setCustomJSPath,
+    jsPlugins,
     language,
     setLanguage,
     overlayResizeAnchor,
@@ -43,6 +43,10 @@ export default function Settings({ showAlert, showConfirm }) {
   } = useSettingsStore();
 
   const [hoveredKey, setHoveredKey] = useState(null);
+  const [isPluginModalOpen, setPluginModalOpen] = useState(false);
+  const [isReloadingPlugins, setIsReloadingPlugins] = useState(false);
+  const [isAddingPlugins, setIsAddingPlugins] = useState(false);
+  const [pendingPluginId, setPendingPluginId] = useState(null);
 
   const VIDEO_SOURCES = {
     overlayLock:
@@ -163,25 +167,131 @@ export default function Settings({ showAlert, showConfirm }) {
     }
   };
 
-  const handleLoadCustomJS = async () => {
-    if (!useCustomJS) return;
+  const formatPluginErrors = (errors = []) =>
+    errors.map((item) => `${item.path ?? "unknown"}: ${item.error}`).join("\n");
+
+  const canReloadPlugins = jsPlugins.some((plugin) => plugin.path);
+
+  const handleReloadPlugins = async () => {
+    if (isReloadingPlugins) return;
+    if (jsPlugins.length === 0) {
+      showAlert?.(t("settings.jsReloadNoPlugins"));
+      return;
+    }
+    const startTime = performance.now();
+    setIsReloadingPlugins(true);
     try {
-      const result = await window.api.js.load();
-      if (result?.success) {
-        if (result.content) setCustomJSContent(result.content);
-        if (result.path) setCustomJSPath(result.path);
-        showAlert?.(t("settings.jsLoaded"));
+      const result = await window.api.js.reload();
+      const updated = result?.updated ?? [];
+      const errors = result?.errors ?? [];
+
+      if (errors.length && updated.length) {
+        showAlert?.(
+          `${t("settings.jsReloadPartial", {
+            count: updated.length,
+          })}\n${formatPluginErrors(errors)}`
+        );
+      } else if (errors.length) {
+        showAlert?.(
+          `${t("settings.jsReloadFailed")}\n${formatPluginErrors(errors)}`
+        );
+      } else if (updated.length) {
+        showAlert?.(t("settings.jsReloadSuccess", { count: updated.length }));
       } else {
-        const message = result?.error
-          ? `${t("settings.jsLoadFailed")}${result.error}`
-          : t("settings.jsLoadFailed");
-        showAlert?.(message);
+        showAlert?.(t("settings.jsReloadNoChanges"));
       }
     } catch (error) {
-      console.error("Failed to load custom JS", error);
-      showAlert?.(`${t("settings.jsLoadFailed")}${error}`);
+      console.error("Failed to reload JS plugins", error);
+      showAlert?.(`${t("settings.jsReloadFailed")}${error}`);
+    } finally {
+      const elapsed = performance.now() - startTime;
+      const MIN_SPINNER_MS = 250;
+      if (elapsed < MIN_SPINNER_MS) {
+        setTimeout(
+          () => setIsReloadingPlugins(false),
+          MIN_SPINNER_MS - elapsed
+        );
+      } else {
+        setIsReloadingPlugins(false);
+      }
     }
   };
+
+  const handleOpenPluginModal = () => {
+    setPluginModalOpen(true);
+  };
+
+  const handleClosePluginModal = () => {
+    setPluginModalOpen(false);
+  };
+
+  const handleAddPlugins = async () => {
+    if (isAddingPlugins) return;
+    setIsAddingPlugins(true);
+    try {
+      const result = await window.api.js.load();
+      if (!result) return;
+      const added = result.added ?? [];
+      const errors = result.errors ?? [];
+
+      if (errors.length && added.length) {
+        showAlert?.(
+          `${t("settings.jsAddPartial", {
+            count: added.length,
+          })}\n${formatPluginErrors(errors)}`
+        );
+      } else if (errors.length) {
+        showAlert?.(
+          `${t("settings.jsAddFailed")}\n${formatPluginErrors(errors)}`
+        );
+      } else if (added.length) {
+        showAlert?.(t("settings.jsAddSuccess", { count: added.length }));
+      }
+    } catch (error) {
+      console.error("Failed to add JS plugins", error);
+      showAlert?.(`${t("settings.jsAddFailed")}${error}`);
+    } finally {
+      setIsAddingPlugins(false);
+    }
+  };
+
+  const handlePluginToggle = async (pluginId, nextState) => {
+    if (pendingPluginId) return;
+    setPendingPluginId(pluginId);
+    try {
+      const result = await window.api.js.setPluginEnabled(pluginId, nextState);
+      if (!result?.success) {
+        showAlert?.(t("settings.jsPluginToggleFailed"));
+      }
+    } catch (error) {
+      console.error("Failed to toggle JS plugin", error);
+      showAlert?.(t("settings.jsPluginToggleFailed"));
+    } finally {
+      setPendingPluginId(null);
+    }
+  };
+
+  const handlePluginRemove = async (pluginId) => {
+    if (pendingPluginId) return;
+    setPendingPluginId(pluginId);
+    try {
+      const result = await window.api.js.remove(pluginId);
+      if (!result?.success) {
+        showAlert?.(t("settings.jsPluginRemoveFailed"));
+      }
+    } catch (error) {
+      console.error("Failed to remove JS plugin", error);
+      showAlert?.(t("settings.jsPluginRemoveFailed"));
+    } finally {
+      setPendingPluginId(null);
+    }
+  };
+
+  const actionButtonClass = (enabled) =>
+    "py-[4px] px-[8px] border-[1px] rounded-[7px] text-style-2 transition-colors " +
+    (enabled
+      ? "bg-[#2A2A31] border-[#3A3944] text-[#DBDEE8] hover:bg-[#34343c]"
+      : "bg-[#222228] border-[#31303C] text-[#44464E] cursor-not-allowed");
 
   const handleNoteEffectChange = async () => {
     const next = !noteEffect;
@@ -218,6 +328,22 @@ export default function Settings({ showAlert, showConfirm }) {
       await window.api.settings.update({ laboratoryEnabled: next });
     } catch (error) {
       console.error("Failed to toggle laboratory mode", error);
+    }
+  };
+
+  const handleDeveloperModeToggle = async () => {
+    const next = !developerModeEnabled;
+    setDeveloperModeEnabled(next);
+    try {
+      await window.api.settings.update({ developerModeEnabled: next });
+      // 개발자 모드가 활성화되면 즉시 DevTools 오픈 (메인 & 오버레이)
+      if (next) {
+        try {
+          await window.api.window.openDevtoolsAll?.();
+        } catch (e) {}
+      }
+    } catch (error) {
+      console.error("Failed to toggle developer mode", error);
     }
   };
 
@@ -350,6 +476,49 @@ export default function Settings({ showAlert, showConfirm }) {
                 </div>
               </div>
               <div
+                className="flex flex-row justify-between items-center h-[40px] cursor-pointer"
+                onMouseEnter={() => setHoveredKey("laboratory")}
+                onMouseLeave={() => setHoveredKey(null)}
+                onClick={handleLaboratoryToggle}
+              >
+                <p className="text-style-3 text-[#FFFFFF]">
+                  {t("settings.laboratory")}
+                </p>
+                <Checkbox
+                  checked={laboratoryEnabled}
+                  onChange={handleLaboratoryToggle}
+                />
+              </div>
+              {null}
+              <div
+                className="flex flex-row justify-between items-center h-[40px]"
+                onMouseEnter={() => setHoveredKey("resizeAnchor")}
+                onMouseLeave={() => setHoveredKey(null)}
+              >
+                <p className="text-style-3 text-[#FFFFFF]">
+                  {t("settings.resizeAnchor")}
+                </p>
+                <Dropdown
+                  options={RESIZE_ANCHOR_OPTIONS.map((opt) => ({
+                    value: opt.value,
+                    label: t(`settings.${opt.key}`),
+                  }))}
+                  value={overlayResizeAnchor}
+                  onChange={async (val) => {
+                    setOverlayResizeAnchor(val);
+                    try {
+                      await window.api.overlay.setAnchor(val);
+                    } catch (error) {
+                      console.error("Failed to set overlay anchor", error);
+                    }
+                  }}
+                  placeholder={t("settings.selectAnchor")}
+                />
+              </div>
+            </div>
+            {/* 커스텀 CSS & JS 설정 */}
+            <div className="flex flex-col p-[19px] py-[7px] bg-primary rounded-[7px] gap-[0px]">
+              <div
                 className="flex flex-col gap-[0px]"
                 onMouseEnter={() => setHoveredKey("customCSS")}
                 onMouseLeave={() => setHoveredKey(null)}
@@ -415,62 +584,33 @@ export default function Settings({ showAlert, showConfirm }) {
                       (useCustomJS ? "text-[#989BA6]" : "text-[#44464E]")
                     }
                   >
-                    {customJSPath && customJSPath.length > 0
-                      ? customJSPath
-                      : t("settings.noJsFile")}
+                    {t("settings.pluginManageLabel")}
                   </p>
-                  <button
-                    onClick={handleLoadCustomJS}
-                    disabled={!useCustomJS}
-                    className={
-                      "py-[4px] px-[8px] bg-[#2A2A31] border-[1px] border-[#3A3944] rounded-[7px] text-style-2 " +
-                      (useCustomJS
-                        ? "text-[#DBDEE8]"
-                        : "text-[#44464E] cursor-not-allowed bg-[#222228] border-[#31303C]")
-                    }
-                  >
-                    {t("settings.loadJs")}
-                  </button>
+                  <div className="flex flex-row gap-[8px]">
+                    <button
+                      onClick={handleReloadPlugins}
+                      disabled={!canReloadPlugins || isReloadingPlugins}
+                      className={
+                        actionButtonClass(
+                          canReloadPlugins && !isReloadingPlugins
+                        ) + " transition-none"
+                      }
+                      style={
+                        isReloadingPlugins
+                          ? { opacity: 0.65, pointerEvents: "none" }
+                          : undefined
+                      }
+                    >
+                      {t("settings.reloadPlugins")}
+                    </button>
+                    <button
+                      onClick={handleOpenPluginModal}
+                      className={actionButtonClass(true)}
+                    >
+                      {t("settings.managePlugins")}
+                    </button>
+                  </div>
                 </div>
-              </div>
-              <div
-                className="flex flex-row justify-between items-center h-[40px] cursor-pointer"
-                onMouseEnter={() => setHoveredKey("laboratory")}
-                onMouseLeave={() => setHoveredKey(null)}
-                onClick={handleLaboratoryToggle}
-              >
-                <p className="text-style-3 text-[#FFFFFF]">
-                  {t("settings.laboratory")}
-                </p>
-                <Checkbox
-                  checked={laboratoryEnabled}
-                  onChange={handleLaboratoryToggle}
-                />
-              </div>
-              <div
-                className="flex flex-row justify-between items-center h-[40px]"
-                onMouseEnter={() => setHoveredKey("resizeAnchor")}
-                onMouseLeave={() => setHoveredKey(null)}
-              >
-                <p className="text-style-3 text-[#FFFFFF]">
-                  {t("settings.resizeAnchor")}
-                </p>
-                <Dropdown
-                  options={RESIZE_ANCHOR_OPTIONS.map((opt) => ({
-                    value: opt.value,
-                    label: t(`settings.${opt.key}`),
-                  }))}
-                  value={overlayResizeAnchor}
-                  onChange={async (val) => {
-                    setOverlayResizeAnchor(val);
-                    try {
-                      await window.api.overlay.setAnchor(val);
-                    } catch (error) {
-                      console.error("Failed to set overlay anchor", error);
-                    }
-                  }}
-                  placeholder={t("settings.selectAnchor")}
-                />
               </div>
             </div>
             {/* 기타 설정 */}
@@ -495,6 +635,18 @@ export default function Settings({ showAlert, showConfirm }) {
                   value={angleMode}
                   onChange={handleAngleModeChangeSelect}
                   placeholder={t("settings.renderMode")}
+                />
+              </div>
+              <div
+                className="flex flex-row justify-between items-center h-[25px] cursor-pointer"
+                onClick={handleDeveloperModeToggle}
+              >
+                <p className="text-style-3 text-[#FFFFFF]">
+                  {t("settings.developerMode")}
+                </p>
+                <Checkbox
+                  checked={developerModeEnabled}
+                  onChange={handleDeveloperModeToggle}
                 />
               </div>
               {/* 버전 및 설정 초기화 */}
@@ -549,6 +701,19 @@ export default function Settings({ showAlert, showConfirm }) {
           <FlaskIcon />
         )}
       </div>
+      {isPluginModalOpen && (
+        <PluginManagerModal
+          isOpen={isPluginModalOpen}
+          onClose={handleClosePluginModal}
+          onAdd={handleAddPlugins}
+          onToggle={handlePluginToggle}
+          onRemove={handlePluginRemove}
+          plugins={jsPlugins}
+          isAdding={isAddingPlugins}
+          pendingPluginId={pendingPluginId}
+          t={t}
+        />
+      )}
     </div>
   );
 }
