@@ -15,6 +15,7 @@
 - [JavaScript (js)](#javascript-js)
 - [프리셋 (presets)](#프리셋-presets)
 - [브릿지 (bridge)](#브릿지-bridge)
+- [플러그인 (plugin)](#플러그인-plugin)
 - [공통 타입](#공통-타입)
 
 ---
@@ -1558,6 +1559,288 @@ onBridgeMessage("WPM_UPDATE", (data) => {
 
 ---
 
+## 플러그인 (plugin)
+
+플러그인 API는 커스텀 JS 플러그인에서 사용할 수 있는 추가 기능을 제공합니다.
+
+### 플러그인 ID (`@id`)
+
+각 플러그인은 고유한 ID를 가져야 데이터를 안정적으로 관리할 수 있습니다. 플러그인 파일의 상단에 `@id` 메타데이터를 추가하여 고유 ID를 지정할 수 있습니다.
+
+**형식**:
+
+```javascript
+// @id: your-plugin-id
+```
+
+**규칙**:
+
+- ID는 소문자, 숫자, 하이픈(`-`), 언더스코어(`_`)만 사용 가능
+- kebab-case 형식 권장 (예: `kps-counter`, `settings-panel`)
+- 파일 첫 20줄 이내에 위치해야 함
+
+**예시**:
+
+```javascript
+// @id: kps-counter
+
+(function () {
+  // 플러그인 코드...
+})();
+```
+
+**동작**:
+
+- `@id`가 있는 경우: 지정한 ID를 플러그인 네임스페이스로 사용
+- `@id`가 없는 경우: 파일명을 자동으로 정규화하여 사용 (예: `my-plugin.js` → `my-plugin`)
+
+**중요**:
+
+- 같은 `@id`를 가진 플러그인은 데이터를 공유합니다
+- 플러그인을 삭제 후 재설치해도 `@id`가 같으면 기존 데이터를 재사용합니다
+- ID를 변경하면 기존 데이터에 접근할 수 없게 되므로 신중하게 선택하세요
+
+---
+
+### 스토리지 (`window.api.plugin.storage`)
+
+플러그인별로 데이터를 영속적으로 저장할 수 있는 스토리지 API입니다. 모든 데이터는 앱의 설정 파일에 함께 저장됩니다.
+
+**✨ 자동 네임스페이스:** 각 플러그인이 실행될 때 `window.api.plugin.storage`는 자동으로 해당 플러그인의 네임스페이스로 래핑됩니다. prefix를 수동으로 관리할 필요가 없으며, 다른 플러그인과의 충돌 걱정도 없습니다.
+
+#### `window.api.plugin.storage.get(key)`
+
+스토리지에서 데이터를 조회합니다. 키는 자동으로 플러그인 ID가 prefix로 추가됩니다.
+
+**매개변수**:
+
+- `key: string` - 조회할 데이터의 키
+
+**반환형**: `Promise<T | null>` - 저장된 데이터 (없으면 `null`)
+
+**사용 예**:
+
+```javascript
+// 간단하게 키만 사용 (자동으로 네임스페이스 적용)
+const position = await window.api.plugin.storage.get("panel-position");
+if (position) {
+  panel.style.left = position.x + "px";
+  panel.style.top = position.y + "px";
+}
+
+// 타입 지정 (TypeScript)
+interface PanelPosition {
+  x: number;
+  y: number;
+}
+const position =
+  (await window.api.plugin.storage.get) < PanelPosition > "panel-position";
+```
+
+---
+
+#### `window.api.plugin.storage.set(key, value)`
+
+스토리지에 데이터를 저장합니다. 키는 자동으로 플러그인 ID가 prefix로 추가됩니다. 객체, 배열, 문자열, 숫자 등 JSON 직렬화 가능한 모든 값을 저장할 수 있습니다.
+
+**매개변수**:
+
+- `key: string` - 저장할 데이터의 키
+- `value: any` - 저장할 데이터 (JSON 직렬화 가능해야 함)
+
+**반환형**: `Promise<void>`
+
+**사용 예**:
+
+```javascript
+// 간단한 값 저장
+await window.api.plugin.storage.set("theme", "dark");
+
+// 객체 저장
+await window.api.plugin.storage.set("settings", {
+  enabled: true,
+  fontSize: 14,
+  position: { x: 100, y: 200 },
+});
+
+// 배열 저장
+await window.api.plugin.storage.set("history", [
+  { timestamp: Date.now(), action: "start" },
+  { timestamp: Date.now() + 1000, action: "stop" },
+]);
+```
+
+---
+
+#### `window.api.plugin.storage.remove(key)`
+
+특정 키의 데이터를 삭제합니다.
+
+**매개변수**:
+
+- `key: string` - 삭제할 데이터의 키
+
+**반환형**: `Promise<void>`
+
+**사용 예**:
+
+```javascript
+await window.api.plugin.storage.remove("panel-position");
+```
+
+---
+
+#### `window.api.plugin.storage.clear()`
+
+이 플러그인이 저장한 모든 데이터를 삭제합니다.
+
+**반환형**: `Promise<void>`
+
+**사용 예**:
+
+```javascript
+// 초기화 버튼 클릭 시
+resetButton.addEventListener("click", async () => {
+  const confirmed = confirm("모든 플러그인 데이터를 삭제하시겠습니까?");
+  if (confirmed) {
+    await window.api.plugin.storage.clear();
+    console.log("플러그인 데이터가 초기화되었습니다.");
+  }
+});
+```
+
+---
+
+#### `window.api.plugin.storage.keys()`
+
+이 플러그인이 저장한 모든 키의 목록을 조회합니다.
+
+**반환형**: `Promise<string[]>` - 키 목록 (자동으로 prefix가 제거된 순수 키만 반환)
+
+**사용 예**:
+
+```javascript
+const allKeys = await window.api.plugin.storage.keys();
+console.log("저장된 키:", allKeys); // ['settings', 'position', 'theme']
+
+// 모든 데이터 순회
+for (const key of allKeys) {
+  const value = await window.api.plugin.storage.get(key);
+  console.log(`${key}:`, value);
+}
+```
+
+---
+
+### 스토리지 사용 패턴
+
+#### 패턴 1: 설정 저장 및 복원
+
+```javascript
+// 플러그인 초기화 시 설정 복원
+const defaultSettings = {
+  panelVisible: true,
+  position: { x: 10, y: 10 },
+  fontSize: 12,
+};
+
+const settings =
+  (await window.api.plugin.storage.get("settings")) || defaultSettings;
+
+// 설정 변경 시 자동 저장
+function updateSetting(key, value) {
+  settings[key] = value;
+  window.api.plugin.storage.set("settings", settings);
+}
+
+// 사용
+updateSetting("fontSize", 14);
+```
+
+#### 패턴 2: 히스토리 관리
+
+```javascript
+// 키 입력 히스토리 저장
+const MAX_HISTORY = 100;
+
+async function addToHistory(key) {
+  const history = (await window.api.plugin.storage.get("key-history")) || [];
+
+  history.push({
+    key,
+    timestamp: Date.now(),
+  });
+
+  // 최대 개수 제한
+  if (history.length > MAX_HISTORY) {
+    history.shift();
+  }
+
+  await window.api.plugin.storage.set("key-history", history);
+}
+
+// 히스토리 조회
+const history = (await window.api.plugin.storage.get("key-history")) || [];
+console.log("최근 키 입력:", history.slice(-10));
+```
+
+#### 패턴 3: 캐싱
+
+```javascript
+// 비용이 큰 계산 결과 캐싱
+async function getExpensiveData(mode) {
+  const cacheKey = `stats-cache-${mode}`;
+  const cached = await window.api.plugin.storage.get(cacheKey);
+
+  // 캐시가 있고 1시간 이내면 사용
+  if (cached && Date.now() - cached.timestamp < 3600000) {
+    return cached.data;
+  }
+
+  // 새로 계산
+  const data = await calculateExpensiveStats(mode);
+
+  // 캐시 저장
+  await window.api.plugin.storage.set(cacheKey, {
+    data,
+    timestamp: Date.now(),
+  });
+
+  return data;
+}
+```
+
+#### 패턴 4: 마이그레이션
+
+```javascript
+// 버전 관리 및 데이터 마이그레이션
+const CURRENT_VERSION = 2;
+
+async function initializeStorage() {
+  const version = (await window.api.plugin.storage.get("version")) || 1;
+
+  if (version < CURRENT_VERSION) {
+    // 마이그레이션 수행
+    if (version === 1) {
+      const oldSettings = await window.api.plugin.storage.get("settings");
+      // v1 → v2 변환
+      const newSettings = {
+        ...oldSettings,
+        newFeature: true,
+      };
+      await window.api.plugin.storage.set("settings", newSettings);
+    }
+
+    await window.api.plugin.storage.set("version", CURRENT_VERSION);
+    console.log(
+      `스토리지 마이그레이션 완료: v${version} → v${CURRENT_VERSION}`
+    );
+  }
+}
+```
+
+---
+
 ## 주의사항
 
 1. **비동기 작업**: 모든 API 메서드는 `async` 작업입니다. `await` 또는 `.then()`을 사용하세요.
@@ -1568,11 +1851,15 @@ onBridgeMessage("WPM_UPDATE", (data) => {
 
 4. **브릿지 메시지**: `window.api.bridge`는 윈도우 간 통신을 위한 것이며, 같은 윈도우 내에서도 동작하지만 주로 다른 윈도우와 통신할 때 사용합니다.
 
-5. **오류 처리**: 파일 로드 등의 작업은 오류가 발생할 수 있으므로 반드시 처리하세요.
+5. **스토리지 자동 네임스페이스**: `window.api.plugin.storage`는 각 플러그인이 실행될 때 자동으로 해당 플러그인의 네임스페이스로 래핑되어 데이터 충돌을 방지합니다. prefix를 수동으로 관리할 필요가 없습니다.
 
-6. **타입 안전성**: TypeScript 프로젝트에서는 타입 정의를 활용하세요.
+6. **스토리지 용량**: 플러그인 스토리지는 앱 설정 파일에 저장되므로 과도하게 큰 데이터는 저장하지 마세요. 권장 최대 크기: 각 키당 1MB 이하.
 
-7. **개발자 모드**: 개발자 모드가 비활성화된 상태에서는 DevTools 접근이 키보드 단축키(Ctrl+Shift+I, F12) 차단으로 제한됩니다. 프로덕션 빌드에서 디버깅이 필요한 경우 설정 패널에서 개발자 모드를 활성화하세요.
+7. **오류 처리**: 파일 로드 등의 작업은 오류가 발생할 수 있으므로 반드시 처리하세요.
+
+8. **타입 안전성**: TypeScript 프로젝트에서는 타입 정의를 활용하세요.
+
+9. **개발자 모드**: 개발자 모드가 비활성화된 상태에서는 DevTools 접근이 키보드 단축키(Ctrl+Shift+I, F12) 차단으로 제한됩니다. 프로덕션 빌드에서 디버깅이 필요한 경우 설정 패널에서 개발자 모드를 활성화하세요.
 
 ---
 

@@ -6,7 +6,9 @@ import Checkbox from "@components/main/common/Checkbox";
 import Dropdown from "@components/main/common/Dropdown";
 import FlaskIcon from "@assets/svgs/flask.svg";
 import { PluginManagerModal } from "@components/main/Modal/content/PluginManagerModal";
+import { PluginDataDeleteModal } from "@components/main/Modal/content/PluginDataDeleteModal";
 import { applyCounterSnapshot } from "@stores/keyCounterSignals";
+import { extractPluginId } from "@utils/pluginUtils";
 
 export default function Settings({ showAlert, showConfirm }) {
   const { t, i18n } = useTranslation();
@@ -44,6 +46,8 @@ export default function Settings({ showAlert, showConfirm }) {
 
   const [hoveredKey, setHoveredKey] = useState(null);
   const [isPluginModalOpen, setPluginModalOpen] = useState(false);
+  const [isDataDeleteModalOpen, setDataDeleteModalOpen] = useState(false);
+  const [pluginToDelete, setPluginToDelete] = useState(null);
   const [isReloadingPlugins, setIsReloadingPlugins] = useState(false);
   const [isAddingPlugins, setIsAddingPlugins] = useState(false);
   const [pendingPluginId, setPendingPluginId] = useState(null);
@@ -273,6 +277,41 @@ export default function Settings({ showAlert, showConfirm }) {
 
   const handlePluginRemove = async (pluginId) => {
     if (pendingPluginId) return;
+
+    const plugin = jsPlugins.find((p) => p.id === pluginId);
+    if (!plugin) return;
+
+    try {
+      // 실제 플러그인 네임스페이스 추출 (@id 또는 파일명 기반)
+      const pluginNamespace = extractPluginId(plugin.content, plugin.name);
+
+      // 네임스페이스를 prefix로 사용하는 데이터가 있는지 확인
+      // 백엔드에서 자동으로 "plugin_data_" 를 붙이므로 순수 네임스페이스만 전달
+      const hasData = await window.api.plugin.storage.hasData(pluginNamespace);
+      console.debug(
+        "[PluginRemove] namespace=",
+        pluginNamespace,
+        "hasData=",
+        hasData
+      );
+
+      if (hasData) {
+        setPluginToDelete({
+          id: pluginId,
+          name: plugin.name,
+          namespace: pluginNamespace,
+        });
+        setDataDeleteModalOpen(true);
+      } else {
+        await removePluginOnly(pluginId);
+      }
+    } catch (error) {
+      console.error("Failed to check plugin data", error);
+      showAlert?.(t("settings.jsPluginRemoveFailed"));
+    }
+  };
+
+  const removePluginOnly = async (pluginId) => {
     setPendingPluginId(pluginId);
     try {
       const result = await window.api.js.remove(pluginId);
@@ -284,6 +323,37 @@ export default function Settings({ showAlert, showConfirm }) {
       showAlert?.(t("settings.jsPluginRemoveFailed"));
     } finally {
       setPendingPluginId(null);
+      setDataDeleteModalOpen(false);
+      setPluginToDelete(null);
+    }
+  };
+
+  const removePluginWithData = async (pluginId) => {
+    setPendingPluginId(pluginId);
+    try {
+      const plugin = jsPlugins.find((p) => p.id === pluginId);
+      if (!plugin) {
+        throw new Error("Plugin not found");
+      }
+
+      // 실제 네임스페이스를 다시 추출
+      const pluginNamespace = extractPluginId(plugin.content, plugin.name);
+
+      // 1) 먼저 플러그인 제거 → 클린업이 실행되며 일부 플러그인은 저장을 시도할 수 있음
+      const result = await window.api.js.remove(pluginId);
+      if (!result?.success) {
+        showAlert?.(t("settings.jsPluginRemoveFailed"));
+      }
+
+      // 2) 그 다음 스토리지 정리 → 클린업 중 재생성된 값까지 함께 제거
+      await window.api.plugin.storage.clearByPrefix(pluginNamespace);
+    } catch (error) {
+      console.error("Failed to remove JS plugin with data", error);
+      showAlert?.(t("settings.jsPluginRemoveFailed"));
+    } finally {
+      setPendingPluginId(null);
+      setDataDeleteModalOpen(false);
+      setPluginToDelete(null);
     }
   };
 
@@ -711,6 +781,19 @@ export default function Settings({ showAlert, showConfirm }) {
           plugins={jsPlugins}
           isAdding={isAddingPlugins}
           pendingPluginId={pendingPluginId}
+          t={t}
+        />
+      )}
+      {isDataDeleteModalOpen && pluginToDelete && (
+        <PluginDataDeleteModal
+          isOpen={isDataDeleteModalOpen}
+          onClose={() => {
+            setDataDeleteModalOpen(false);
+            setPluginToDelete(null);
+          }}
+          onDeleteWithData={() => removePluginWithData(pluginToDelete.id)}
+          onDeletePluginOnly={() => removePluginOnly(pluginToDelete.id)}
+          pluginName={pluginToDelete.name}
           t={t}
         />
       )}

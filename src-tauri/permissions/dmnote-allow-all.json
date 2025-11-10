@@ -50,7 +50,14 @@
           "preset_save",
           "preset_load",
           "plugin_bridge_send",
-          "plugin_bridge_send_to"
+          "plugin_bridge_send_to",
+          "plugin_storage_get",
+          "plugin_storage_set",
+          "plugin_storage_remove",
+          "plugin_storage_clear",
+          "plugin_storage_keys",
+          "plugin_storage_has_data",
+          "plugin_storage_clear_by_prefix"
         ],
         "deny": []
       }

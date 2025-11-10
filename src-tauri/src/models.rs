@@ -393,6 +393,9 @@ pub struct AppStoreData {
     pub overlay_bounds_are_logical: bool,
     #[serde(default)]
     pub key_counter_enabled: bool,
+    /// 플러그인 데이터 저장소 (plugin_data_* 키로 저장)
+    #[serde(default, flatten)]
+    pub plugin_data: HashMap<String, serde_json::Value>,
 }
 
 impl Default for AppStoreData {
@@ -422,6 +425,7 @@ impl Default for AppStoreData {
             overlay_last_content_top_offset: None,
             overlay_bounds_are_logical: false,
             key_counter_enabled: false,
+            plugin_data: HashMap::new(),
         }
     }
 }

@@ -188,8 +188,190 @@ window.__dmn_custom_js_cleanup = function () {
 - **`window.api.css`** / **`window.api.js`** - CSS/JS 커스텀 코드 관리
 - **`window.api.presets`** - 프리셋 저장/로드
 - **`window.api.bridge`** - 윈도우 간 통신 (플러그인 간 메시지 전송)
+- **`window.api.plugin.storage`** - 플러그인 데이터 영속화 (설정 저장)
 
 또한 IPC 채널 저수준 구현에 대해서는 [`docs/ipc-channels.md`](../ipc-channels.md)를 참조하세요.
+
+---
+
+## 플러그인 ID 설정
+
+각 플러그인은 고유한 ID를 가지며, 이 ID는 스토리지 데이터를 구분하는 네임스페이스로 사용됩니다.
+
+### `@id` 메타데이터
+
+플러그인 파일 상단에 `@id` 주석을 추가하여 고유 ID를 지정할 수 있습니다:
+
+```javascript
+// @id: my-awesome-plugin
+
+(function () {
+  // 플러그인 코드...
+})();
+```
+
+**규칙**:
+
+- ID는 소문자, 숫자, 하이픈(`-`), 언더스코어(`_`)만 사용 가능
+- kebab-case 형식 권장 (예: `kps-counter`, `settings-panel`)
+- 파일 첫 20줄 이내에 위치해야 함
+
+**동작**:
+
+- `@id`가 있는 경우: 지정한 ID를 네임스페이스로 사용
+- `@id`가 없는 경우: 파일명을 자동으로 정규화하여 사용 (예: `My Plugin.js` → `my-plugin`)
+
+**중요**:
+
+- 같은 `@id`를 가진 플러그인은 스토리지 데이터를 공유합니다
+- 플러그인을 삭제 후 재설치해도 `@id`가 같으면 기존 데이터를 계속 사용합니다
+- ID를 변경하면 기존 데이터에 접근할 수 없게 되므로 신중하게 선택하세요
+
+**예시**:
+
+```javascript
+// @id: kps-counter
+
+(function () {
+  // 이 플러그인의 모든 스토리지는 'kps-counter' 네임스페이스를 사용
+  await window.api.plugin.storage.set("maxKps", 150);
+})();
+```
+
+---
+
+## 플러그인 스토리지 (`window.api.plugin.storage`)
+
+플러그인은 **스토리지 API**를 사용하여 설정이나 데이터를 영속적으로 저장할 수 있습니다. 모든 데이터는 앱 설정 파일에 함께 저장되며, 앱을 재시작해도 유지됩니다.
+
+### ✨ 자동 네임스페이스
+
+플러그인별로 **자동으로 격리된 스토리지 공간**이 제공됩니다. prefix를 수동으로 관리할 필요가 없으며, 다른 플러그인과의 충돌 걱정도 없습니다.
+
+각 플러그인이 실행될 때 `window.api.plugin.storage`는 자동으로 해당 플러그인의 네임스페이스로 래핑되어, 다른 API들과 일관된 방식으로 사용할 수 있습니다.
+
+```javascript
+// ✅ 간단하게 키만 사용 (자동으로 플러그인 ID가 prefix로 추가됨)
+await window.api.plugin.storage.set("settings", { theme: "dark" });
+await window.api.plugin.storage.set("position", { x: 100, y: 50 });
+
+// 데이터 조회
+const settings = await window.api.plugin.storage.get("settings");
+const position = await window.api.plugin.storage.get("position");
+
+// 데이터 삭제
+await window.api.plugin.storage.remove("settings");
+
+// 이 플러그인의 모든 데이터 삭제
+await window.api.plugin.storage.clear();
+
+// 이 플러그인이 저장한 키 목록
+const keys = await window.api.plugin.storage.keys();
+console.log("저장된 키:", keys); // ['settings', 'position']
+```
+
+**플러그인 삭제 시 자동 정리:** 플러그인을 삭제할 때 스토리지 데이터 삭제 여부를 선택할 수 있으며, "데이터와 함께 삭제"를 선택하면 해당 플러그인의 모든 데이터가 자동으로 제거됩니다.
+
+### 기본 사용법
+
+```javascript
+(function () {
+  if (window.__dmn_custom_js_cleanup) window.__dmn_custom_js_cleanup();
+  if (window.__dmn_window_type !== "overlay") return;
+
+  // 데이터 저장 및 조회
+  await window.api.plugin.storage.set("theme", "dark");
+  const theme = await window.api.plugin.storage.get("theme");
+
+  // 객체 저장
+  await window.api.plugin.storage.set("userPreferences", {
+    fontSize: 14,
+    showNotifications: true,
+  });
+
+  // 저장된 모든 키 조회
+  const allKeys = await window.api.plugin.storage.keys();
+  console.log(allKeys); // ['theme', 'userPreferences']
+})();
+```
+
+### 실전 예제: 설정 저장 플러그인
+
+```javascript
+(function () {
+  if (window.__dmn_custom_js_cleanup) window.__dmn_custom_js_cleanup();
+  if (window.__dmn_window_type !== "overlay") return;
+
+  // 기본 설정
+  const defaultSettings = {
+    panelVisible: true,
+    position: { x: 10, y: 10 },
+    fontSize: 14,
+  };
+
+  // 저장된 설정 불러오기
+  let settings = null;
+
+  async function loadSettings() {
+    settings = await window.api.plugin.storage.get("settings");
+    if (!settings) {
+      settings = defaultSettings;
+      await saveSettings();
+    }
+    return settings;
+  }
+
+  async function saveSettings() {
+    await window.api.plugin.storage.set("settings", settings);
+  }
+
+  // 패널 생성
+  const panel = document.createElement("div");
+  panel.style.cssText = `
+    position: fixed;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 10px;
+    border-radius: 5px;
+  `;
+  document.body.appendChild(panel);
+
+  // 초기화
+  loadSettings().then((loaded) => {
+    panel.style.left = loaded.position.x + "px";
+    panel.style.top = loaded.position.y + "px";
+    panel.style.fontSize = loaded.fontSize + "px";
+    panel.style.display = loaded.panelVisible ? "block" : "none";
+    panel.textContent = "설정이 복원되었습니다!";
+  });
+
+  // 드래그로 위치 변경 시 자동 저장
+  let isDragging = false;
+  panel.addEventListener("mousedown", () => {
+    isDragging = true;
+  });
+  document.addEventListener("mousemove", async (e) => {
+    if (!isDragging) return;
+    settings.position = { x: e.clientX, y: e.clientY };
+    panel.style.left = e.clientX + "px";
+    panel.style.top = e.clientY + "px";
+  });
+  document.addEventListener("mouseup", async () => {
+    if (isDragging) {
+      isDragging = false;
+      await saveSettings(); // 위치 자동 저장
+      console.log("위치 저장됨:", settings.position);
+    }
+  });
+
+  window.__dmn_custom_js_cleanup = function () {
+    panel.remove();
+    delete window.__dmn_custom_js_cleanup;
+  };
+})();
+```
+
+더 자세한 내용은 **[`docs/api-reference.md#플러그인-plugin`](./api-reference.md#플러그인-plugin)** 를 참조하세요.
 
 ---
 

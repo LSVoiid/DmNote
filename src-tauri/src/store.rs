@@ -115,6 +115,38 @@ impl AppStore {
         Ok(guard.selected_key_type.clone())
     }
 
+    // 플러그인 데이터 관련 메서드
+    pub fn get_plugin_data(&self, key: &str) -> Result<Option<Value>> {
+        let guard = self.state.read();
+        Ok(guard.plugin_data.get(key).cloned())
+    }
+
+    pub fn set_plugin_data(&self, key: &str, value: Value) -> Result<()> {
+        let mut guard = self.state.write();
+        guard.plugin_data.insert(key.to_string(), value);
+        self.persist_locked(&guard)?;
+        Ok(())
+    }
+
+    pub fn remove_plugin_data(&self, key: &str) -> Result<()> {
+        let mut guard = self.state.write();
+        guard.plugin_data.remove(key);
+        self.persist_locked(&guard)?;
+        Ok(())
+    }
+
+    pub fn clear_all_plugin_data(&self) -> Result<()> {
+        let mut guard = self.state.write();
+        guard.plugin_data.clear();
+        self.persist_locked(&guard)?;
+        Ok(())
+    }
+
+    pub fn get_all_plugin_keys(&self) -> Result<Vec<String>> {
+        let guard = self.state.read();
+        Ok(guard.plugin_data.keys().cloned().collect())
+    }
+
     fn persist_locked(&self, state: &AppStoreData) -> Result<()> {
         // JSON 출력 시 key 모드 순서를 4,5,6,8 순으로 고정하고 나머지는 사전순으로 정렬합니다.
         use serde_json::{to_value, Map, Value};

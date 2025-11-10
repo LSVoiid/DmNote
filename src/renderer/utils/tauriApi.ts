@@ -292,6 +292,27 @@ const api: DMNoteAPI = {
       },
     };
   })(),
+  plugin: {
+    storage: {
+      get: <T = any>(key: string) =>
+        invoke<T | null>("plugin_storage_get", { key }),
+
+      set: (key: string, value: any) =>
+        invoke<void>("plugin_storage_set", { key, value }),
+
+      remove: (key: string) => invoke<void>("plugin_storage_remove", { key }),
+
+      clear: () => invoke<void>("plugin_storage_clear"),
+
+      keys: () => invoke<string[]>("plugin_storage_keys"),
+
+      hasData: (prefix: string) =>
+        invoke<boolean>("plugin_storage_has_data", { prefix }),
+
+      clearByPrefix: (prefix: string) =>
+        invoke<number>("plugin_storage_clear_by_prefix", { prefix }),
+    },
+  },
 };
 
 if (typeof window !== "undefined" && !window.api) {

@@ -192,4 +192,15 @@ export interface DMNoteAPI {
     onAny(listener: BridgeAnyListener): Unsubscribe;
     off(type: string, listener?: BridgeMessageListener): void;
   };
+  plugin: {
+    storage: {
+      get<T = any>(key: string): Promise<T | null>;
+      set(key: string, value: any): Promise<void>;
+      remove(key: string): Promise<void>;
+      clear(): Promise<void>;
+      keys(): Promise<string[]>;
+      hasData(prefix: string): Promise<boolean>;
+      clearByPrefix(prefix: string): Promise<number>;
+    };
+  };
 }

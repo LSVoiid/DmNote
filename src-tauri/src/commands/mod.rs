@@ -4,6 +4,7 @@ pub mod css;
 pub mod js;
 pub mod keys;
 pub mod overlay;
+pub mod plugin_storage;
 pub mod preset;
 pub mod settings;
 pub mod system;

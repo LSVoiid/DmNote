@@ -357,3 +357,45 @@
   - 페이로드: `{ type: string; data?: any }`
   - 수신처: 전송 방식에 따라 모든 윈도우 또는 특정 윈도우
   - 용도: 플러그인 간 커스텀 메시지 전달 (예: KPS 업데이트, 녹화 상태 등)
+
+## plugin storage (플러그인 데이터 영속화)
+
+플러그인이 설정이나 데이터를 영속적으로 저장할 수 있습니다.
+
+### 커맨드 (invoke)
+
+- `plugin_storage_get` (invoke)
+
+  - 기능: 저장된 데이터를 조회합니다.
+  - 요청: `{ key: string }`
+  - 응답: `{ value?: any }` (값이 없으면 `null`)
+
+- `plugin_storage_set` (invoke)
+
+  - 기능: 데이터를 저장합니다.
+  - 요청: `{ key: string; value: any }` (JSON 직렬화 가능한 모든 값)
+  - 응답: `void`
+
+- `plugin_storage_remove` (invoke)
+
+  - 기능: 특정 키를 삭제합니다.
+  - 요청: `{ key: string }`
+  - 응답: `void`
+
+- `plugin_storage_clear` (invoke)
+
+  - 기능: 모든 플러그인 데이터를 삭제합니다.
+  - 요청: `void`
+  - 응답: `void`
+
+- `plugin_storage_keys` (invoke)
+  - 기능: 저장된 모든 키의 목록을 조회합니다.
+  - 요청: `void`
+  - 응답: `{ keys: string[] }`
+
+### 저장소 정보
+
+- 모든 플러그인 데이터는 앱 설정 파일(`store.json`)에 저장됩니다
+- 각 키는 자동으로 `plugin_data_` 접두사가 붙어 네임스페이스가 분리됩니다
+- 저장 용량: 각 항목은 1MB 이하 권장
+- 용도: 설정, 히스토리, 캐시, 사용자 데이터 등
