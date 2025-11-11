@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { usePluginMenuStore } from "@stores/usePluginMenuStore";
 
 import type {
   CssLoadResult,
@@ -311,6 +312,63 @@ const api: DMNoteAPI = {
 
       clearByPrefix: (prefix: string) =>
         invoke<number>("plugin_storage_clear_by_prefix", { prefix }),
+    },
+  },
+  ui: {
+    contextMenu: {
+      addKeyMenuItem: (item) => {
+        // 메인 윈도우에서만 동작
+        if ((window as any).__dmn_window_type !== "main") {
+          console.warn("[UI API] contextMenu is only available in main window");
+          return "";
+        }
+
+        return usePluginMenuStore.getState().addKeyMenuItem(item);
+      },
+
+      addGridMenuItem: (item) => {
+        if ((window as any).__dmn_window_type !== "main") {
+          console.warn("[UI API] contextMenu is only available in main window");
+          return "";
+        }
+
+        return usePluginMenuStore.getState().addGridMenuItem(item);
+      },
+
+      removeMenuItem: (fullId) => {
+        if ((window as any).__dmn_window_type !== "main") {
+          console.warn("[UI API] contextMenu is only available in main window");
+          return;
+        }
+
+        usePluginMenuStore.getState().removeMenuItem(fullId);
+      },
+
+      updateMenuItem: (fullId, updates) => {
+        if ((window as any).__dmn_window_type !== "main") {
+          console.warn("[UI API] contextMenu is only available in main window");
+          return;
+        }
+
+        usePluginMenuStore.getState().updateMenuItem(fullId, updates);
+      },
+
+      clearMyMenuItems: () => {
+        if ((window as any).__dmn_window_type !== "main") {
+          console.warn("[UI API] contextMenu is only available in main window");
+          return;
+        }
+
+        const pluginId = (window as any).__dmn_current_plugin_id;
+        if (!pluginId) {
+          console.warn(
+            "[UI API] clearMyMenuItems called outside plugin context"
+          );
+          return;
+        }
+
+        usePluginMenuStore.getState().clearByPluginId(pluginId);
+      },
     },
   },
 };

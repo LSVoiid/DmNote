@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import type { JsPlugin } from "@src/types/js";
 import { extractPluginId } from "@utils/pluginUtils";
+import { usePluginMenuStore } from "@stores/usePluginMenuStore";
 
 const SCRIPT_ID_PREFIX = "dmn-custom-js-";
 
@@ -37,6 +38,15 @@ export function useCustomJsInjection() {
         }
       }
       activeElements.clear();
+
+      // 플러그인 메뉴 클린업 (메인 윈도우에서만)
+      if ((window as any).__dmn_window_type === "main") {
+        try {
+          usePluginMenuStore.getState().clearAll();
+        } catch (error) {
+          console.error("Failed to clear plugin menus", error);
+        }
+      }
     };
 
     const injectAll = () => {
@@ -54,6 +64,21 @@ export function useCustomJsInjection() {
 
             // 플러그인 고유 ID 추출 (@id 메타데이터 또는 파일명 기반)
             const pluginId = extractPluginId(plugin.content, plugin.name);
+
+            // 현재 플러그인 ID를 전역에 설정 (API 호출 시 사용)
+            (anyWindow as any).__dmn_current_plugin_id = pluginId;
+
+            // 이전 플러그인의 메뉴 제거 (메인 윈도우에서만)
+            if ((window as any).__dmn_window_type === "main") {
+              try {
+                usePluginMenuStore.getState().clearByPluginId(pluginId);
+              } catch (error) {
+                console.error(
+                  `Failed to clear menus for plugin '${pluginId}'`,
+                  error
+                );
+              }
+            }
 
             // 원본 스토리지 API 참조
             const originalStorage = window.api.plugin.storage;
@@ -146,6 +171,7 @@ export function useCustomJsInjection() {
             // 임시 전역 정리
             try {
               delete (anyWindow as any).__dmn_plugin_window_proxy;
+              delete (anyWindow as any).__dmn_current_plugin_id;
             } catch {
               // noop
             }

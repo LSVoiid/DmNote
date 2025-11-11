@@ -85,6 +85,34 @@ export type BridgeMessageListener<T = any> = (data: T) => void;
 export type BridgeAnyListener = (type: string, data: any) => void;
 export type WindowTarget = "main" | "overlay";
 
+// UI Plugin 컨텍스트 메뉴 types
+export type KeyMenuContext = {
+  keyCode: string;
+  index: number;
+  position: any; // KeyPosition from keys.ts
+  mode: string;
+};
+
+export type GridMenuContext = {
+  position: { dx: number; dy: number };
+  mode: string;
+};
+
+export type PluginMenuItem<TContext = any> = {
+  id: string;
+  label: string;
+  disabled?: boolean | ((context: TContext) => boolean);
+  visible?: boolean | ((context: TContext) => boolean);
+  position?: "top" | "bottom";
+  onClick: (context: TContext) => void | Promise<void>;
+};
+
+export type PluginMenuItemInternal<TContext = any> =
+  PluginMenuItem<TContext> & {
+    pluginId: string;
+    fullId: string;
+  };
+
 export type Unsubscribe = () => void;
 
 export interface DMNoteAPI {
@@ -201,6 +229,18 @@ export interface DMNoteAPI {
       keys(): Promise<string[]>;
       hasData(prefix: string): Promise<boolean>;
       clearByPrefix(prefix: string): Promise<number>;
+    };
+  };
+  ui: {
+    contextMenu: {
+      addKeyMenuItem(item: PluginMenuItem<KeyMenuContext>): string;
+      addGridMenuItem(item: PluginMenuItem<GridMenuContext>): string;
+      removeMenuItem(fullId: string): void;
+      updateMenuItem(
+        fullId: string,
+        updates: Partial<PluginMenuItem<any>>
+      ): void;
+      clearMyMenuItems(): void;
     };
   };
 }

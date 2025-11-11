@@ -6,6 +6,7 @@ import KeySettingModal from "./Modal/content/KeySetting";
 import CounterSettingModal from "./Modal/content/CounterSetting";
 import ListPopup from "./Modal/ListPopup";
 import { useKeyStore } from "@stores/useKeyStore";
+import { usePluginMenuStore } from "@stores/usePluginMenuStore";
 
 const GRID_SNAP = 5;
 const snapToGrid = (value) => {
@@ -44,6 +45,12 @@ export default function Grid({
   const selectedKeyType = useKeyStore((state) => state.selectedKeyType);
   const { t } = useTranslation();
 
+  // 플러그인 메뉴 아이템
+  const pluginKeyMenuItems = usePluginMenuStore((state) => state.keyMenuItems);
+  const pluginGridMenuItems = usePluginMenuStore(
+    (state) => state.gridMenuItems
+  );
+
   // 키 컨텍스트 메뉴
   const [isContextOpen, setIsContextOpen] = useState(false);
   const [contextIndex, setContextIndex] = useState(null);
@@ -66,6 +73,100 @@ export default function Grid({
   const [counterTargetIndex, setCounterTargetIndex] = useState(null);
   const [counterOriginalSettings, setCounterOriginalSettings] = useState(null);
   const [counterApplied, setCounterApplied] = useState(false);
+
+  // 키 메뉴 아이템 생성 (기본 + 플러그인)
+  const getKeyMenuItems = () => {
+    const baseItems = [
+      { id: "delete", label: t("contextMenu.deleteKey") },
+      { id: "duplicate", label: t("contextMenu.duplicateKey") },
+      { id: "counter", label: t("contextMenu.counterSetting") },
+      { id: "bringToFront", label: t("contextMenu.bringToFront") },
+      { id: "sendToBack", label: t("contextMenu.sendToBack") },
+    ];
+
+    // 플러그인 메뉴 필터링 (조건부 표시)
+    const context =
+      contextIndex !== null
+        ? {
+            keyCode: keyMappings[selectedKeyType]?.[contextIndex] || "",
+            index: contextIndex,
+            position: positions[selectedKeyType]?.[contextIndex] || {},
+            mode: selectedKeyType,
+          }
+        : null;
+
+    const filterPluginItems = (items) => {
+      if (!context) return [];
+      return items
+        .filter((item) => {
+          // visible 체크
+          if (item.visible === false) return false;
+          if (typeof item.visible === "function" && !item.visible(context))
+            return false;
+          return true;
+        })
+        .map((item) => ({
+          id: item.fullId,
+          label: item.label,
+          disabled:
+            typeof item.disabled === "function"
+              ? item.disabled(context)
+              : item.disabled || false,
+          isPlugin: true,
+        }));
+    };
+
+    const topPluginItems = filterPluginItems(
+      pluginKeyMenuItems.filter((i) => i.position === "top")
+    );
+    const bottomPluginItems = filterPluginItems(
+      pluginKeyMenuItems.filter((i) => i.position !== "top")
+    );
+
+    return [...topPluginItems, ...baseItems, ...bottomPluginItems];
+  };
+
+  // 그리드 메뉴 아이템 생성 (기본 + 플러그인)
+  const getGridMenuItems = () => {
+    const baseItems = [{ id: "add", label: t("tooltip.addKey") }];
+
+    // 플러그인 메뉴 필터링
+    const context = gridAddLocalPos
+      ? {
+          position: gridAddLocalPos,
+          mode: selectedKeyType,
+        }
+      : null;
+
+    const filterPluginItems = (items) => {
+      if (!context) return [];
+      return items
+        .filter((item) => {
+          if (item.visible === false) return false;
+          if (typeof item.visible === "function" && !item.visible(context))
+            return false;
+          return true;
+        })
+        .map((item) => ({
+          id: item.fullId,
+          label: item.label,
+          disabled:
+            typeof item.disabled === "function"
+              ? item.disabled(context)
+              : item.disabled || false,
+          isPlugin: true,
+        }));
+    };
+
+    const topPluginItems = filterPluginItems(
+      pluginGridMenuItems.filter((i) => i.position === "top")
+    );
+    const bottomPluginItems = filterPluginItems(
+      pluginGridMenuItems.filter((i) => i.position !== "top")
+    );
+
+    return [...topPluginItems, ...baseItems, ...bottomPluginItems];
+  };
 
   // 그리드 컨텍스트 메뉴
   const [isGridContextOpen, setIsGridContextOpen] = useState(false);
@@ -302,15 +403,45 @@ export default function Grid({
             setIsContextOpen(false);
             setContextPosition(null);
           }}
-          items={[
-            { id: "delete", label: t("contextMenu.deleteKey") },
-            { id: "duplicate", label: t("contextMenu.duplicateKey") },
-            { id: "counter", label: t("contextMenu.counterSetting") },
-            { id: "bringToFront", label: t("contextMenu.bringToFront") },
-            { id: "sendToBack", label: t("contextMenu.sendToBack") },
-          ]}
+          items={getKeyMenuItems()}
           onSelect={(id) => {
             if (contextIndex == null) return;
+
+            // 플러그인 메뉴 처리
+            const pluginItem = pluginKeyMenuItems.find(
+              (item) => item.fullId === id
+            );
+            if (pluginItem) {
+              const context = {
+                keyCode: keyMappings[selectedKeyType]?.[contextIndex] || "",
+                index: contextIndex,
+                position: positions[selectedKeyType]?.[contextIndex] || {},
+                mode: selectedKeyType,
+              };
+
+              try {
+                const result = pluginItem.onClick(context);
+                if (result && typeof result.then === "function") {
+                  result.catch((error) => {
+                    console.error(
+                      `[Plugin Menu] Error in '${pluginItem.label}':`,
+                      error
+                    );
+                  });
+                }
+              } catch (error) {
+                console.error(
+                  `[Plugin Menu] Error in '${pluginItem.label}':`,
+                  error
+                );
+              }
+
+              setIsContextOpen(false);
+              setContextPosition(null);
+              return;
+            }
+
+            // 기본 메뉴 처리
             if (id === "delete") {
               const globalKey =
                 keyMappings[selectedKeyType]?.[contextIndex] || "";
@@ -389,8 +520,42 @@ export default function Grid({
             setGridContextClientPos(null);
             setGridAddLocalPos(null);
           }}
-          items={[{ id: "add", label: t("tooltip.addKey") }]}
+          items={getGridMenuItems()}
           onSelect={(id) => {
+            // 플러그인 메뉴 처리
+            const pluginItem = pluginGridMenuItems.find(
+              (item) => item.fullId === id
+            );
+            if (pluginItem && gridAddLocalPos) {
+              const context = {
+                position: gridAddLocalPos,
+                mode: selectedKeyType,
+              };
+
+              try {
+                const result = pluginItem.onClick(context);
+                if (result && typeof result.then === "function") {
+                  result.catch((error) => {
+                    console.error(
+                      `[Plugin Menu] Error in '${pluginItem.label}':`,
+                      error
+                    );
+                  });
+                }
+              } catch (error) {
+                console.error(
+                  `[Plugin Menu] Error in '${pluginItem.label}':`,
+                  error
+                );
+              }
+
+              setIsGridContextOpen(false);
+              setGridContextClientPos(null);
+              setGridAddLocalPos(null);
+              return;
+            }
+
+            // 기본 메뉴 처리
             if (
               id === "add" &&
               gridAddLocalPos &&

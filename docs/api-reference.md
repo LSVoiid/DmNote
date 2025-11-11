@@ -16,6 +16,7 @@
 - [프리셋 (presets)](#프리셋-presets)
 - [브릿지 (bridge)](#브릿지-bridge)
 - [플러그인 (plugin)](#플러그인-plugin)
+- [UI (ui)](#ui-ui)
 - [공통 타입](#공통-타입)
 
 ---
@@ -1841,6 +1842,288 @@ async function initializeStorage() {
 
 ---
 
+## UI (ui)
+
+UI API는 플러그인이 앱의 사용자 인터페이스를 확장할 수 있도록 하는 API입니다. **메인 윈도우에서만 사용 가능합니다.**
+
+### 컨텍스트 메뉴 (`window.api.ui.contextMenu`)
+
+플러그인이 그리드의 키/빈 공간 우클릭 메뉴에 커스텀 메뉴 아이템을 추가할 수 있습니다.
+
+#### `window.api.ui.contextMenu.addKeyMenuItem(item)`
+
+키 컨텍스트 메뉴에 아이템을 추가합니다.
+
+**매개변수**:
+
+- `item: PluginMenuItem<KeyMenuContext>`
+
+```typescript
+interface PluginMenuItem<TContext> {
+  id: string; // 플러그인 내 고유 ID
+  label: string; // 표시 텍스트
+  disabled?: boolean | ((context: TContext) => boolean); // 비활성화 조건
+  visible?: boolean | ((context: TContext) => boolean); // 표시 조건
+  position?: "top" | "bottom"; // 기본 메뉴 기준 위치 (기본: bottom)
+  onClick: (context: TContext) => void | Promise<void>; // 클릭 핸들러
+}
+
+interface KeyMenuContext {
+  keyCode: string; // 키 코드 (예: "KeyD")
+  index: number; // 키 인덱스
+  position: KeyPosition; // 키 위치 정보
+  mode: string; // 현재 키 모드 (예: "4key")
+}
+```
+
+**반환형**: `string` - 메뉴 아이템의 전역 고유 ID (`pluginId:itemId`)
+
+**사용 예**:
+
+```javascript
+const menuId = window.api.ui.contextMenu.addKeyMenuItem({
+  id: "export-stats",
+  label: "통계 내보내기",
+  position: "bottom",
+  // 조건부 표시: 4key 모드에서만
+  visible: (context) => context.mode === "4key",
+  // 조건부 비활성화: 카운트가 0이면
+  disabled: (context) => context.position.count === 0,
+  onClick: async (context) => {
+    console.log("키 코드:", context.keyCode);
+    console.log("카운트:", context.position.count);
+    // 통계 내보내기 로직
+  },
+});
+```
+
+---
+
+#### `window.api.ui.contextMenu.addGridMenuItem(item)`
+
+그리드 빈 공간 컨텍스트 메뉴에 아이템을 추가합니다.
+
+**매개변수**:
+
+- `item: PluginMenuItem<GridMenuContext>`
+
+```typescript
+interface GridMenuContext {
+  position: { dx: number; dy: number }; // 클릭 위치 (그리드 좌표)
+  mode: string; // 현재 키 모드
+}
+```
+
+**반환형**: `string` - 메뉴 아이템의 전역 고유 ID
+
+**사용 예**:
+
+```javascript
+window.api.ui.contextMenu.addGridMenuItem({
+  id: "add-timer",
+  label: "타이머 추가",
+  onClick: async (context) => {
+    console.log("클릭 위치:", context.position);
+    // 타이머 위젯 추가 로직
+  },
+});
+```
+
+---
+
+#### `window.api.ui.contextMenu.removeMenuItem(fullId)`
+
+특정 메뉴 아이템을 제거합니다.
+
+**매개변수**:
+
+- `fullId: string` - `addKeyMenuItem` 또는 `addGridMenuItem`에서 반환된 전역 ID
+
+**반환형**: `void`
+
+**사용 예**:
+
+```javascript
+const id = window.api.ui.contextMenu.addKeyMenuItem({...});
+
+// 나중에 제거
+window.api.ui.contextMenu.removeMenuItem(id);
+```
+
+---
+
+#### `window.api.ui.contextMenu.updateMenuItem(fullId, updates)`
+
+메뉴 아이템을 업데이트합니다.
+
+**매개변수**:
+
+- `fullId: string` - 메뉴 아이템 ID
+- `updates: Partial<PluginMenuItem>` - 업데이트할 필드
+
+**반환형**: `void`
+
+**사용 예**:
+
+```javascript
+const id = window.api.ui.contextMenu.addKeyMenuItem({
+  id: "toggle-feature",
+  label: "기능 활성화",
+  onClick: () => {},
+});
+
+// 라벨 변경
+window.api.ui.contextMenu.updateMenuItem(id, {
+  label: "기능 비활성화",
+  disabled: true,
+});
+```
+
+---
+
+#### `window.api.ui.contextMenu.clearMyMenuItems()`
+
+현재 플러그인이 추가한 모든 메뉴 아이템을 제거합니다.
+
+**반환형**: `void`
+
+**사용 예**:
+
+```javascript
+// 클린업 시 호출
+window.__dmn_custom_js_cleanup = function () {
+  window.api.ui.contextMenu.clearMyMenuItems();
+  delete window.__dmn_custom_js_cleanup;
+};
+```
+
+---
+
+### 컨텍스트 메뉴 사용 패턴
+
+#### 패턴 1: 기본 메뉴 아이템
+
+```javascript
+(function () {
+  if (window.__dmn_custom_js_cleanup) window.__dmn_custom_js_cleanup();
+  if (window.__dmn_window_type !== "main") return;
+
+  window.api.ui.contextMenu.addKeyMenuItem({
+    id: "copy-keycode",
+    label: "키 코드 복사",
+    onClick: (context) => {
+      navigator.clipboard.writeText(context.keyCode);
+      console.log("복사됨:", context.keyCode);
+    },
+  });
+
+  window.__dmn_custom_js_cleanup = function () {
+    window.api.ui.contextMenu.clearMyMenuItems();
+    delete window.__dmn_custom_js_cleanup;
+  };
+})();
+```
+
+#### 패턴 2: 조건부 표시/비활성화
+
+```javascript
+window.api.ui.contextMenu.addKeyMenuItem({
+  id: "export-if-has-data",
+  label: "데이터 내보내기",
+  // 카운트가 100 이상일 때만 표시
+  visible: (context) => context.position.count >= 100,
+  // 짝수 인덱스만 활성화
+  disabled: (context) => context.index % 2 !== 0,
+  onClick: async (context) => {
+    const data = await collectData(context.keyCode);
+    exportData(data);
+  },
+});
+```
+
+#### 패턴 3: 동적 업데이트
+
+```javascript
+let isRecording = false;
+
+const menuId = window.api.ui.contextMenu.addKeyMenuItem({
+  id: "toggle-recording",
+  label: "녹화 시작",
+  onClick: () => {
+    isRecording = !isRecording;
+
+    // 메뉴 라벨 업데이트
+    window.api.ui.contextMenu.updateMenuItem(menuId, {
+      label: isRecording ? "녹화 중지" : "녹화 시작",
+    });
+  },
+});
+```
+
+#### 패턴 4: 그리드 메뉴 활용
+
+```javascript
+window.api.ui.contextMenu.addGridMenuItem({
+  id: "add-custom-widget",
+  label: "커스텀 위젯 추가",
+  // 현재 모드가 4key일 때만 표시
+  visible: (context) => context.mode === "4key",
+  onClick: async (context) => {
+    // 클릭한 위치에 위젯 추가
+    const { dx, dy } = context.position;
+    await createWidget(dx, dy);
+  },
+});
+```
+
+#### 패턴 5: 여러 메뉴 관리
+
+```javascript
+(function () {
+  if (window.__dmn_custom_js_cleanup) window.__dmn_custom_js_cleanup();
+  if (window.__dmn_window_type !== "main") return;
+
+  const menuIds = [];
+
+  // 여러 메뉴 추가
+  menuIds.push(
+    window.api.ui.contextMenu.addKeyMenuItem({
+      id: "action1",
+      label: "액션 1",
+      onClick: () => console.log("액션 1"),
+    })
+  );
+
+  menuIds.push(
+    window.api.ui.contextMenu.addKeyMenuItem({
+      id: "action2",
+      label: "액션 2",
+      onClick: () => console.log("액션 2"),
+    })
+  );
+
+  menuIds.push(
+    window.api.ui.contextMenu.addGridMenuItem({
+      id: "grid-action",
+      label: "그리드 액션",
+      onClick: () => console.log("그리드 액션"),
+    })
+  );
+
+  window.__dmn_custom_js_cleanup = function () {
+    // 방법 1: 개별 제거
+    menuIds.forEach((id) => window.api.ui.contextMenu.removeMenuItem(id));
+
+    // 방법 2: 일괄 제거 (더 간단)
+    // window.api.ui.contextMenu.clearMyMenuItems();
+
+    delete window.__dmn_custom_js_cleanup;
+  };
+})();
+```
+
+---
+
 ## 주의사항
 
 1. **비동기 작업**: 모든 API 메서드는 `async` 작업입니다. `await` 또는 `.then()`을 사용하세요.
@@ -1860,6 +2143,10 @@ async function initializeStorage() {
 8. **타입 안전성**: TypeScript 프로젝트에서는 타입 정의를 활용하세요.
 
 9. **개발자 모드**: 개발자 모드가 비활성화된 상태에서는 DevTools 접근이 키보드 단축키(Ctrl+Shift+I, F12) 차단으로 제한됩니다. 프로덕션 빌드에서 디버깅이 필요한 경우 설정 패널에서 개발자 모드를 활성화하세요.
+
+10. **UI API**: `window.api.ui` API는 **메인 윈도우에서만** 사용 가능합니다. 오버레이 윈도우에서 호출 시 경고만 표시되고 동작하지 않습니다.
+
+11. **컨텍스트 메뉴 자동 클린업**: 플러그인이 재주입되거나 비활성화될 때 해당 플러그인의 메뉴 아이템이 자동으로 제거됩니다. 하지만 명시적으로 `clearMyMenuItems()`를 호출하는 것을 권장합니다.
 
 ---
 
