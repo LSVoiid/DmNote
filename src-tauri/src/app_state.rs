@@ -547,6 +547,14 @@ impl AppState {
         .build()
         .context("failed to create overlay window")?;
 
+        // Windows에서 오버레이 창이 포커스를 받지 않도록 설정
+        #[cfg(target_os = "windows")]
+        {
+            if let Err(err) = set_window_no_activate(&window) {
+                log::warn!("failed to set WS_EX_NOACTIVATE for overlay: {err}");
+            }
+        }
+
         window.set_ignore_cursor_events(snapshot.overlay_locked)?;
         window.set_always_on_top(snapshot.always_on_top)?;
         let _ = window.set_maximizable(false);
@@ -590,7 +598,8 @@ impl AppState {
                 }
             }
             WindowEvent::Focused(true) => {
-                focus_main_window(&app_handle);
+                // WS_EX_NOACTIVATE 스타일 때문에 이 이벤트는 발생하지 않아야 함
+                log::debug!("overlay received focus event (unexpected with WS_EX_NOACTIVATE)");
             }
             WindowEvent::Focused(false) => {
                 let snapshot = store.snapshot();
@@ -774,14 +783,6 @@ impl Drop for AppState {
     }
 }
 
-fn focus_main_window(app: &AppHandle) {
-    if let Some(main) = app.get_webview_window("main") {
-        if let Err(err) = main.set_focus() {
-            log::debug!("failed to refocus main window: {err}");
-        }
-    }
-}
-
 fn attach_main_window_close_handler(
     window: WebviewWindow,
     overlay_force_close: Arc<AtomicBool>,
@@ -840,6 +841,20 @@ fn hide_overlay_window(window: &WebviewWindow) -> Result<()> {
         window.hide()?;
         Ok(())
     }
+}
+
+#[cfg(target_os = "windows")]
+fn set_window_no_activate(window: &WebviewWindow) -> Result<()> {
+    use windows::Win32::UI::WindowsAndMessaging::{
+        GetWindowLongW, SetWindowLongW, GWL_EXSTYLE, WS_EX_NOACTIVATE,
+    };
+
+    let hwnd = window.hwnd()?;
+    unsafe {
+        let ex_style = GetWindowLongW(hwnd, GWL_EXSTYLE);
+        SetWindowLongW(hwnd, GWL_EXSTYLE, ex_style | WS_EX_NOACTIVATE.0 as i32);
+    }
+    Ok(())
 }
 
 fn convert_physical_bounds_to_logical(
