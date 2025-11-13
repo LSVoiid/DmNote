@@ -155,6 +155,7 @@ export interface DMNoteAPI {
     restart(): Promise<void>;
   };
   window: {
+    type: "main" | "overlay";
     minimize(): Promise<void>;
     close(): Promise<void>;
     openDevtoolsAll?(): Promise<void>;
@@ -263,6 +264,7 @@ export interface DMNoteAPI {
       hasData(prefix: string): Promise<boolean>;
       clearByPrefix(prefix: string): Promise<number>;
     };
+    registerCleanup(cleanup: () => void): void;
   };
   ui: {
     contextMenu: {

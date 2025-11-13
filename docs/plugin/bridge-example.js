@@ -10,10 +10,7 @@
  */
 
 (function () {
-  // 재주입 대비 기존 리소스 정리
-  if (window.__dmn_custom_js_cleanup) window.__dmn_custom_js_cleanup();
-
-  const windowType = window.__dmn_window_type;
+  const windowType = window.api.window.type;
   const unsubs = [];
 
   // === 공통: 모든 브릿지 메시지 로깅 (디버깅용) ===
@@ -137,12 +134,11 @@
     );
 
     // 클린업
-    window.__dmn_custom_js_cleanup = function () {
+    window.api.plugin.registerCleanup(() => {
       unsubs.forEach((fn) => fn && fn());
       panel.remove();
       style.remove();
-      delete window.__dmn_custom_js_cleanup;
-    };
+    });
   }
 
   // === 오버레이 윈도우 전용 코드 ===
@@ -258,13 +254,12 @@
     );
 
     // 클린업
-    window.__dmn_custom_js_cleanup = function () {
+    window.api.plugin.registerCleanup(() => {
       clearInterval(statsTimer);
       unsubs.forEach((fn) => fn && fn());
       panel.remove();
       style.remove();
-      delete window.__dmn_custom_js_cleanup;
-    };
+    });
   }
 
   // 윈도우 타입이 확인되지 않은 경우

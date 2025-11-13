@@ -17,6 +17,8 @@ export function useCustomJsInjection() {
       string,
       { element: HTMLScriptElement; cleanup?: () => void; pluginId?: string }
     >();
+    // Registry 패턴: 플러그인별 클린업 함수 배열 관리
+    const cleanupRegistry = new Map<string, (() => void)[]>();
     let enabled = false;
     let disposed = false;
     let currentPlugins: JsPlugin[] = [];
@@ -31,18 +33,35 @@ export function useCustomJsInjection() {
       }
     };
 
+    const runPluginCleanups = (pluginId: string) => {
+      // Registry에 등록된 클린업 함수들 실행
+      const cleanups = cleanupRegistry.get(pluginId) || [];
+      cleanups.forEach((cleanup, index) => {
+        safeRun(cleanup, `${pluginId}[${index}]`);
+      });
+      cleanupRegistry.delete(pluginId);
+    };
+
     const removeAll = () => {
       for (const [
         id,
         { element, cleanup, pluginId },
       ] of activeElements.entries()) {
         // cleanup 함수 실행 시 플러그인 컨텍스트 설정
-        if (cleanup && pluginId) {
+        if (pluginId) {
           const previousPluginId = (window as any).__dmn_current_plugin_id;
           (window as any).__dmn_current_plugin_id = pluginId;
-          safeRun(cleanup, id);
+
+          // 1. Registry 클린업 실행 (새로운 방식)
+          runPluginCleanups(pluginId);
+
+          // 2. 레거시 클린업 실행 (하위 호환성)
+          if (cleanup) {
+            safeRun(cleanup, id);
+          }
+
           (window as any).__dmn_current_plugin_id = previousPluginId;
-        } else {
+        } else if (cleanup) {
           safeRun(cleanup, id);
         }
 
@@ -99,6 +118,20 @@ export function useCustomJsInjection() {
 
             // 원본 스토리지 API 참조
             const originalStorage = window.api.plugin.storage;
+
+            // Registry API: 플러그인별 클린업 함수 등록
+            const registerCleanup = (cleanup: () => void) => {
+              if (typeof cleanup !== "function") {
+                console.warn(
+                  `[Plugin ${pluginId}] registerCleanup requires a function`
+                );
+                return;
+              }
+              if (!cleanupRegistry.has(pluginId)) {
+                cleanupRegistry.set(pluginId, []);
+              }
+              cleanupRegistry.get(pluginId)!.push(cleanup);
+            };
 
             // 플러그인별 자동 네임스페이스 + 레거시 데이터 마이그레이션 지원 스토리지
             const namespacedStorage = {
@@ -157,9 +190,15 @@ export function useCustomJsInjection() {
             // 플러그인 전용 API가 주입된 window 프록시 생성
             const proxiedApi = {
               ...window.api,
+              window: {
+                ...window.api.window,
+                // window.type은 현재 윈도우 타입을 반환
+                type: (window as any).__dmn_window_type as "main" | "overlay",
+              },
               plugin: {
                 ...window.api.plugin,
                 storage: namespacedStorage,
+                registerCleanup,
               },
             } as typeof window.api;
 

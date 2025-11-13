@@ -12,11 +12,8 @@
  */
 
 (function () {
-  // 기존 클린업 함수 호출
-  if (window.__dmn_custom_js_cleanup) window.__dmn_custom_js_cleanup();
-
   // 메인 윈도우에서만 실행
-  if (window.__dmn_window_type !== "main") return;
+  if (window.api.window.type !== "main") return;
 
   console.log("[Context Menu Example] Plugin loaded");
 
@@ -231,7 +228,7 @@
   // ============================================================
   // 클린업
   // ============================================================
-  window.__dmn_custom_js_cleanup = function () {
+  window.api.plugin.registerCleanup(() => {
     console.log("[Context Menu Example] Cleanup called");
 
     // 방법 1: 개별 제거
@@ -239,9 +236,7 @@
 
     // 방법 2: 일괄 제거 (권장)
     window.api.ui.contextMenu.clearMyMenuItems();
-
-    delete window.__dmn_custom_js_cleanup;
-  };
+  });
 
   console.log(
     `[Context Menu Example] ${menuIds.length}개의 메뉴 아이템이 추가되었습니다.`

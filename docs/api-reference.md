@@ -90,6 +90,39 @@ await window.api.app.restart();
 
 ## 윈도우 (window)
 
+### `window.api.window.type`
+
+현재 윈도우의 타입을 반환합니다.
+
+**타입**: `"main" | "overlay"`
+
+**반환값**:
+
+- `"main"`: 메인 윈도우 (설정/키 맵핑 UI)
+- `"overlay"`: 오버레이 윈도우 (키 시각화/노트 이펙트)
+
+**사용 예**:
+
+```javascript
+// 윈도우 타입에 따라 다른 로직 실행
+if (window.api.window.type === "overlay") {
+  // 오버레이 전용 코드
+  console.log("This is overlay window");
+} else if (window.api.window.type === "main") {
+  // 메인 윈도우 전용 코드
+  console.log("This is main window");
+}
+
+// 플러그인에서 활용
+(function () {
+  if (window.api.window.type !== "overlay") return;
+
+  // 오버레이에서만 실행되는 코드
+})();
+```
+
+---
+
 ### `window.api.window.minimize()`
 
 메인 윈도우를 최소화합니다.
@@ -1839,6 +1872,115 @@ async function initializeStorage() {
   }
 }
 ```
+
+---
+
+### 클린업 (`window.api.plugin.registerCleanup`)
+
+플러그인이 재로드될 때 자동으로 실행할 정리 작업을 등록합니다. 이벤트 리스너 제거, 타이머 정리, DOM 요소 제거 등 메모리 누수 방지를 위한 정리 작업을 안전하게 처리할 수 있습니다.
+
+#### `window.api.plugin.registerCleanup(cleanup)`
+
+플러그인 재로드 시 실행될 클린업 함수를 등록합니다.
+
+**매개변수**:
+
+- `cleanup: () => void` - 플러그인 재로드 시 실행할 함수
+
+**반환형**: `void`
+
+**사용 예 (권장)** - 단일 등록:
+
+```javascript
+// @id: my-plugin
+
+(function () {
+  // UI 요소 생성
+  const panel = document.createElement("div");
+  panel.id = "my-plugin-panel";
+  document.body.appendChild(panel);
+
+  // 이벤트 리스너 추가
+  const handleKeyPress = (e) => console.log("Key:", e.key);
+  window.addEventListener("keydown", handleKeyPress);
+
+  // 타이머 설정
+  const intervalId = setInterval(() => {
+    console.log("Update");
+  }, 1000);
+
+  // 모든 정리 작업을 한 번에 등록 (권장)
+  window.api.plugin.registerCleanup(() => {
+    // DOM 정리
+    const existingPanel = document.getElementById("my-plugin-panel");
+    if (existingPanel) {
+      existingPanel.remove();
+    }
+
+    // 이벤트 리스너 정리
+    window.removeEventListener("keydown", handleKeyPress);
+
+    // 타이머 정리
+    clearInterval(intervalId);
+
+    console.log("Plugin cleanup completed");
+  });
+})();
+```
+
+**사용 예 (고급)** - 여러 번 등록:
+
+```javascript
+// @id: advanced-plugin
+
+(function () {
+  // DOM 요소 생성
+  const panel = document.createElement("div");
+  document.body.appendChild(panel);
+  window.api.plugin.registerCleanup(() => panel.remove());
+
+  // 이벤트 리스너 추가
+  const handler = () => console.log("Click");
+  panel.addEventListener("click", handler);
+  window.api.plugin.registerCleanup(() =>
+    panel.removeEventListener("click", handler)
+  );
+
+  // 타이머 설정
+  const timerId = setInterval(() => console.log("Tick"), 1000);
+  window.api.plugin.registerCleanup(() => clearInterval(timerId));
+
+  // 각 리소스마다 개별 등록 가능
+  // 플러그인 재로드 시 모두 자동 실행됨
+})();
+```
+
+**동작**:
+
+- 플러그인이 재로드될 때 등록된 모든 클린업 함수가 자동으로 실행됩니다
+- 여러 번 호출하여 여러 클린업 함수를 등록할 수 있습니다
+- 등록된 순서와 상관없이 모두 안전하게 실행됩니다
+- 각 플러그인의 클린업은 독립적으로 관리됩니다
+
+**중요**:
+
+- 클린업 함수는 플러그인 코드가 다시 로드되기 전에 실행됩니다
+- 메모리 누수 방지를 위해 모든 이벤트 리스너, 타이머, DOM 요소를 정리해야 합니다
+- 비동기 작업(Promise, setTimeout 등)도 적절히 정리해야 합니다
+
+**언제 클린업이 실행되나요?**
+
+- 플러그인 파일을 저장하여 재로드할 때
+- 앱 설정에서 플러그인을 비활성화할 때
+- 앱을 종료할 때
+
+**클린업이 필요한 경우**:
+
+- ✅ `addEventListener`로 이벤트 리스너를 추가했을 때 → `removeEventListener`
+- ✅ `setInterval` / `setTimeout`을 사용했을 때 → `clearInterval` / `clearTimeout`
+- ✅ DOM 요소를 생성했을 때 → `element.remove()`
+- ✅ 전역 변수를 설정했을 때 → `delete window.variableName`
+- ✅ 외부 리소스(WebSocket, API 연결 등)를 생성했을 때 → 연결 종료
 
 ---
 

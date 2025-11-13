@@ -1,10 +1,8 @@
-(function () {
-  // 재주입 시 기존 리소스 정리
-  if (window.__dmn_cps_cleanup) window.__dmn_cps_cleanup();
-  if (window.__dmn_custom_js_cleanup) window.__dmn_custom_js_cleanup();
+// @id kps-counter
 
-  // 오버레이 윈도우 전용 
-  if (window.__dmn_window_type !== "overlay") {
+(function () {
+  // 오버레이 윈도우 전용
+  if (window.api.window.type !== "overlay") {
     return;
   }
 
@@ -15,7 +13,6 @@
   const FONT_SIZE = 12; // 글자 크기
 
   // 내부 상태
-  let disposed = false;
   let currentMode = null;
   let keyMap = {}; // { mode: string[] }
   let trackedKeys = new Set(); // 현재 모드의 키들
@@ -195,29 +192,15 @@
 
   bootstrap();
 
-  // cleanup 함수 (재주입/비활성화 대비)
-  const __cleanup = function () {
-    if (disposed) return;
-    disposed = true;
-    try {
-      clearInterval(refreshTimer);
-    } catch {}
-    try {
-      for (const un of unsubscribers) {
-        try {
-          un && un();
-        } catch {}
-      }
-    } catch {}
-    try {
-      panel.remove();
-    } catch {}
-    try {
-      style.remove();
-    } catch {}
-    delete window.__dmn_cps_cleanup;
-    delete window.__dmn_custom_js_cleanup;
-  };
-  window.__dmn_cps_cleanup = __cleanup;
-  window.__dmn_custom_js_cleanup = __cleanup;
+  // ✨ 클린업 등록
+  window.api.plugin.registerCleanup(() => {
+    clearInterval(refreshTimer);
+    unsubscribers.forEach((un) => {
+      try {
+        un && un();
+      } catch {}
+    });
+    panel.remove();
+    style.remove();
+  });
 })();

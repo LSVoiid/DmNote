@@ -2,8 +2,7 @@
 // Display Element API 데모: 타이머 위젯 (내장 컨텍스트 메뉴 사용)
 
 (function () {
-  if (window.__dmn_custom_js_cleanup) window.__dmn_custom_js_cleanup();
-  if (window.__dmn_window_type !== "main") return;
+  if (window.api.window.type !== "main") return;
 
   console.log("[Display Element Demo] 플러그인 로드됨");
 
@@ -100,14 +99,14 @@
   });
 
   // ============================================================
-  // 초기 타이머 생성
+  // 이니셔 타이머 생성
   // ============================================================
   // createTimer(300, 100);
 
   // ============================================================
-  // Cleanup
+  // ✨ Cleanup
   // ============================================================
-  window.__dmn_custom_js_cleanup = function () {
+  window.api.plugin.registerCleanup(() => {
     // 모든 타이머 정리
     timers.forEach((timer) => {
       clearInterval(timer.interval);
@@ -119,7 +118,5 @@
 
     // Display Element 제거
     window.api.ui.displayElement.clearMyElements();
-
-    delete window.__dmn_custom_js_cleanup;
-  };
+  });
 })();

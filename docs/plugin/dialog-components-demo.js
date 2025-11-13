@@ -10,7 +10,12 @@
  * - ui.components는 모달 내부 구성을 위한 API임을 시연
  */
 
+// @id dialog-components-demo
+
 (async () => {
+  // 메인 윈도우 전용
+  if (window.api.window.type !== "main") return;
+
   console.log("[Dialog Demo] 플러그인 로드됨");
 
   // Display Element에서 사용할 이벤트 핸들러 등록
@@ -289,10 +294,6 @@
     window[key] = handlers[key];
   });
 
-  // 재주입 시 기존 리소스 정리
-  if (window.__dmn_dialog_demo_cleanup) window.__dmn_dialog_demo_cleanup();
-  if (window.__dmn_custom_js_cleanup) window.__dmn_custom_js_cleanup();
-
   // 트리거 버튼 패널 생성 (KPS 플러그인처럼 직접 DOM 추가)
   const triggerButtons = `
     <div class="flex flex-col gap-[8px]">
@@ -336,25 +337,16 @@
   wrapper.innerHTML = triggerPanel;
   document.body.appendChild(wrapper);
 
-  // cleanup 함수
-  let disposed = false;
-  const __cleanup = function () {
-    if (disposed) return;
-    disposed = true;
-    try {
-      wrapper.remove();
-    } catch {}
+  // ✨ 클린업 등록
+  window.api.plugin.registerCleanup(() => {
+    wrapper.remove();
     // 전역 핸들러 제거
     Object.keys(handlers).forEach((key) => {
       try {
         delete window[key];
       } catch {}
     });
-    delete window.__dmn_dialog_demo_cleanup;
-    delete window.__dmn_custom_js_cleanup;
-  };
-  window.__dmn_dialog_demo_cleanup = __cleanup;
-  window.__dmn_custom_js_cleanup = __cleanup;
+  });
 
   console.log("[Dialog Demo] 트리거 패널 생성 완료");
 })();

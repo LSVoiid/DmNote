@@ -29,7 +29,61 @@ DM Note는 사용자가 작성한 JavaScript를 런타임에 주입할 수 있�
 
 DM Note는 커스텀 JS 스크립트에서 사용할 수 있는 전역 API와 컨벤션을 제공합니다.
 
-### `window.__dmn_custom_js_cleanup`
+### `window.api.window.type` ⭐
+
+**역할**: 현재 윈도우의 타입을 식별하는 프로퍼티입니다.
+
+**타입**: `"main" | "overlay"`
+
+**값**:
+
+- `'main'`: 메인 윈도우 (설정/키 맵핑 UI)
+- `'overlay'`: 오버레이 윈도우 (키 시각화/노트 이펙트)
+
+**사용법**:
+
+```javascript
+(function () {
+  // 오버레이 전용 스크립트
+  if (window.api.window.type !== "overlay") {
+    return; // 오버레이가 아니면 실행 안 함
+  }
+
+  // 오버레이에서만 동작하는 코드
+  const stats = document.createElement("div");
+  stats.textContent = "Overlay Active";
+  document.body.appendChild(stats);
+
+  window.api.plugin.registerCleanup(() => {
+    stats.remove();
+  });
+})();
+```
+
+```javascript
+(function () {
+  // 메인 전용 스크립트
+  if (window.api.window.type !== "main") {
+    return; // 메인 윈도우가 아니면 실행 안 함
+  }
+
+  console.log("Main window script initialized");
+
+  window.api.plugin.registerCleanup(() => {
+    console.log("Main window script cleanup");
+  });
+})();
+```
+
+**사용 케이스**:
+
+- 오버레이에만 표시되는 실시간 통계 패널
+- 키 입력 시각화와 노트 이펙트 연동
+- 메인 창에만 적용되는 설정 UI 확장
+
+---
+
+### `window.api.plugin.registerCleanup()` ⭐ 권장
 
 **역할**: 스크립트가 생성한 리소스(타이머, 이벤트 리스너, DOM 요소 등)를 정리하는 함수를 등록합니다.
 
@@ -39,13 +93,76 @@ DM Note는 커스텀 JS 스크립트에서 사용할 수 있는 전역 API와 �
 - 새 스크립트를 주입할 때(재주입)
 - 윈도우가 언마운트될 때
 
-> ℹ️ 여러 플러그인을 사용할 경우 DM Note는 각 플러그인을 순차적으로 주입하며, 새로 주입하기 전에 직전 플러그인의 클린업 함수를 먼저 호출합니다.
+**장점**:
+
+- ✅ **자동 관리**: 플러그인별로 자동으로 격리되어 관리됨
+- ✅ **유연성**: 한 번에 등록하거나 분리해서 등록 가능
+- ✅ **순서 보장**: 등록한 순서대로 클린업 실행
+- ✅ **명시적**: 코드 의도가 명확함
+
+**기본 사용법 (권장)** - 모든 클린업을 한 번에 등록:
+
+```javascript
+(function () {
+  const panel = document.createElement("div");
+  document.body.appendChild(panel);
+
+  const timer = setInterval(() => console.log("tick"), 1000);
+  const unsubKeys = window.api.keys.onKeyState(() => {});
+  const unsubSettings = window.api.settings.onChanged(() => {});
+
+  // ✨ 모든 클린업을 한 번에 등록 (권장)
+  window.api.plugin.registerCleanup(() => {
+    clearInterval(timer);
+    unsubKeys();
+    unsubSettings();
+    panel.remove();
+  });
+})();
+```
+
+**고급 사용법 (선택)** - 리소스 타입별로 분리:
+
+복잡한 플러그인이나 조건부 클린업이 필요한 경우 여러 번 호출할 수 있습니다.
+
+```javascript
+(function () {
+  const panel = document.createElement("div");
+  document.body.appendChild(panel);
+
+  const timer = setInterval(() => console.log("tick"), 1000);
+  const unsubKeys = window.api.keys.onKeyState(() => {});
+
+  // 타이머 클린업
+  window.api.plugin.registerCleanup(() => {
+    clearInterval(timer);
+  });
+
+  // 이벤트 구독 클린업
+  window.api.plugin.registerCleanup(() => {
+    unsubKeys();
+  });
+
+  // DOM 클린업
+  window.api.plugin.registerCleanup(() => {
+    panel.remove();
+  });
+})();
+```
+
+---
+
+### `window.__dmn_custom_js_cleanup` (레거시)
+
+> ⚠️ **레거시 방식**: 하위 호환성을 위해 지원되지만, 새로운 플러그인에서는 `window.api.plugin.registerCleanup()` 사용을 권장합니다.
 
 **사용법**:
 
 ```javascript
 (function () {
-  // 리소스 생성 예시
+  // 재주입 대비 기존 클린업 호출 (레거시)
+  if (window.__dmn_custom_js_cleanup) window.__dmn_custom_js_cleanup();
+
   const panel = document.createElement("div");
   document.body.appendChild(panel);
 
@@ -53,14 +170,9 @@ DM Note는 커스텀 JS 스크립트에서 사용할 수 있는 전역 API와 �
     console.log("Running...");
   }, 1000);
 
-  const unsubscribe = window.api.keys.onKeyState((data) => {
-    console.log("Key event:", data);
-  });
-
-  // 정리 함수 등록 (필수!)
+  // 레거시 클린업 함수 등록
   window.__dmn_custom_js_cleanup = function () {
     clearInterval(timer);
-    unsubscribe();
     panel.remove();
     delete window.__dmn_custom_js_cleanup;
   };
@@ -69,23 +181,31 @@ DM Note는 커스텀 JS 스크립트에서 사용할 수 있는 전역 API와 �
 
 **권장사항**:
 
-- 모든 커스텀 JS는 클린업 함수를 반드시 제공해야 합니다.
-- 클린업에서 `delete window.__dmn_custom_js_cleanup`으로 자기 자신을 제거하세요.
-- 재주입 시 이전 클린업을 먼저 호출: `if (window.__dmn_custom_js_cleanup) window.__dmn_custom_js_cleanup();`
+- 새로운 플러그인: `window.api.plugin.registerCleanup()` 사용
+- 기존 플러그인: 점진적으로 마이그레이션 권장
+- 두 방식 모두 사용 가능 (병행 지원)
 
 ---
 
-### `window.__dmn_window_type`
+### `window.__dmn_window_type` (레거시)
+
+> ⚠️ **레거시 방식**: 하위 호환성을 위해 지원되지만, 새로운 플러그인에서는 `window.api.window.type` 사용을 권장합니다.
 
 **역할**: 현재 렌더러의 윈도우 타입을 문자열로 식별하는 전역 변수입니다.
 
 **값**:
 
-- `'main'`: 메인 윈도우 (설정/키 맵핑 UI)
-- `'overlay'`: 오버레이 윈도우 (키 시각화/노트 이펙트)
+- `'main'`: 메인 윈도우
+- `'overlay'`: 오버레이 윈도우
 - `undefined`: 윈도우가 언마운트된 경우
 
-**사용법**:
+**권장사항**:
+
+- 새로운 플러그인: `window.api.window.type` 사용
+- 기존 플러그인: 점진적으로 마이그레이션 권장
+- 두 방식 모두 계속 작동
+
+---
 
 ```javascript
 (function () {
@@ -539,11 +659,8 @@ window.api.bridge.once("RESPONSE_STATS", (stats) => {
 
 ```javascript
 (function () {
-  // 재주입 대비 기존 리소스 정리
-  if (window.__dmn_custom_js_cleanup) window.__dmn_custom_js_cleanup();
-
   // 오버레이 전용
-  if (window.__dmn_window_type !== "overlay") return;
+  if (window.api.window.type !== "overlay") return;
 
   // 설정
   const WINDOW_MS = 1000; // 1초 윈도우
@@ -602,22 +719,16 @@ window.api.bridge.once("RESPONSE_STATS", (stats) => {
   const timer = setInterval(render, REFRESH_MS);
 
   // 이벤트 구독
-  const unsubs = [];
+  const unsubKeyState = window.api.keys.onKeyState(({ key, state }) => {
+    if (!trackedKeys.has(key) || state !== "DOWN") return;
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key).push(Date.now());
+  });
 
-  unsubs.push(
-    window.api.keys.onKeyState(({ key, state }) => {
-      if (!trackedKeys.has(key) || state !== "DOWN") return;
-      if (!buckets.has(key)) buckets.set(key, []);
-      buckets.get(key).push(Date.now());
-    })
-  );
-
-  unsubs.push(
-    window.api.keys.onModeChanged(({ mode }) => {
-      currentMode = mode;
-      trackedKeys = new Set(keyMap[mode] || []);
-    })
-  );
+  const unsubMode = window.api.keys.onModeChanged(({ mode }) => {
+    currentMode = mode;
+    trackedKeys = new Set(keyMap[mode] || []);
+  });
 
   // 초기화
   (async () => {
@@ -627,14 +738,14 @@ window.api.bridge.once("RESPONSE_STATS", (stats) => {
     trackedKeys = new Set(keyMap[currentMode] || []);
   })();
 
-  // 정리
-  window.__dmn_custom_js_cleanup = function () {
+  // ✨ 클린업 등록
+  window.api.plugin.registerCleanup(() => {
     clearInterval(timer);
-    unsubs.forEach((fn) => fn && fn());
+    unsubKeyState();
+    unsubMode();
     panel.remove();
     style.remove();
-    delete window.__dmn_custom_js_cleanup;
-  };
+  });
 })();
 ```
 
@@ -646,8 +757,7 @@ window.api.bridge.once("RESPONSE_STATS", (stats) => {
 
 ```javascript
 (function () {
-  if (window.__dmn_custom_js_cleanup) window.__dmn_custom_js_cleanup();
-  if (window.__dmn_window_type !== "overlay") return;
+  if (window.api.window.type !== "overlay") return;
 
   const style = document.createElement("style");
   style.textContent = `
@@ -692,12 +802,12 @@ window.api.bridge.once("RESPONSE_STATS", (stats) => {
     setTimeout(() => keyEl.remove(), 2000);
   });
 
-  window.__dmn_custom_js_cleanup = function () {
+  // ✨ 클린업 등록
+  window.api.plugin.registerCleanup(() => {
     unsub();
     container.remove();
     style.remove();
-    delete window.__dmn_custom_js_cleanup;
-  };
+  });
 })();
 ```
 
@@ -709,10 +819,8 @@ window.api.bridge.once("RESPONSE_STATS", (stats) => {
 
 ```javascript
 (function () {
-  if (window.__dmn_custom_js_cleanup) window.__dmn_custom_js_cleanup();
-
   // 메인 전용
-  if (window.__dmn_window_type !== "main") return;
+  if (window.api.window.type !== "main") return;
 
   console.log("[Settings Logger] Started");
 
@@ -720,11 +828,11 @@ window.api.bridge.once("RESPONSE_STATS", (stats) => {
     console.log("[Settings Changed]", new Date().toISOString(), settings);
   });
 
-  window.__dmn_custom_js_cleanup = function () {
+  // ✨ 클린업 등록
+  window.api.plugin.registerCleanup(() => {
     unsub();
     console.log("[Settings Logger] Stopped");
-    delete window.__dmn_custom_js_cleanup;
-  };
+  });
 })();
 ```
 
@@ -734,7 +842,7 @@ window.api.bridge.once("RESPONSE_STATS", (stats) => {
 
 ### 1. 즉시 실행 함수로 감싸기
 
-스코프 오염을 방지하고 재주입 시 충돌을 막습니다.
+스코프 오염을 방지합니다.
 
 ```javascript
 (function () {
@@ -742,29 +850,50 @@ window.api.bridge.once("RESPONSE_STATS", (stats) => {
 })();
 ```
 
-### 2. 재주입 대비 클린업 먼저 호출
-
-```javascript
-if (window.__dmn_custom_js_cleanup) window.__dmn_custom_js_cleanup();
-```
-
-### 3. 윈도우 타입 체크
+### 2. 윈도우 타입 체크
 
 ```javascript
 // 오버레이 전용
-if (window.__dmn_window_type !== "overlay") return;
+if (window.api.window.type !== "overlay") return;
 
 // 메인 전용
-if (window.__dmn_window_type !== "main") return;
+if (window.api.window.type !== "main") return;
 
 // 특정 윈도우 타입에서만 실행
 const allowedTypes = ["overlay", "main"];
-if (!allowedTypes.includes(window.__dmn_window_type)) return;
+if (!allowedTypes.includes(window.api.window.type)) return;
 ```
 
-### 4. 클린업 함수 필수 구현
+### 3. 클린업 함수 필수 구현
 
 ```javascript
+// ✨ 권장: 모든 클린업을 한 번에 등록
+window.api.plugin.registerCleanup(() => {
+  // 타이머 정리
+  clearInterval(timerId);
+  clearTimeout(timeoutId);
+
+  // 이벤트 구독 해제
+  unsubscribe1();
+  unsubscribe2();
+
+  // DOM 정리
+  panel.remove();
+  style.remove();
+});
+
+// 선택: 리소스별로 분리 (복잡한 플러그인)
+window.api.plugin.registerCleanup(() => clearInterval(timerId));
+window.api.plugin.registerCleanup(() => unsubscribers.forEach((fn) => fn()));
+window.api.plugin.registerCleanup(() => panel.remove());
+```
+
+### 4. 레거시 방식 (하위 호환성)
+
+```javascript
+// 재주입 대비 기존 리소스 정리
+if (window.__dmn_custom_js_cleanup) window.__dmn_custom_js_cleanup();
+
 window.__dmn_custom_js_cleanup = function () {
   // 타이머 정리
   clearInterval(timerId);

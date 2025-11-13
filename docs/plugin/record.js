@@ -1,9 +1,6 @@
 (function () {
-  // 재주입 시 기존 리소스 정리
-  if (window.__dmn_custom_js_cleanup) window.__dmn_custom_js_cleanup();
-
   // 메인 윈도우 전용
-  if (window.__dmn_window_type !== "main") {
+  if (window.api.window.type !== "main") {
     return;
   }
 
@@ -329,7 +326,7 @@
   bootstrap();
 
   // 클린업 함수
-  const __cleanup = function () {
+  window.api.plugin.registerCleanup(() => {
     if (disposed) return;
     disposed = true;
 
@@ -392,10 +389,6 @@
       console.error("[Record] Style removal error:", e);
     }
 
-    delete window.__dmn_custom_js_cleanup;
-
     console.log("[Record] Cleanup completed");
-  };
-
-  window.__dmn_custom_js_cleanup = __cleanup;
+  });
 })();

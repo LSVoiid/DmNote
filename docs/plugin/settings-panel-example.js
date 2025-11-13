@@ -17,11 +17,8 @@
  */
 
 (function () {
-  // 재주입 대비 기존 리소스 정리
-  if (window.__dmn_custom_js_cleanup) window.__dmn_custom_js_cleanup();
-
   // 메인 전용
-  if (window.__dmn_window_type == "overlay") return;
+  if (window.api.window.type !== "overlay") return;
 
   // 기본 설정값
   const DEFAULT_SETTINGS = {
@@ -379,15 +376,14 @@
   });
 
   // === 클린업 ===
-  window.__dmn_custom_js_cleanup = async function () {
+  window.api.plugin.registerCleanup(async () => {
     // 마지막 히스토리 저장
     await saveHistory();
 
     unsubKeyState();
     panel.remove();
     style.remove();
-    delete window.__dmn_custom_js_cleanup;
 
     console.log("[Settings Panel] 클린업 완료");
-  };
+  });
 })();
