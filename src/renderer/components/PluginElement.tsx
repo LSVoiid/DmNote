@@ -129,12 +129,155 @@ export const PluginElement: React.FC<PluginElementProps> = ({
           }
         });
       }
+
+      // data-plugin-handler 이벤트 위임 (메인 윈도우에서만)
+      if (windowType === "main") {
+        // 체크박스 토글 기능
+        const handleCheckboxToggle = (e: Event) => {
+          const targetEl = e.target as HTMLElement;
+          const checkbox = targetEl.closest("[data-checkbox-toggle]");
+          if (checkbox) {
+            const input = checkbox.querySelector(
+              "input[type=checkbox]"
+            ) as HTMLInputElement;
+            const knob = checkbox.querySelector("div") as HTMLElement;
+
+            if (input) {
+              input.checked = !input.checked;
+
+              // 스타일 토글
+              if (input.checked) {
+                checkbox.classList.remove("bg-[#3B4049]");
+                checkbox.classList.add("bg-[#493C1D]");
+                knob.classList.remove("left-[2px]", "bg-[#989BA6]");
+                knob.classList.add("left-[13px]", "bg-[#FFB400]");
+              } else {
+                checkbox.classList.remove("bg-[#493C1D]");
+                checkbox.classList.add("bg-[#3B4049]");
+                knob.classList.remove("left-[13px]", "bg-[#FFB400]");
+                knob.classList.add("left-[2px]", "bg-[#989BA6]");
+              }
+
+              // change 이벤트 발생
+              input.dispatchEvent(new Event("change", { bubbles: true }));
+            }
+          }
+        };
+
+        // 드롭다운 토글 기능
+        const handleDropdownToggle = (e: Event) => {
+          const targetEl = e.target as HTMLElement;
+          const toggleBtn = targetEl.closest("[data-dropdown-toggle]");
+          const dropdownItem = targetEl.closest(
+            "[data-dropdown-menu] button"
+          ) as HTMLElement;
+
+          if (toggleBtn) {
+            const dropdown = toggleBtn.closest(".plugin-dropdown");
+            const menu = dropdown?.querySelector("[data-dropdown-menu]");
+            const arrow = toggleBtn.querySelector("svg");
+
+            if (menu && arrow) {
+              const isHidden = menu.classList.contains("hidden");
+              if (isHidden) {
+                menu.classList.remove("hidden");
+                menu.classList.add("flex");
+                arrow.style.transform = "rotate(180deg)";
+              } else {
+                menu.classList.add("hidden");
+                menu.classList.remove("flex");
+                arrow.style.transform = "rotate(0deg)";
+              }
+            }
+            e.stopPropagation();
+          } else if (dropdownItem) {
+            const dropdown = dropdownItem.closest(".plugin-dropdown");
+            const menu = dropdown?.querySelector("[data-dropdown-menu]");
+            const arrow = dropdown?.querySelector("svg");
+            const display = dropdown?.querySelector(
+              "[data-dropdown-toggle] span"
+            );
+            const value = dropdownItem.getAttribute("data-value");
+
+            if (dropdown && menu && arrow && display && value) {
+              // 선택 값 업데이트
+              dropdown.setAttribute("data-selected", value);
+              display.textContent = dropdownItem.textContent?.trim() || value;
+
+              // 메뉴 닫기
+              menu.classList.add("hidden");
+              menu.classList.remove("flex");
+              arrow.style.transform = "rotate(0deg)";
+
+              // change 이벤트 발생
+              const changeEvent = new Event("change", { bubbles: true });
+              dropdown.dispatchEvent(changeEvent);
+            }
+            e.stopPropagation();
+          }
+        };
+
+        const handleEvent = (e: Event) => {
+          const targetEl = e.target as HTMLElement;
+          const handlerAttr =
+            e.type === "click"
+              ? "data-plugin-handler"
+              : e.type === "input"
+              ? "data-plugin-handler-input"
+              : e.type === "change"
+              ? "data-plugin-handler-change"
+              : null;
+
+          if (!handlerAttr) return;
+
+          // 클릭/변경된 요소 또는 부모에서 핸들러 찾기
+          let currentElement: HTMLElement | null = targetEl;
+          let handlerName: string | null = null;
+
+          while (currentElement && currentElement !== target) {
+            handlerName = currentElement.getAttribute(handlerAttr);
+            if (handlerName) break;
+            currentElement = currentElement.parentElement;
+          }
+
+          if (!handlerName) return;
+
+          // 플러그인 컨텍스트 복원 후 핸들러 실행
+          const handler = (window as any)[handlerName];
+          if (typeof handler === "function") {
+            const prev = (window as any).__dmn_current_plugin_id;
+            if (element.pluginId)
+              (window as any).__dmn_current_plugin_id = element.pluginId;
+            try {
+              handler(e);
+            } finally {
+              (window as any).__dmn_current_plugin_id = prev;
+            }
+          }
+        };
+
+        target.addEventListener("click", handleCheckboxToggle);
+        target.addEventListener("click", handleDropdownToggle);
+        target.addEventListener("click", handleEvent);
+        target.addEventListener("change", handleEvent);
+        target.addEventListener("input", handleEvent);
+
+        // cleanup
+        return () => {
+          target.removeEventListener("click", handleCheckboxToggle);
+          target.removeEventListener("click", handleDropdownToggle);
+          target.removeEventListener("click", handleEvent);
+          target.removeEventListener("change", handleEvent);
+          target.removeEventListener("input", handleEvent);
+        };
+      }
     }
   }, [
     element.html,
     element.scoped,
     element.fullId,
     element.measuredSize,
+    element.pluginId,
     updateElement,
     windowType,
   ]);

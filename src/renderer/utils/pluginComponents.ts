@@ -1,0 +1,220 @@
+/**
+ * Plugin UI Components Utilities
+ * 플러그인에서 사용할 수 있는 UI 컴포넌트 HTML 생성 함수들
+ */
+
+export interface ButtonOptions {
+  variant?: "primary" | "danger" | "secondary";
+  size?: "small" | "medium" | "large";
+  disabled?: boolean;
+  fullWidth?: boolean;
+  onClick?: string; // 이벤트 핸들러 ID
+  id?: string;
+}
+
+export interface CheckboxOptions {
+  checked?: boolean;
+  onChange?: string;
+  id?: string;
+}
+
+export interface InputOptions {
+  type?: "text" | "number";
+  placeholder?: string;
+  value?: string | number;
+  disabled?: boolean;
+  onInput?: string;
+  onChange?: string;
+  id?: string;
+  width?: number;
+}
+
+export interface DropdownOption {
+  label: string;
+  value: string;
+}
+
+export interface DropdownOptions {
+  options: DropdownOption[];
+  selected?: string;
+  placeholder?: string;
+  disabled?: boolean;
+  onChange?: string;
+  id?: string;
+}
+
+export interface PanelOptions {
+  title?: string;
+  width?: number;
+}
+
+/**
+ * 버튼 HTML 생성
+ */
+export function createButton(
+  text: string,
+  options: ButtonOptions = {}
+): string {
+  const {
+    variant = "primary",
+    size = "medium",
+    disabled = false,
+    fullWidth = false,
+    onClick = "",
+    id = "",
+  } = options;
+
+  const baseClass = "transition-colors rounded-[7px] text-style-3";
+
+  const variantClass = {
+    primary:
+      "bg-[#2A2A30] hover:bg-[#303036] active:bg-[#393941] text-[#DCDEE7]",
+    danger:
+      "bg-[#3C1E1E] hover:bg-[#442222] active:bg-[#522929] text-[#E6DBDB]",
+    secondary:
+      "bg-[#2A2A31] border-[1px] border-[#3A3944] text-[#DBDEE8] hover:bg-[#34343c]",
+  }[variant];
+
+  const sizeClass = {
+    small: "h-[24px] px-[12px]",
+    medium: "h-[30px] px-[16px]",
+    large: "h-[36px] px-[20px]",
+  }[size];
+
+  const widthClass = fullWidth
+    ? "w-full"
+    : variant === "danger"
+    ? "w-[75px]"
+    : "w-[150px]";
+
+  const disabledClass = disabled
+    ? "opacity-50 cursor-not-allowed pointer-events-none"
+    : "";
+  const onClickAttr = onClick ? `data-plugin-handler="${onClick}"` : "";
+  const idAttr = id ? `id="${id}"` : "";
+
+  return `<button type="button" class="${baseClass} ${variantClass} ${sizeClass} ${widthClass} ${disabledClass}" ${onClickAttr} ${idAttr} ${
+    disabled ? "disabled" : ""
+  }>${text}</button>`;
+}
+
+/**
+ * 체크박스 (토글) HTML 생성
+ */
+export function createCheckbox(options: CheckboxOptions = {}): string {
+  const { checked = false, onChange = "", id = "" } = options;
+
+  const bgClass = checked ? "bg-[#493C1D]" : "bg-[#3B4049]";
+  const knobClass = checked
+    ? "left-[13px] bg-[#FFB400]"
+    : "left-[2px] bg-[#989BA6]";
+
+  const onChangeAttr = onChange ? `data-plugin-handler="${onChange}"` : "";
+  const idAttr = id ? `id="${id}"` : "";
+
+  // 내부 input[type=checkbox] 추가 (실제 상태 유지)
+  return `<label ${idAttr} class="relative inline-block w-[27px] h-[16px] rounded-[75px] cursor-pointer transition-colors duration-75 ${bgClass}" data-checkbox-toggle ${onChangeAttr}>
+    <input type="checkbox" ${
+      checked ? "checked" : ""
+    } class="absolute opacity-0 w-0 h-0" />
+    <div class="absolute w-[12px] h-[12px] rounded-[75px] top-[2px] transition-all duration-75 ease-in-out ${knobClass}"></div>
+  </label>`;
+}
+
+/**
+ * 인풋 필드 HTML 생성
+ */
+export function createInput(options: InputOptions = {}): string {
+  const {
+    type = "text",
+    placeholder = "",
+    value = "",
+    disabled = false,
+    onInput = "",
+    onChange = "",
+    id = "",
+    width = 200,
+  } = options;
+
+  const onInputAttr = onInput ? `data-plugin-handler-input="${onInput}"` : "";
+  const onChangeAttr = onChange
+    ? `data-plugin-handler-change="${onChange}"`
+    : "";
+  const idAttr = id ? `id="${id}"` : "";
+
+  return `<input ${idAttr} type="${type}" value="${value}" placeholder="${placeholder}" class="text-center px-[12px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943] focus:border-[#459BF8] text-style-4 text-[#DBDEE8] outline-none" style="width: ${width}px" ${
+    disabled ? "disabled" : ""
+  } ${onInputAttr} ${onChangeAttr} />`;
+}
+
+/**
+ * 드롭다운 HTML 생성
+ */
+export function createDropdown(options: DropdownOptions): string {
+  const {
+    options: items,
+    selected = "",
+    placeholder = "선택",
+    disabled = false,
+    onChange = "",
+    id = "",
+  } = options;
+
+  const selectedItem = items.find((opt) => opt.value === selected);
+  const displayText = selectedItem ? selectedItem.label : placeholder;
+
+  const idAttr = id ? `id="${id}"` : "";
+  const onChangeAttr = onChange ? `data-plugin-handler="${onChange}"` : "";
+
+  const itemsHtml = items
+    .map(
+      (opt) => `
+    <button type="button" class="text-left w-full px-[13px] py-[0px] rounded-[7px] text-style-2 text-[#DBDEE8] !leading-[23px] transition-colors duration-100 flex items-center bg-[#2A2A31] hover:bg-[#24232A] ${
+      selected === opt.value ? "!bg-[#24232A]" : ""
+    }" data-value="${opt.value}">
+      <span class="truncate">${opt.label}</span>
+    </button>
+  `
+    )
+    .join("");
+
+  return `<div class="relative plugin-dropdown" ${idAttr} ${onChangeAttr} data-selected="${selected}">
+    <button type="button" class="flex items-center justify-between py-[0px] px-[8px] bg-[#2A2A31] border-[1px] border-[#3A3944] rounded-[7px] text-[#DBDEE8] text-style-2 !leading-[23px] outline-none ${
+      disabled ? "opacity-50 pointer-events-none" : ""
+    }" data-dropdown-toggle>
+      <span class="truncate">${displayText}</span>
+      <svg width="8" height="5" viewBox="0 0 14 8" fill="none" class="ml-[5px] transition-transform duration-200">
+        <path d="M1 1L7 7L13 1" stroke="#DBDEE8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+    <div class="hidden absolute left-0 top-[26px] flex-col justify-center items-center p-[1px] bg-[#2A2A31] border-[1px] border-[#3A3944] rounded-[7px] z-20 overflow-hidden gap-[2px]" data-dropdown-menu>
+      ${itemsHtml}
+    </div>
+  </div>`;
+}
+
+/**
+ * 패널 컨테이너 HTML 생성
+ */
+export function createPanel(
+  content: string,
+  options: PanelOptions = {}
+): string {
+  const { title = "", width } = options;
+  const widthStyle = width ? `style="width: ${width}px"` : "";
+
+  return `<div class="bg-[#1A191E] rounded-[13px] border-[1px] border-[#2A2A30] p-[20px] flex flex-col gap-[16px]" ${widthStyle}>
+    ${title ? `<div class="text-style-3 text-[#FFFFFF]">${title}</div>` : ""}
+    ${content}
+  </div>`;
+}
+
+/**
+ * 폼 행 (라벨 + 컴포넌트) HTML 생성
+ */
+export function createFormRow(label: string, component: string): string {
+  return `<div class="flex justify-between w-full items-center">
+    <p class="text-white text-style-2">${label}</p>
+    ${component}
+  </div>`;
+}

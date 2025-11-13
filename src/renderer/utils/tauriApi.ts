@@ -3,6 +3,19 @@ import { listen } from "@tauri-apps/api/event";
 import { usePluginMenuStore } from "@stores/usePluginMenuStore";
 import { usePluginDisplayElementStore } from "@stores/usePluginDisplayElementStore";
 import type { PluginDisplayElement } from "@src/types/api";
+import {
+  createButton,
+  createCheckbox,
+  createInput,
+  createDropdown,
+  createPanel,
+  createFormRow,
+  type ButtonOptions,
+  type CheckboxOptions,
+  type InputOptions,
+  type DropdownOptions,
+  type PanelOptions,
+} from "./pluginComponents";
 
 import type {
   CssLoadResult,
@@ -446,6 +459,234 @@ const api: DMNoteAPI = {
 
         usePluginDisplayElementStore.getState().clearByPluginId(pluginId);
       },
+    },
+
+    // Dialog API
+    dialog: {
+      alert: (message: string, options?: { confirmText?: string }) => {
+        return new Promise<void>((resolve) => {
+          const showAlert = (window as any).__dmn_showAlert;
+          if (typeof showAlert !== "function") {
+            console.warn("[Dialog API] showAlert function not available");
+            resolve();
+            return;
+          }
+          showAlert(message, options?.confirmText);
+          // Alert는 확인만 있으므로 바로 resolve
+          setTimeout(resolve, 0);
+        });
+      },
+
+      confirm: (
+        message: string,
+        options?: {
+          confirmText?: string;
+          cancelText?: string;
+          danger?: boolean;
+        }
+      ) => {
+        return new Promise<boolean>((resolve) => {
+          const showConfirm = (window as any).__dmn_showConfirm;
+          if (typeof showConfirm !== "function") {
+            console.warn("[Dialog API] showConfirm function not available");
+            resolve(false);
+            return;
+          }
+          showConfirm(
+            message,
+            () => resolve(true),
+            () => resolve(false),
+            options?.confirmText
+          );
+        });
+      },
+
+      custom: (
+        html: string,
+        options?: {
+          confirmText?: string;
+          cancelText?: string;
+          showCancel?: boolean;
+        }
+      ) => {
+        return new Promise<boolean>((resolve) => {
+          const showCustomDialog = (window as any).__dmn_showCustomDialog;
+          if (typeof showCustomDialog !== "function") {
+            console.warn(
+              "[Dialog API] showCustomDialog function not available"
+            );
+            resolve(false);
+            return;
+          }
+
+          // 플러그인 ID 캡처
+          const pluginId = (window as any).__dmn_current_plugin_id;
+
+          // HTML 내 data-plugin-handler 이벤트 바인딩을 위한 래퍼
+          const wrappedHtml = `<div data-plugin-dialog-content data-plugin-id="${
+            pluginId || ""
+          }">${html}</div>`;
+
+          showCustomDialog(wrappedHtml, {
+            onConfirm: () => resolve(true),
+            onCancel: () => resolve(false),
+            confirmText: options?.confirmText,
+            cancelText: options?.cancelText,
+            showCancel: options?.showCancel,
+          });
+
+          // 다음 틱에 이벤트 리스너 등록
+          setTimeout(() => {
+            const dialogContent = document.querySelector(
+              "[data-plugin-dialog-content]"
+            );
+            if (!dialogContent) return;
+
+            // 체크박스 토글 기능
+            dialogContent.addEventListener("click", (e: Event) => {
+              const target = e.target as HTMLElement;
+              const checkbox = target.closest("[data-checkbox-toggle]");
+              if (checkbox) {
+                const input = checkbox.querySelector(
+                  "input[type=checkbox]"
+                ) as HTMLInputElement;
+                const knob = checkbox.querySelector("div") as HTMLElement;
+
+                if (input) {
+                  input.checked = !input.checked;
+
+                  // 스타일 토글
+                  if (input.checked) {
+                    checkbox.classList.remove("bg-[#3B4049]");
+                    checkbox.classList.add("bg-[#493C1D]");
+                    knob.classList.remove("left-[2px]", "bg-[#989BA6]");
+                    knob.classList.add("left-[13px]", "bg-[#FFB400]");
+                  } else {
+                    checkbox.classList.remove("bg-[#493C1D]");
+                    checkbox.classList.add("bg-[#3B4049]");
+                    knob.classList.remove("left-[13px]", "bg-[#FFB400]");
+                    knob.classList.add("left-[2px]", "bg-[#989BA6]");
+                  }
+
+                  // change 이벤트 발생
+                  input.dispatchEvent(new Event("change", { bubbles: true }));
+                }
+              }
+            });
+
+            // 드롭다운 토글 기능
+            dialogContent.addEventListener("click", (e: Event) => {
+              const target = e.target as HTMLElement;
+              const toggleBtn = target.closest("[data-dropdown-toggle]");
+              const dropdownItem = target.closest(
+                "[data-dropdown-menu] button"
+              ) as HTMLElement;
+
+              if (toggleBtn) {
+                const dropdown = toggleBtn.closest(".plugin-dropdown");
+                const menu = dropdown?.querySelector("[data-dropdown-menu]");
+                const arrow = toggleBtn.querySelector("svg");
+
+                if (menu && arrow) {
+                  const isHidden = menu.classList.contains("hidden");
+                  if (isHidden) {
+                    menu.classList.remove("hidden");
+                    menu.classList.add("flex");
+                    arrow.style.transform = "rotate(180deg)";
+                  } else {
+                    menu.classList.add("hidden");
+                    menu.classList.remove("flex");
+                    arrow.style.transform = "rotate(0deg)";
+                  }
+                }
+                e.stopPropagation();
+              } else if (dropdownItem) {
+                const dropdown = dropdownItem.closest(".plugin-dropdown");
+                const menu = dropdown?.querySelector("[data-dropdown-menu]");
+                const arrow = dropdown?.querySelector("svg");
+                const display = dropdown?.querySelector(
+                  "[data-dropdown-toggle] span"
+                );
+                const value = dropdownItem.getAttribute("data-value");
+
+                if (dropdown && menu && arrow && display && value) {
+                  // 선택 값 업데이트
+                  dropdown.setAttribute("data-selected", value);
+                  display.textContent =
+                    dropdownItem.textContent?.trim() || value;
+
+                  // 메뉴 닫기
+                  menu.classList.add("hidden");
+                  menu.classList.remove("flex");
+                  arrow.style.transform = "rotate(0deg)";
+
+                  // change 이벤트 발생
+                  const changeEvent = new Event("change", { bubbles: true });
+                  dropdown.dispatchEvent(changeEvent);
+                }
+                e.stopPropagation();
+              }
+            });
+
+            // data-plugin-handler 이벤트 위임
+            const handleEvent = (e: Event) => {
+              const target = e.target as HTMLElement;
+              const handlerAttr =
+                e.type === "click"
+                  ? "data-plugin-handler"
+                  : e.type === "input"
+                  ? "data-plugin-handler-input"
+                  : e.type === "change"
+                  ? "data-plugin-handler-change"
+                  : null;
+
+              if (!handlerAttr) return;
+
+              // 클릭된 요소 또는 부모에서 핸들러 찾기
+              let element: HTMLElement | null = target;
+              let handlerName: string | null = null;
+
+              while (element && element !== dialogContent) {
+                handlerName = element.getAttribute(handlerAttr);
+                if (handlerName) break;
+                element = element.parentElement;
+              }
+
+              if (!handlerName) return;
+
+              // 플러그인 컨텍스트 복원 후 핸들러 실행
+              const handler = (window as any)[handlerName];
+              if (typeof handler === "function") {
+                const prev = (window as any).__dmn_current_plugin_id;
+                if (pluginId)
+                  (window as any).__dmn_current_plugin_id = pluginId;
+                try {
+                  handler(e);
+                } finally {
+                  (window as any).__dmn_current_plugin_id = prev;
+                }
+              }
+            };
+
+            dialogContent.addEventListener("click", handleEvent);
+            dialogContent.addEventListener("change", handleEvent);
+            dialogContent.addEventListener("input", handleEvent);
+          }, 0);
+        });
+      },
+    },
+
+    // Components API
+    components: {
+      button: (text: string, options?: ButtonOptions) =>
+        createButton(text, options),
+      checkbox: (options?: CheckboxOptions) => createCheckbox(options),
+      input: (options?: InputOptions) => createInput(options),
+      dropdown: (options: DropdownOptions) => createDropdown(options),
+      panel: (content: string, options?: PanelOptions) =>
+        createPanel(content, options),
+      formRow: (label: string, component: string) =>
+        createFormRow(label, component),
     },
   },
 };

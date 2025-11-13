@@ -281,5 +281,32 @@ export interface DMNoteAPI {
       remove(fullId: string): void;
       clearMyElements(): void;
     };
+    dialog: {
+      alert(message: string, options?: { confirmText?: string }): Promise<void>;
+      confirm(
+        message: string,
+        options?: {
+          confirmText?: string;
+          cancelText?: string;
+          danger?: boolean;
+        }
+      ): Promise<boolean>;
+      custom(
+        html: string,
+        options?: {
+          confirmText?: string;
+          cancelText?: string;
+          showCancel?: boolean;
+        }
+      ): Promise<boolean>;
+    };
+    components: {
+      button(text: string, options?: any): string;
+      checkbox(options?: any): string;
+      input(options?: any): string;
+      dropdown(options: any): string;
+      panel(content: string, options?: any): string;
+      formRow(label: string, component: string): string;
+    };
   };
 }

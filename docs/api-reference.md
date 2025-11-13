@@ -2543,6 +2543,521 @@ window.api.keys.onKeyState((event) => {
 
 11. **컨텍스트 메뉴 자동 클린업**: 플러그인이 재주입되거나 비활성화될 때 해당 플러그인의 메뉴 아이템이 자동으로 제거됩니다. 하지만 명시적으로 `clearMyMenuItems()`를 호출하는 것을 권장합니다.
 
+12. **Dialog API**: `window.api.ui.dialog`는 **메인 윈도우에서만** 사용 가능합니다. Promise 기반으로 동작하므로 `await`로 사용자 응답을 기다릴 수 있습니다.
+
+13. **Components API**: `window.api.ui.components`는 HTML 문자열을 반환합니다. Display Element나 Custom Dialog 내부에서 사용하세요.
+
+---
+
+## Dialog API (`window.api.ui.dialog`)
+
+플러그인이 사용자와 상호작용할 수 있도록 앱의 모달 시스템을 제공합니다. **메인 윈도우에서만** 사용 가능합니다.
+
+**Components API와의 관계**: `dialog.custom()`을 사용하여 HTML 기반 커스텀 모달을 만들 때, `window.api.ui.components`의 컴포넌트 함수들을 활용하면 프로젝트 디자인 시스템과 일관된 UI를 구성할 수 있습니다.
+
+### `window.api.ui.dialog.alert(message, options?)`
+
+간단한 알림 대화상자를 표시합니다.
+
+**매개변수**:
+
+- `message: string` - 표시할 메시지
+- `options?: { confirmText?: string }` - 선택적 설정
+  - `confirmText`: 확인 버튼 텍스트 (기본값: "확인")
+
+**반환형**: `Promise<void>`
+
+**사용 예**:
+
+```javascript
+// 기본 알림
+await window.api.ui.dialog.alert("저장되었습니다!");
+
+// 커스텀 버튼 텍스트
+await window.api.ui.dialog.alert("작업 완료", { confirmText: "OK" });
+```
+
+---
+
+### `window.api.ui.dialog.confirm(message, options?)`
+
+확인/취소 대화상자를 표시합니다.
+
+**매개변수**:
+
+- `message: string` - 표시할 메시지
+- `options?: { confirmText?: string; cancelText?: string; danger?: boolean }` - 선택적 설정
+  - `confirmText`: 확인 버튼 텍스트 (기본값: "확인")
+  - `cancelText`: 취소 버튼 텍스트 (기본값: "취소")
+  - `danger`: true면 확인 버튼이 빨간색 (삭제 등 위험한 작업)
+
+**반환형**: `Promise<boolean>` - 확인 클릭 시 `true`, 취소 클릭 시 `false`
+
+**사용 예**:
+
+```javascript
+// 기본 확인
+const ok = await window.api.ui.dialog.confirm("정말 진행하시겠습니까?");
+if (ok) {
+  console.log("사용자가 확인을 눌렀습니다");
+}
+
+// 삭제 확인 (위험한 작업)
+const confirmed = await window.api.ui.dialog.confirm(
+  "모든 데이터가 삭제됩니다. 정말 삭제하시겠습니까?",
+  {
+    confirmText: "삭제",
+    cancelText: "취소",
+    danger: true,
+  }
+);
+
+if (confirmed) {
+  await window.api.plugin.storage.clear();
+  await window.api.ui.dialog.alert("삭제되었습니다");
+}
+```
+
+---
+
+### Dialog 사용 패턴
+
+#### 패턴 1: 저장 확인
+
+```javascript
+async function saveSettings(settings) {
+  const confirmed = await window.api.ui.dialog.confirm(
+    "설정을 저장하시겠습니까?"
+  );
+
+  if (confirmed) {
+    await window.api.plugin.storage.set("settings", settings);
+    await window.api.ui.dialog.alert("저장되었습니다!");
+  }
+}
+```
+
+#### 패턴 2: 데이터 삭제 확인
+
+```javascript
+async function deleteAllData() {
+  const confirmed = await window.api.ui.dialog.confirm(
+    "모든 플러그인 데이터가 삭제됩니다.\n이 작업은 취소할 수 없습니다.",
+    { danger: true, confirmText: "삭제", cancelText: "취소" }
+  );
+
+  if (confirmed) {
+    await window.api.plugin.storage.clear();
+    await window.api.ui.dialog.alert("데이터가 삭제되었습니다");
+  }
+}
+```
+
+#### 패턴 3: 조건부 확인
+
+```javascript
+async function exportData() {
+  const data = await window.api.plugin.storage.get("myData");
+
+  if (!data || data.length === 0) {
+    await window.api.ui.dialog.alert("내보낼 데이터가 없습니다");
+    return;
+  }
+
+  const confirmed = await window.api.ui.dialog.confirm(
+    `${data.length}개의 항목을 내보내시겠습니까?`
+  );
+
+  if (confirmed) {
+    // 내보내기 로직
+    console.log("Exporting...", data);
+    await window.api.ui.dialog.alert("내보내기 완료!");
+  }
+}
+```
+
+---
+
+## Components API (`window.api.ui.components`)
+
+**Components API**는 앱의 디자인 시스템과 일치하는 UI 컴포넌트 HTML을 생성합니다.
+
+#### Components API의 역할과 특성
+
+- **모달 내부 구성 요소**: 주로 Custom Dialog(`dialog.custom()`) 내부에서 사용하여 일관된 UI를 구성합니다
+- **HTML 문자열 반환**: 모든 컴포넌트 함수는 스타일이 적용된 HTML 문자열을 반환합니다
+- **프로젝트 디자인 시스템**: Tailwind CSS 기반의 프로젝트 표준 스타일이 자동 적용됩니다
+- **이벤트 핸들러 바인딩**: `onClick`, `onChange` 등의 핸들러를 문자열 ID로 등록하면 자동으로 플러그인 컨텍스트에서 실행됩니다
+- **Display Element 사용 비권장**: Display Element는 오버레이 위에 표시되는 독립적인 UI 패널용이므로, 이 컴포넌트들을 Display Element에 직접 사용하는 것은 적절하지 않습니다
+
+#### 권장 사용 패턴
+
+```javascript
+// ✅ 올바른 사용: Custom Dialog 내부에서 사용
+async function showSettings() {
+  const volumeInput = window.api.ui.components.input({
+    type: "number",
+    value: 50,
+    width: 47,
+    id: "volume",
+  });
+
+  const formHtml = `
+    <div class="flex flex-col gap-[12px]">
+      ${window.api.ui.components.formRow("볼륨", volumeInput)}
+    </div>
+  `;
+
+  const confirmed = await window.api.ui.dialog.custom(formHtml, {
+    confirmText: "저장",
+    showCancel: true,
+  });
+
+  if (confirmed) {
+    const value = document.getElementById("volume").value;
+    // 저장 로직
+  }
+}
+
+// ❌ 잘못된 사용: Display Element로 직접 추가 (권장하지 않음)
+window.api.ui.displayElement.add({
+  html: window.api.ui.components.button("클릭"), // 이렇게 사용하지 마세요
+  position: { x: 10, y: 10 },
+});
+
+// ✅ Display Element 올바른 사용: 직접 HTML/CSS로 독립적인 패널 구성
+const style = document.createElement("style");
+style.textContent = `
+  .my-panel { background: #1A191E; padding: 20px; border-radius: 13px; }
+`;
+document.head.appendChild(style);
+
+const panel = document.createElement("div");
+panel.className = "my-panel";
+panel.innerHTML = "<div>커스텀 패널</div>";
+document.body.appendChild(panel);
+```
+
+### `window.api.ui.components.button(text, options?)`
+
+버튼 HTML을 생성합니다.
+
+**매개변수**:
+
+- `text: string` - 버튼 텍스트
+- `options?: ButtonOptions` - 선택적 설정
+  - `variant?: 'primary' | 'danger' | 'secondary'` - 버튼 스타일 (기본값: 'primary')
+  - `size?: 'small' | 'medium' | 'large'` - 버튼 크기 (기본값: 'medium')
+  - `disabled?: boolean` - 비활성화 여부 (기본값: false)
+  - `fullWidth?: boolean` - 전체 너비 사용 (기본값: false)
+  - `onClick?: string` - 이벤트 핸들러 ID
+  - `id?: string` - DOM ID
+
+**반환형**: `string` - HTML 문자열
+
+**사용 예**:
+
+```javascript
+// 기본 버튼
+const saveBtn = window.api.ui.components.button("저장");
+
+// 위험한 작업 버튼
+const deleteBtn = window.api.ui.components.button("삭제", {
+  variant: "danger",
+  onClick: "handleDelete",
+});
+
+// 비활성화된 버튼
+const disabledBtn = window.api.ui.components.button("처리 중...", {
+  disabled: true,
+});
+```
+
+---
+
+### `window.api.ui.components.checkbox(options?)`
+
+체크박스(토글) HTML을 생성합니다.
+
+**매개변수**:
+
+- `options?: CheckboxOptions` - 선택적 설정
+  - `checked?: boolean` - 체크 상태 (기본값: false)
+  - `onChange?: string` - 이벤트 핸들러 ID
+  - `id?: string` - DOM ID
+
+**반환형**: `string` - HTML 문자열
+
+**사용 예**:
+
+```javascript
+const enabledCheckbox = window.api.ui.components.checkbox({
+  checked: true,
+  id: "settings-enabled",
+});
+```
+
+---
+
+### `window.api.ui.components.input(options?)`
+
+인풋 필드 HTML을 생성합니다.
+
+**매개변수**:
+
+- `options?: InputOptions` - 선택적 설정
+  - `type?: 'text' | 'number'` - 인풋 타입 (기본값: 'text')
+  - `placeholder?: string` - 플레이스홀더 텍스트
+  - `value?: string | number` - 초기값
+  - `disabled?: boolean` - 비활성화 여부
+  - `onInput?: string` - input 이벤트 핸들러 ID
+  - `onChange?: string` - change 이벤트 핸들러 ID
+  - `id?: string` - DOM ID
+  - `width?: number` - 너비 (픽셀, 기본값: 200)
+
+**반환형**: `string` - HTML 문자열
+
+**사용 예**:
+
+```javascript
+const nameInput = window.api.ui.components.input({
+  placeholder: "이름 입력",
+  value: "User",
+  width: 150,
+  id: "name-input",
+});
+
+const numberInput = window.api.ui.components.input({
+  type: "number",
+  value: 10,
+  width: 100,
+});
+```
+
+---
+
+### `window.api.ui.components.dropdown(options)`
+
+드롭다운 HTML을 생성합니다.
+
+**매개변수**:
+
+- `options: DropdownOptions` - 필수 설정
+  - `options: Array<{ label: string; value: string }>` - 옵션 목록
+  - `selected?: string` - 선택된 값
+  - `placeholder?: string` - 플레이스홀더 (기본값: "선택")
+  - `disabled?: boolean` - 비활성화 여부
+  - `onChange?: string` - 이벤트 핸들러 ID
+  - `id?: string` - DOM ID
+
+**반환형**: `string` - HTML 문자열
+
+**사용 예**:
+
+```javascript
+const themeDropdown = window.api.ui.components.dropdown({
+  options: [
+    { label: "다크", value: "dark" },
+    { label: "라이트", value: "light" },
+    { label: "자동", value: "auto" },
+  ],
+  selected: "dark",
+  id: "theme-select",
+});
+```
+
+---
+
+### `window.api.ui.components.panel(content, options?)`
+
+패널 컨테이너 HTML을 생성합니다.
+
+**주의**: `panel` 컴포넌트는 **Display Element 전용**입니다. Custom Dialog 내부에서는 이미 모달 스타일이 적용되므로 `panel`을 사용하지 마세요.
+
+**매개변수**:
+
+- `content: string` - 패널 내부 HTML
+- `options?: PanelOptions` - 선택적 설정
+  - `title?: string` - 패널 제목
+  - `width?: number` - 너비 (픽셀)
+
+**반환형**: `string` - HTML 문자열
+
+**사용 예**:
+
+```javascript
+// ✅ 올바른 사용: Display Element에 추가
+const formHtml = `
+  ${window.api.ui.components.formRow("이름", nameInput)}
+  ${window.api.ui.components.formRow("테마", themeDropdown)}
+`;
+
+const panel = window.api.ui.components.panel(formHtml, {
+  title: "설정",
+  width: 400,
+});
+
+window.api.ui.displayElement.add({
+  html: panel,
+  position: { x: 10, y: 10 },
+});
+
+// ❌ 잘못된 사용: Custom Dialog 내부 (모달 중복)
+// Custom Dialog는 이미 모달이므로 panel을 사용하지 마세요
+const formHtml = `
+  <div class="flex flex-col gap-[12px]">
+    ${window.api.ui.components.formRow("이름", nameInput)}
+  </div>
+`;
+await window.api.ui.dialog.custom(formHtml); // panel 없이 직접 사용
+```
+
+---
+
+### `window.api.ui.components.formRow(label, component)`
+
+폼 행 (라벨 + 컴포넌트) HTML을 생성합니다.
+
+**매개변수**:
+
+- `label: string` - 라벨 텍스트
+- `component: string` - 컴포넌트 HTML
+
+**반환형**: `string` - HTML 문자열
+
+**사용 예**:
+
+```javascript
+const enabledRow = window.api.ui.components.formRow(
+  "활성화",
+  window.api.ui.components.checkbox({ checked: true })
+);
+
+const nameRow = window.api.ui.components.formRow(
+  "사용자 이름",
+  window.api.ui.components.input({ placeholder: "이름" })
+);
+```
+
+---
+
+### Components 사용 패턴
+
+#### 패턴 1: 설정 패널
+
+```javascript
+function createSettingsPanel() {
+  const enabledCheckbox = window.api.ui.components.checkbox({
+    checked: true,
+    id: "settings-enabled",
+  });
+
+  const themeDropdown = window.api.ui.components.dropdown({
+    options: [
+      { label: "다크", value: "dark" },
+      { label: "라이트", value: "light" },
+    ],
+    selected: "dark",
+    id: "theme-select",
+  });
+
+  const saveButton = window.api.ui.components.button("저장", {
+    variant: "primary",
+  });
+
+  const cancelButton = window.api.ui.components.button("취소", {
+    variant: "danger",
+  });
+
+  const form = `
+    ${window.api.ui.components.formRow("활성화", enabledCheckbox)}
+    ${window.api.ui.components.formRow("테마", themeDropdown)}
+    <div class="flex gap-[10.5px] justify-end">
+      ${saveButton}
+      ${cancelButton}
+    </div>
+  `;
+
+  return window.api.ui.components.panel(form, {
+    title: "설정",
+    width: 400,
+  });
+}
+
+// Display Element로 표시
+const panelHtml = createSettingsPanel();
+window.api.ui.displayElement.add({
+  html: panelHtml,
+  position: { x: 100, y: 100 },
+  draggable: true,
+});
+```
+
+#### 패턴 2: 입력 폼
+
+```javascript
+const nameInput = window.api.ui.components.input({
+  placeholder: "이름을 입력하세요",
+  id: "name-input",
+});
+
+const ageInput = window.api.ui.components.input({
+  type: "number",
+  value: 20,
+  width: 100,
+  id: "age-input",
+});
+
+const submitBtn = window.api.ui.components.button("제출", {
+  variant: "primary",
+});
+
+const formHtml = `
+  ${window.api.ui.components.formRow("이름", nameInput)}
+  ${window.api.ui.components.formRow("나이", ageInput)}
+  <div class="flex justify-end mt-4">${submitBtn}</div>
+`;
+
+window.api.ui.displayElement.add({
+  html: window.api.ui.components.panel(formHtml, { title: "사용자 정보" }),
+  position: { x: 200, y: 150 },
+  draggable: true,
+});
+```
+
+#### 패턴 3: Dialog와 Components 조합
+
+```javascript
+async function showCustomSettings() {
+  // Components로 폼 생성
+  const enableNotifications = window.api.ui.components.checkbox({
+    checked: true,
+    id: "notifications",
+  });
+
+  const volumeInput = window.api.ui.components.input({
+    type: "number",
+    value: 50,
+    width: 100,
+    id: "volume",
+  });
+
+  const formHtml = `
+    <div class="flex flex-col gap-[12px]">
+      ${window.api.ui.components.formRow("알림 활성화", enableNotifications)}
+      ${window.api.ui.components.formRow("볼륨", volumeInput)}
+    </div>
+  `;
+
+  // Display Element로 표시
+  window.api.ui.displayElement.add({
+    html: window.api.ui.components.panel(formHtml, { title: "알림 설정" }),
+    position: { x: 300, y: 200 },
+    draggable: true,
+  });
+}
+```
+
 ---
 
 ## 추가 리소스

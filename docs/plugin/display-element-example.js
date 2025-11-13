@@ -49,11 +49,11 @@
       estimatedSize: { width: 150, height: 80 },
       contextMenu: {
         enableDelete: true,
-        deleteLabel: "🗑️ 타이머 삭제", // 삭제 텍스트 커스터마이징
+        deleteLabel: "타이머 삭제", // 삭제 텍스트 커스터마이징
         customItems: [
           {
             id: "duplicate",
-            label: "📋 복제",
+            label: "타이머 복제",
             onClick: ({ element }) => {
               // 현재 타이머 찾기
               const currentTimer = Array.from(timers.values()).find(
@@ -92,7 +92,7 @@
   // ============================================================
   window.api.ui.contextMenu.addGridMenuItem({
     id: "add-timer",
-    label: "⏱️ 타이머 추가",
+    label: "타이머 추가",
     onClick: (context) => {
       const { dx, dy } = context.position;
       createTimer(dx, dy);

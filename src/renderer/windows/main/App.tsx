@@ -104,13 +104,33 @@ export default function App() {
   }, [developerModeEnabled]);
 
   const { t } = useTranslation();
-  const confirmCallbackRef = useRef(null);
+  const confirmCallbackRef = useRef<(() => void) | null>(null);
+  const cancelCallbackRef = useRef<(() => void) | null>(null);
   const [alertState, setAlertState] = useState(() => ({
     isOpen: false,
     message: "",
     confirmText: t("common.confirm"),
-    type: "alert",
+    type: "alert" as "alert" | "confirm" | "custom",
   }));
+
+  // Custom Dialog 상태 (HTML 콘텐츠)
+  const customDialogCallbackRef = useRef<{
+    onConfirm?: () => void;
+    onCancel?: () => void;
+  }>({});
+  const [customDialogState, setCustomDialogState] = useState<{
+    isOpen: boolean;
+    html: string;
+    confirmText?: string;
+    cancelText?: string;
+    showCancel?: boolean;
+  }>({
+    isOpen: false,
+    html: "",
+    confirmText: undefined,
+    cancelText: undefined,
+    showCancel: false,
+  });
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -133,21 +153,25 @@ export default function App() {
     return () => window.removeEventListener("keydown", handler, true);
   }, [selectedKeyType, setSelectedKeyType, isBootstrapped]);
 
-  const showAlert = (message: string) =>
+  const showAlert = (message: string, confirmText?: string) => {
     setAlertState({
       isOpen: true,
       message,
       type: "alert",
-      confirmText: t("common.confirm"),
+      confirmText: confirmText || t("common.confirm"),
     });
+  };
 
   const showConfirm = (
     message: string,
     onConfirm: () => void,
+    onCancel?: () => void,
     confirmText = t("common.confirm")
   ) => {
     confirmCallbackRef.current =
       typeof onConfirm === "function" ? onConfirm : null;
+    cancelCallbackRef.current =
+      typeof onCancel === "function" ? onCancel : null;
     setAlertState({ isOpen: true, message, confirmText, type: "confirm" });
   };
 
@@ -159,7 +183,84 @@ export default function App() {
       type: "alert",
     });
     confirmCallbackRef.current = null;
+    cancelCallbackRef.current = null;
   };
+
+  const handleAlertConfirm = () => {
+    if (confirmCallbackRef.current) {
+      confirmCallbackRef.current();
+    }
+    closeAlert();
+  };
+
+  const handleAlertCancel = () => {
+    if (cancelCallbackRef.current) {
+      cancelCallbackRef.current();
+    }
+    closeAlert();
+  };
+
+  // Custom Dialog 핸들러
+  const showCustomDialog = (
+    html: string,
+    options?: {
+      onConfirm?: () => void;
+      onCancel?: () => void;
+      confirmText?: string;
+      cancelText?: string;
+      showCancel?: boolean;
+    }
+  ) => {
+    customDialogCallbackRef.current = {
+      onConfirm: options?.onConfirm,
+      onCancel: options?.onCancel,
+    };
+    setCustomDialogState({
+      isOpen: true,
+      html,
+      confirmText: options?.confirmText,
+      cancelText: options?.cancelText,
+      showCancel: options?.showCancel ?? false,
+    });
+  };
+
+  const closeCustomDialog = () => {
+    setCustomDialogState({
+      isOpen: false,
+      html: "",
+      confirmText: undefined,
+      cancelText: undefined,
+      showCancel: false,
+    });
+    customDialogCallbackRef.current = {};
+  };
+
+  const handleCustomDialogConfirm = () => {
+    if (customDialogCallbackRef.current.onConfirm) {
+      customDialogCallbackRef.current.onConfirm();
+    }
+    closeCustomDialog();
+  };
+
+  const handleCustomDialogCancel = () => {
+    if (customDialogCallbackRef.current.onCancel) {
+      customDialogCallbackRef.current.onCancel();
+    }
+    closeCustomDialog();
+  };
+
+  // Dialog API를 전역으로 노출
+  useEffect(() => {
+    (window as any).__dmn_showAlert = showAlert;
+    (window as any).__dmn_showConfirm = showConfirm;
+    (window as any).__dmn_showCustomDialog = showCustomDialog;
+
+    return () => {
+      delete (window as any).__dmn_showAlert;
+      delete (window as any).__dmn_showConfirm;
+      delete (window as any).__dmn_showCustomDialog;
+    };
+  }, []);
 
   return (
     <div className="bg-[#111012] w-full h-full flex flex-col overflow-hidden rounded-[7px] border border-[rgba(255,255,255,0.1)]">
@@ -208,6 +309,7 @@ export default function App() {
             async () => {
               await handleResetCurrentMode();
             },
+            undefined,
             t("confirm.reset")
           )
         }
@@ -217,6 +319,7 @@ export default function App() {
             async () => {
               await window.api.keys.resetCountersMode(selectedKeyType);
             },
+            undefined,
             t("confirm.reset")
           )
         }
@@ -284,22 +387,20 @@ export default function App() {
         message={alertState.message}
         type={alertState.type}
         confirmText={alertState.confirmText}
-        onConfirm={() => {
-          if (alertState.type === "confirm" && confirmCallbackRef.current) {
-            const cb = confirmCallbackRef.current;
-            confirmCallbackRef.current = null;
-            try {
-              cb();
-            } catch (error) {
-              console.error(error);
-            }
-          }
-          closeAlert();
-        }}
-        onCancel={() => {
-          confirmCallbackRef.current = null;
-          closeAlert();
-        }}
+        cancelText={undefined}
+        showCancel={undefined}
+        onConfirm={handleAlertConfirm}
+        onCancel={handleAlertCancel}
+      />
+      <CustomAlert
+        isOpen={customDialogState.isOpen}
+        message={customDialogState.html}
+        type="custom"
+        confirmText={customDialogState.confirmText}
+        cancelText={customDialogState.cancelText}
+        showCancel={customDialogState.showCancel}
+        onConfirm={handleCustomDialogConfirm}
+        onCancel={handleCustomDialogCancel}
       />
     </div>
   );

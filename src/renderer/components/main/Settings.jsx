@@ -733,7 +733,7 @@ export default function Settings({ showAlert, showConfirm }) {
           </div>
         </div>
       </div>
-      <div className="absolute flex items-center justify-center top-[10px] right-[10px] w-[522px] h-[366px] bg-primary rounded-[7px] pointer-events-none overflow-hidden">
+      <div className="absolute flex items-center justify-center top-[10px] right-[10px] w-[522px] h-[376px] bg-primary rounded-[7px] pointer-events-none overflow-hidden">
         {/* Hidden preloaded videos for instant playback */}
         {Object.entries(VIDEO_SOURCES).map(([key, url]) => (
           <video
