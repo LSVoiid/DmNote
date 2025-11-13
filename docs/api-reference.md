@@ -1359,11 +1359,23 @@ window.api.overlay.onVisibility(({ visible }) => {
 
 ## 브릿지 (bridge)
 
-브릿지 API는 **윈도우 간 통신**을 위한 플러그인 전용 API입니다. 메인 윈도우와 오버레이 윈도우 간에 메시지를 주고받을 수 있습니다.
+브릿지 API는 **윈도우 간 통신 및 플러그인 간 통신**을 위한 API입니다.
+
+**주요 기능**:
+
+- 🪟 **윈도우 간 통신**: 메인 윈도우와 오버레이 윈도우 간에 메시지 전송
+- 🔌 **플러그인 간 통신**: 같은 윈도우 또는 다른 윈도우의 플러그인들끼리 데이터 공유
+- 📡 **브로드캐스트**: 모든 윈도우의 모든 플러그인에게 메시지 전송
+
+**사용 사례**:
+
+- KPS 계산 플러그인 → 통계 표시 플러그인으로 데이터 전달
+- 녹화 플러그인 → 다른 플러그인들에게 녹화 상태 알림
+- 설정 변경 → 모든 플러그인에게 테마/설정 변경 브로드캐스트
 
 ### `window.api.bridge.send(type, data)`
 
-모든 윈도우에 메시지를 브로드캐스트합니다.
+모든 윈도우의 모든 플러그인에게 메시지를 브로드캐스트합니다.
 
 **매개변수**:
 
@@ -1539,7 +1551,46 @@ window.api.bridge.on("KPS_UPDATE", ({ kps }) => {
 });
 ```
 
-#### 패턴 3: 양방향 통신
+#### 패턴 3: 플러그인 간 데이터 공유
+
+```javascript
+// 플러그인 A (data-provider.js) - 데이터 제공자
+// @id: data-provider
+(function () {
+  const sharedData = { score: 0, level: 1 };
+
+  // 데이터 변경 시 다른 플러그인들에게 알림
+  function updateData(newScore, newLevel) {
+    sharedData.score = newScore;
+    sharedData.level = newLevel;
+    window.api.bridge.send("SHARED_DATA_UPDATE", sharedData);
+  }
+
+  // 예시: 1초마다 점수 증가
+  setInterval(() => updateData(sharedData.score + 10, sharedData.level), 1000);
+})();
+
+// 플러그인 B (data-consumer.js) - 데이터 소비자
+// @id: data-consumer
+(function () {
+  window.api.bridge.on("SHARED_DATA_UPDATE", (data) => {
+    console.log("플러그인 A로부터 데이터 수신:", data);
+    // 받은 데이터로 UI 업데이트
+    updateUI(data.score, data.level);
+  });
+})();
+
+// 플러그인 C (another-consumer.js) - 또 다른 소비자
+// @id: another-consumer
+(function () {
+  // 같은 메시지를 여러 플러그인이 동시에 받을 수 있음!
+  window.api.bridge.on("SHARED_DATA_UPDATE", (data) => {
+    console.log("플러그인 C도 같은 데이터 수신:", data);
+  });
+})();
+```
+
+#### 패턴 4: 양방향 통신
 
 ```javascript
 // 메인 윈도우: 데이터 요청
@@ -1559,7 +1610,44 @@ window.api.bridge.once("RESPONSE_CURRENT_KPS", ({ kps, max }) => {
 });
 ```
 
-#### 패턴 4: 타입 안전성 (TypeScript)
+#### 패턴 5: 플러그인 간 이벤트 시스템
+
+```javascript
+// 플러그인 A (event-emitter.js) - 이벤트 발생자
+// @id: event-emitter
+(function () {
+  const button = document.createElement("button");
+  button.textContent = "이벤트 발생";
+  button.onclick = () => {
+    // 모든 플러그인에게 이벤트 브로드캐스트
+    window.api.bridge.send("CUSTOM_EVENT", {
+      eventName: "buttonClicked",
+      timestamp: Date.now(),
+      data: { clickCount: 1 },
+    });
+  };
+  document.body.appendChild(button);
+})();
+
+// 플러그인 B (event-listener-1.js) - 이벤트 리스너 1
+// @id: event-listener-1
+(function () {
+  window.api.bridge.on("CUSTOM_EVENT", ({ eventName, timestamp, data }) => {
+    console.log(`[리스너 1] ${eventName} 이벤트 수신:`, data);
+  });
+})();
+
+// 플러그인 C (event-listener-2.js) - 이벤트 리스너 2
+// @id: event-listener-2
+(function () {
+  window.api.bridge.on("CUSTOM_EVENT", ({ eventName, timestamp, data }) => {
+    console.log(`[리스너 2] ${eventName} 이벤트 수신:`, data);
+    // 다른 방식으로 처리 가능
+  });
+})();
+```
+
+#### 패턴 6: 타입 안전성 (TypeScript)
 
 ```typescript
 // 메시지 타입 정의
