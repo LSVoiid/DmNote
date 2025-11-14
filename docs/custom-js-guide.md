@@ -1358,6 +1358,46 @@ window.__dmn_custom_js_cleanup = function () {
 - ES6+ 문법 사용 가능합니다.
 - Node.js API는 사용할 수 없습니다(`window.api`만 사용).
 
+### 외부 리소스 로딩 (CDN, 폰트, 라이브러리)
+
+플러그인에서 외부 CDN을 통해 폰트나 JS 라이브러리를 로드할 수 있습니다:
+
+```javascript
+// 예: Pretendard 폰트 CDN 로드
+const link = document.createElement("link");
+link.href =
+  "https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css";
+link.rel = "stylesheet";
+document.head.appendChild(link);
+```
+
+**알려진 이슈 - WebView2 Tracking Prevention 경고:**
+
+외부 CDN에서 리소스를 로드할 때 개발자 도구 콘솔에 다음과 같은 경고가 반복적으로 출력될 수 있습니다:
+
+```
+Tracking Prevention blocked access to storage for https://cdn.jsdelivr.net/...
+```
+
+**원인:**
+
+- WebView2(Edge 기반 브라우저 엔진)의 추적 방지 기능이 외부 도메인의 스토리지 접근(localStorage, IndexedDB 등)을 제한했다는 알림입니다.
+- CDN에서 제공하는 CSS 파일 내부에 `@font-face` 등이 브라우저 캐시나 스토리지를 사용하려 할 때 발생합니다.
+
+**영향:**
+
+- ✅ **폰트 다운로드 및 적용에는 전혀 영향이 없습니다** - 경고만 출력될 뿐 리소스는 정상적으로 로드됩니다.
+- ✅ **JS 라이브러리 로딩도 정상 작동합니다** - 같은 경고가 뜰 수 있지만 실행에는 문제 없습니다.
+- ⚠️ 콘솔 로그가 지저분해질 수 있습니다.
+
+**해결 방법:**
+
+1. **경고 무시** (권장) - 실제 기능에 영향이 없으므로 무시해도 됩니다.
+2. **로컬 호스팅** - 폰트 파일을 다운로드하여 `src/renderer/assets`에 배치하고 로컬 경로로 로드합니다.
+3. **WebView2 추적 방지 비활성화** - 현재 Tauri 2.x에서는 WebView2 추적 방지 설정에 직접 접근할 수 있는 공식 API가 없어 구현이 어렵습니다.
+
+**결론:** 대부분의 경우 경고를 무시하고 사용해도 문제없습니다.
+
 ### 유지보수
 
 - DM Note 업데이트 시 `window.api` 시그니처가 변경될 수 있습니다.

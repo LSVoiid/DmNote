@@ -193,6 +193,7 @@
     }
 
     return `
+      <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet" />
       <style>
         .kps-panel-${panelId} {
           background: rgba(17, 17, 20, 0.9);
@@ -206,18 +207,11 @@
           box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
           cursor: pointer;
           user-select: none;
-          font-family: ui-monospace, monospace;
-        }
-        .kps-header-${panelId} {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-bottom: 6px;
-          font-size: 14px;
-          font-weight: 600;
+          font-family: Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", sans-serif;
         }
         .kps-body-${panelId} {
           display: grid;
+          width: 120px;
           grid-template-columns: 1fr auto;
           gap: 4px 8px;
           font-size: 12px;
@@ -265,9 +259,6 @@
         }
       </style>
       <div class="kps-panel-${panelId}">
-        <div class="kps-header-${panelId}">
-          <div>Keys per Second</div>
-        </div>
         <div class="kps-body-${panelId}">
           ${rows}
         </div>
