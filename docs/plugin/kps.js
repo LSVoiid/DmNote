@@ -298,15 +298,16 @@
       maxval: 1, // KeysPerSecond 스타일: 지금까지 본 최대값
     });
 
+    // ✨ 개선: 함수를 직접 전달 (자동으로 핸들러 등록됨)
     const elementId = window.api.ui.displayElement.add({
       html: generatePanelHtml(panelId),
       position: settings.position,
       draggable: true,
       zIndex: 100,
       scoped: false,
-      onClick: `handleKpsPanelClick_${panelId}`,
-      onPositionChange: `handleKpsPositionChange_${panelId}`,
-      onDelete: `handleKpsDelete_${panelId}`,
+      onClick: async () => await handlePanelClick(panelId),
+      onPositionChange: async (pos) => await handlePositionChange(panelId, pos),
+      onDelete: async () => await handlePanelDelete(panelId),
       estimatedSize: { width: 250, height: 180 },
       contextMenu: {
         enableDelete: true,
@@ -316,14 +317,6 @@
 
     // elementId 업데이트
     panels.get(panelId).elementId = elementId;
-
-    // 핸들러 등록
-    window[`handleKpsPanelClick_${panelId}`] = async () =>
-      await handlePanelClick(panelId);
-    window[`handleKpsPositionChange_${panelId}`] = async (pos) =>
-      await handlePositionChange(panelId, pos);
-    window[`handleKpsDelete_${panelId}`] = async () =>
-      await handlePanelDelete(panelId);
 
     await savePanels();
 
@@ -386,10 +379,7 @@
     const panel = panels.get(panelId);
     if (!panel) return;
 
-    delete window[`handleKpsPanelClick_${panelId}`];
-    delete window[`handleKpsPositionChange_${panelId}`];
-    delete window[`handleKpsDelete_${panelId}`];
-
+    // ✨ 개선: 수동 delete 불필요 (자동으로 정리됨)
     panels.delete(panelId);
     await savePanels();
   }
@@ -611,15 +601,17 @@
         maxval: 1,
       });
 
+      // ✨ 개선: 함수를 직접 전달 (자동으로 핸들러 등록됨)
       const elementId = window.api.ui.displayElement.add({
         html: generatePanelHtml(panelId),
         position: settings.position,
         draggable: true,
         zIndex: 100,
         scoped: false,
-        onClick: `handleKpsPanelClick_${panelId}`,
-        onPositionChange: `handleKpsPositionChange_${panelId}`,
-        onDelete: `handleKpsDelete_${panelId}`,
+        onClick: async () => await handlePanelClick(panelId),
+        onPositionChange: async (pos) =>
+          await handlePositionChange(panelId, pos),
+        onDelete: async () => await handlePanelDelete(panelId),
         estimatedSize: { width: 250, height: 180 },
         contextMenu: {
           enableDelete: true,
@@ -630,12 +622,7 @@
       // elementId 업데이트
       panels.get(panelId).elementId = elementId;
 
-      window[`handleKpsPanelClick_${panelId}`] = async () =>
-        await handlePanelClick(panelId);
-      window[`handleKpsPositionChange_${panelId}`] = async (pos) =>
-        await handlePositionChange(panelId, pos);
-      window[`handleKpsDelete_${panelId}`] = async () =>
-        await handlePanelDelete(panelId);
+      // ✨ 개선: 핸들러는 add() 호출 시 자동 등록되므로 별도 등록 불필요
 
       if (panelId >= nextPanelId) {
         nextPanelId = panelId + 1;
@@ -649,13 +636,7 @@
   window.api.plugin.registerCleanup(() => {
     unsubBridge();
     window.api.ui.contextMenu.removeMenuItem(menuId);
-    window.api.ui.displayElement.clearMyElements();
-
-    for (const [panelId] of panels.entries()) {
-      delete window[`handleKpsPanelClick_${panelId}`];
-      delete window[`handleKpsPositionChange_${panelId}`];
-      delete window[`handleKpsDelete_${panelId}`];
-    }
+    window.api.ui.displayElement.clearMyElements(); // ✨ 개선: 핸들러도 자동으로 정리됨
 
     delete window.__kpsCheckboxHandler;
   });

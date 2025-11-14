@@ -137,9 +137,11 @@ export type PluginDisplayElement = {
   className?: string;
   style?: Record<string, string>;
   estimatedSize?: { width: number; height: number };
-  onClick?: string; // 이벤트 핸들러 ID (메인 윈도우에서만)
-  onPositionChange?: string; // 위치 변경 핸들러 ID (메인 윈도우에서만)
-  onDelete?: string; // 삭제 핸들러 ID (메인 윈도우에서만)
+  onClick?: string | (() => void | Promise<void>); // 이벤트 핸들러 ID 또는 함수 (메인 윈도우에서만)
+  onPositionChange?:
+    | string
+    | ((position: { x: number; y: number }) => void | Promise<void>); // 위치 변경 핸들러 ID 또는 함수 (메인 윈도우에서만)
+  onDelete?: string | (() => void | Promise<void>); // 삭제 핸들러 ID 또는 함수 (메인 윈도우에서만)
   contextMenu?: PluginDisplayElementContextMenu;
 };
 
@@ -147,6 +149,10 @@ export type PluginDisplayElementInternal = PluginDisplayElement & {
   pluginId: string;
   fullId: string;
   measuredSize?: { width: number; height: number };
+  // 자동 생성된 핸들러 ID (함수가 전달된 경우)
+  _onClickId?: string;
+  _onPositionChangeId?: string;
+  _onDeleteId?: string;
 };
 
 export type Unsubscribe = () => void;

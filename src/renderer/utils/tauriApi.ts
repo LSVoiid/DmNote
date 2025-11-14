@@ -3,6 +3,81 @@ import { listen } from "@tauri-apps/api/event";
 import { usePluginMenuStore } from "@stores/usePluginMenuStore";
 import { usePluginDisplayElementStore } from "@stores/usePluginDisplayElementStore";
 import type { PluginDisplayElement } from "@src/types/api";
+
+// ===== 플러그인 핸들러 레지스트리 =====
+// 플러그인별로 이벤트 핸들러를 자동 관리하는 시스템
+type HandlerFunction = (...args: any[]) => void | Promise<void>;
+
+class PluginHandlerRegistry {
+  private handlers: Map<string, HandlerFunction> = new Map();
+  private pluginHandlers: Map<string, Set<string>> = new Map();
+
+  /**
+   * 핸들러 함수를 등록하고 고유 ID를 반환
+   * @param pluginId 플러그인 ID
+   * @param handler 핸들러 함수
+   * @returns 생성된 핸들러 ID
+   */
+  register(pluginId: string, handler: HandlerFunction): string {
+    const handlerId = `__dmn_handler_${pluginId}_${Date.now()}_${Math.random()
+      .toString(36)
+      .substring(7)}`;
+
+    this.handlers.set(handlerId, handler);
+
+    if (!this.pluginHandlers.has(pluginId)) {
+      this.pluginHandlers.set(pluginId, new Set());
+    }
+    this.pluginHandlers.get(pluginId)!.add(handlerId);
+
+    // window 객체에도 등록 (기존 시스템과 호환)
+    (window as any)[handlerId] = handler;
+
+    return handlerId;
+  }
+
+  /**
+   * 핸들러 ID로 핸들러 함수 가져오기
+   */
+  get(handlerId: string): HandlerFunction | undefined {
+    return this.handlers.get(handlerId);
+  }
+
+  /**
+   * 특정 핸들러 삭제
+   */
+  unregister(handlerId: string): void {
+    this.handlers.delete(handlerId);
+    delete (window as any)[handlerId];
+  }
+
+  /**
+   * 플러그인의 모든 핸들러 삭제
+   */
+  clearPlugin(pluginId: string): void {
+    const handlerIds = this.pluginHandlers.get(pluginId);
+    if (handlerIds) {
+      handlerIds.forEach((id) => {
+        this.handlers.delete(id);
+        delete (window as any)[id];
+      });
+      this.pluginHandlers.delete(pluginId);
+    }
+  }
+
+  /**
+   * 모든 핸들러 삭제
+   */
+  clear(): void {
+    this.handlers.forEach((_, id) => {
+      delete (window as any)[id];
+    });
+    this.handlers.clear();
+    this.pluginHandlers.clear();
+  }
+}
+
+const handlerRegistry = new PluginHandlerRegistry();
 import {
   createButton,
   createCheckbox,
@@ -414,11 +489,52 @@ const api: DMNoteAPI = {
           .substring(7)}`;
         const fullId = `${pluginId}::${id}`;
 
+        // 핸들러 자동 등록 처리
+        let onClickId: string | undefined;
+        let onPositionChangeId: string | undefined;
+        let onDeleteId: string | undefined;
+
+        // onClick 핸들러 처리
+        if (typeof element.onClick === "function") {
+          onClickId = handlerRegistry.register(pluginId, element.onClick);
+        }
+
+        // onPositionChange 핸들러 처리
+        if (typeof element.onPositionChange === "function") {
+          onPositionChangeId = handlerRegistry.register(
+            pluginId,
+            element.onPositionChange
+          );
+        }
+
+        // onDelete 핸들러 처리
+        if (typeof element.onDelete === "function") {
+          onDeleteId = handlerRegistry.register(pluginId, element.onDelete);
+        }
+
         const internalElement = {
           ...element,
           id,
           pluginId,
           fullId,
+          // 함수가 전달된 경우 자동 생성된 ID로 변경
+          onClick:
+            onClickId ||
+            (typeof element.onClick === "string" ? element.onClick : undefined),
+          onPositionChange:
+            onPositionChangeId ||
+            (typeof element.onPositionChange === "string"
+              ? element.onPositionChange
+              : undefined),
+          onDelete:
+            onDeleteId ||
+            (typeof element.onDelete === "string"
+              ? element.onDelete
+              : undefined),
+          // 자동 생성된 핸들러 ID 저장 (클린업용)
+          _onClickId: onClickId,
+          _onPositionChangeId: onPositionChangeId,
+          _onDeleteId: onDeleteId,
         };
 
         usePluginDisplayElementStore.getState().addElement(internalElement);
@@ -444,6 +560,19 @@ const api: DMNoteAPI = {
           return;
         }
 
+        // Element 삭제 전에 자동 등록된 핸들러 정리
+        const element = usePluginDisplayElementStore
+          .getState()
+          .elements.find((el) => el.fullId === fullId);
+        if (element) {
+          if (element._onClickId)
+            handlerRegistry.unregister(element._onClickId);
+          if (element._onPositionChangeId)
+            handlerRegistry.unregister(element._onPositionChangeId);
+          if (element._onDeleteId)
+            handlerRegistry.unregister(element._onDeleteId);
+        }
+
         usePluginDisplayElementStore.getState().removeElement(fullId);
       },
 
@@ -462,6 +591,19 @@ const api: DMNoteAPI = {
           );
           return;
         }
+
+        // 플러그인의 모든 Element에 대한 핸들러 정리
+        const elements = usePluginDisplayElementStore
+          .getState()
+          .elements.filter((el) => el.pluginId === pluginId);
+        elements.forEach((element) => {
+          if (element._onClickId)
+            handlerRegistry.unregister(element._onClickId);
+          if (element._onPositionChangeId)
+            handlerRegistry.unregister(element._onPositionChangeId);
+          if (element._onDeleteId)
+            handlerRegistry.unregister(element._onDeleteId);
+        });
 
         usePluginDisplayElementStore.getState().clearByPluginId(pluginId);
       },
@@ -693,5 +835,8 @@ const api: DMNoteAPI = {
 if (typeof window !== "undefined" && !window.api) {
   window.api = api;
 }
+
+// 핸들러 레지스트리를 외부에서 사용할 수 있도록 export
+export { handlerRegistry };
 
 export default api;

@@ -3,6 +3,7 @@ import type { JsPlugin } from "@src/types/js";
 import { extractPluginId } from "@utils/pluginUtils";
 import { usePluginMenuStore } from "@stores/usePluginMenuStore";
 import { usePluginDisplayElementStore } from "@stores/usePluginDisplayElementStore";
+import { handlerRegistry } from "@utils/tauriApi";
 
 const SCRIPT_ID_PREFIX = "dmn-custom-js-";
 
@@ -40,6 +41,9 @@ export function useCustomJsInjection() {
         safeRun(cleanup, `${pluginId}[${index}]`);
       });
       cleanupRegistry.delete(pluginId);
+
+      // 핸들러 레지스트리 정리
+      handlerRegistry.clearPlugin(pluginId);
     };
 
     const removeAll = () => {

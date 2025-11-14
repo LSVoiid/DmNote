@@ -549,6 +549,238 @@ async function initializeSettings() {
 
 ---
 
+## Display Element 이벤트 핸들러 ✨ 개선됨
+
+Display Element에 이벤트 핸들러를 등록하는 방식이 크게 개선되었습니다!
+
+### 🎉 새로운 방식: 함수 직접 전달 (권장)
+
+이제 **함수를 직접 전달**하면 시스템이 자동으로 핸들러를 등록하고 관리합니다.
+
+```javascript
+// @id my-panel
+
+(function () {
+  if (window.api.window.type !== "main") return;
+
+  const panels = new Map();
+  let nextPanelId = 1;
+
+  async function createPanel(position) {
+    const panelId = nextPanelId++;
+
+    // ✅ 함수를 직접 전달 - 자동으로 핸들러 등록됨!
+    const elementId = window.api.ui.displayElement.add({
+      html: `<div>Panel ${panelId}</div>`,
+      position: position || { x: 100, y: 100 },
+      draggable: true,
+
+      // 클릭 핸들러
+      onClick: async () => {
+        const result = await window.api.ui.dialog.confirm("설정을 열까요?");
+        if (result) {
+          await openSettings(panelId);
+        }
+      },
+
+      // 위치 변경 핸들러
+      onPositionChange: async (pos) => {
+        panels.get(panelId).position = pos;
+        await window.api.plugin.storage.set(
+          "panels",
+          Array.from(panels.values())
+        );
+      },
+
+      // 삭제 핸들러
+      onDelete: async () => {
+        panels.delete(panelId);
+        await window.api.plugin.storage.set(
+          "panels",
+          Array.from(panels.values())
+        );
+      },
+    });
+
+    panels.set(panelId, { elementId, position });
+  }
+
+  async function openSettings(panelId) {
+    // 설정 로직...
+  }
+
+  // 그리드 메뉴에서 패널 추가
+  window.api.ui.contextMenu.addGridMenuItem({
+    id: "add-panel",
+    label: "📊 패널 추가",
+    onClick: async (context) => {
+      await createPanel({ x: context.position.dx, y: context.position.dy });
+    },
+  });
+
+  // ✅ 클린업도 간단해짐 - 핸들러 자동 정리
+  window.api.plugin.registerCleanup(() => {
+    window.api.ui.displayElement.clearMyElements(); // 핸들러도 자동으로 정리됨
+  });
+})();
+```
+
+### 장점
+
+- ✅ **전역 네임스페이스 오염 없음** - `window` 객체에 핸들러 등록 불필요
+- ✅ **이름 충돌 걱정 없음** - 시스템이 고유 ID 자동 생성
+- ✅ **자동 클린업** - Element 삭제 시 핸들러도 자동으로 정리
+- ✅ **타입 안정성** - 함수 시그니처 검증 가능
+- ✅ **클로저 활용** - 로컬 변수에 자유롭게 접근 가능
+
+### 📝 이전 방식: 문자열 ID (하위 호환)
+
+기존 방식도 계속 지원됩니다:
+
+```javascript
+// ❌ 이전 방식 (여전히 작동하지만 권장하지 않음)
+window[`handlePanelClick_${panelId}`] = async () => {
+  await handlePanelClick(panelId);
+};
+
+window.api.ui.displayElement.add({
+  html: `<div>Panel</div>`,
+  onClick: `handlePanelClick_${panelId}`, // 문자열 ID
+});
+
+// 수동 클린업 필요
+window.api.plugin.registerCleanup(() => {
+  delete window[`handlePanelClick_${panelId}`];
+});
+```
+
+**문제점:**
+
+- ❌ 전역 네임스페이스 오염
+- ❌ 이름 충돌 위험
+- ❌ 수동 클린업 필요
+- ❌ 타입 안정성 부족
+
+### 마이그레이션 가이드
+
+기존 플러그인을 새로운 방식으로 변경하는 방법:
+
+**Before (이전):**
+
+```javascript
+// 핸들러를 전역에 노출
+window[`handleClick_${id}`] = async () => await handleClick(id);
+window[`handlePositionChange_${id}`] = async (pos) =>
+  await handlePositionChange(id, pos);
+window[`handleDelete_${id}`] = async () => await handleDelete(id);
+
+window.api.ui.displayElement.add({
+  onClick: `handleClick_${id}`,
+  onPositionChange: `handlePositionChange_${id}`,
+  onDelete: `handleDelete_${id}`,
+});
+
+// 클린업 시 수동 삭제
+window.api.plugin.registerCleanup(() => {
+  delete window[`handleClick_${id}`];
+  delete window[`handlePositionChange_${id}`];
+  delete window[`handleDelete_${id}`];
+});
+```
+
+**After (개선):**
+
+```javascript
+// 함수를 직접 전달
+window.api.ui.displayElement.add({
+  onClick: async () => await handleClick(id),
+  onPositionChange: async (pos) => await handlePositionChange(id, pos),
+  onDelete: async () => await handleDelete(id),
+});
+
+// 클린업 간소화 - 핸들러 자동 정리
+window.api.plugin.registerCleanup(() => {
+  window.api.ui.displayElement.clearMyElements();
+});
+```
+
+### 실전 예제: KPS 패널
+
+```javascript
+// @id kps-counter
+
+(function () {
+  if (window.api.window.type !== "main") return;
+
+  const panels = new Map();
+
+  async function createKpsPanel(position) {
+    const panelId = Date.now();
+
+    const settings = {
+      position: position || { x: 100, y: 100 },
+      showGraph: true,
+      graphType: "line",
+    };
+
+    // ✅ 클로저를 활용한 깔끔한 핸들러
+    const elementId = window.api.ui.displayElement.add({
+      html: generatePanelHtml(panelId, settings),
+      position: settings.position,
+      draggable: true,
+
+      onClick: async () => {
+        // 설정 모달 열기
+        const newSettings = await showSettingsModal(settings);
+        if (newSettings) {
+          Object.assign(settings, newSettings);
+          updatePanel(panelId);
+          await saveSettings();
+        }
+      },
+
+      onPositionChange: async (pos) => {
+        settings.position = pos;
+        await saveSettings();
+      },
+
+      onDelete: async () => {
+        panels.delete(panelId);
+        await saveSettings();
+      },
+    });
+
+    panels.set(panelId, { elementId, settings });
+  }
+
+  function generatePanelHtml(panelId, settings) {
+    return `<div class="kps-panel">KPS: <span id="kps-${panelId}">0</span></div>`;
+  }
+
+  async function showSettingsModal(currentSettings) {
+    // 설정 모달 로직...
+  }
+
+  async function saveSettings() {
+    await window.api.plugin.storage.set("panels", Array.from(panels.values()));
+  }
+
+  // 초기화
+  window.api.ui.contextMenu.addGridMenuItem({
+    id: "add-kps",
+    label: "📊 KPS 패널 추가",
+    onClick: async (ctx) =>
+      await createKpsPanel({ x: ctx.position.dx, y: ctx.position.dy }),
+  });
+
+  window.api.plugin.registerCleanup(() => {
+    window.api.ui.displayElement.clearMyElements();
+  });
+})();
+```
+
+---
+
 ## 비동기 함수와 플러그인 컨텍스트 ✨
 
 플러그인에서 `async/await`를 사용할 때 **모든 `window.api` 호출에서 플러그인 컨텍스트가 자동으로 유지**됩니다.
