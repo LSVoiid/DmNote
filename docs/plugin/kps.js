@@ -463,7 +463,8 @@
     const graphSpeedInput = window.api.ui.components.input({
       type: "number",
       value: tempSettings.graphSpeed,
-      min: 100,
+      min: 500,
+      max: 5000,
       step: 100,
       width: 60,
       id: "kps-speed-input",

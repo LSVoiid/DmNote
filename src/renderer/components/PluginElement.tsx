@@ -83,7 +83,10 @@ export const PluginElement: React.FC<PluginElementProps> = ({
         });
 
         // onPositionChange 핸들러 호출 (자동 래핑되어 있음)
-        if (element.onPositionChange) {
+        if (
+          element.onPositionChange &&
+          typeof element.onPositionChange === "string"
+        ) {
           const handler = (window as any)[element.onPositionChange];
           if (typeof handler === "function") {
             handler({ x: newX, y: newY });
@@ -140,6 +143,48 @@ export const PluginElement: React.FC<PluginElementProps> = ({
 
       // data-plugin-handler 이벤트 위임 (메인 윈도우에서만)
       if (windowType === "main") {
+        // Input blur 핸들러: min/max 자동 정규화
+        const handleInputBlur = (e: Event) => {
+          const targetEl = e.target as HTMLInputElement;
+          if (
+            targetEl.tagName === "INPUT" &&
+            targetEl.type === "number" &&
+            targetEl.hasAttribute("data-plugin-input-blur")
+          ) {
+            const minStr = targetEl.getAttribute("data-plugin-input-min");
+            const maxStr = targetEl.getAttribute("data-plugin-input-max");
+            const currentValue = targetEl.value;
+
+            // 빈 값이거나 숫자가 아닌 경우
+            if (currentValue === "" || isNaN(parseFloat(currentValue))) {
+              // min이 있으면 min으로, 없으면 0으로
+              const defaultValue = minStr ? parseFloat(minStr) : 0;
+              targetEl.value = String(defaultValue);
+              // change 이벤트 발생
+              targetEl.dispatchEvent(new Event("change", { bubbles: true }));
+              return;
+            }
+
+            const numValue = parseFloat(currentValue);
+            let clampedValue = numValue;
+
+            // min/max 범위로 제한
+            if (minStr && numValue < parseFloat(minStr)) {
+              clampedValue = parseFloat(minStr);
+            }
+            if (maxStr && numValue > parseFloat(maxStr)) {
+              clampedValue = parseFloat(maxStr);
+            }
+
+            // 값이 변경되었으면 업데이트
+            if (clampedValue !== numValue) {
+              targetEl.value = String(clampedValue);
+              // change 이벤트 발생
+              targetEl.dispatchEvent(new Event("change", { bubbles: true }));
+            }
+          }
+        };
+
         // 체크박스 토글 기능
         const handleCheckboxToggle = (e: Event) => {
           const targetEl = e.target as HTMLElement;
@@ -262,6 +307,7 @@ export const PluginElement: React.FC<PluginElementProps> = ({
         target.addEventListener("click", handleEvent);
         target.addEventListener("change", handleEvent);
         target.addEventListener("input", handleEvent);
+        target.addEventListener("blur", handleInputBlur, true); // capture phase
 
         // cleanup
         return () => {
@@ -270,6 +316,7 @@ export const PluginElement: React.FC<PluginElementProps> = ({
           target.removeEventListener("click", handleEvent);
           target.removeEventListener("change", handleEvent);
           target.removeEventListener("input", handleEvent);
+          target.removeEventListener("blur", handleInputBlur, true);
         };
       }
     }
@@ -353,9 +400,11 @@ export const PluginElement: React.FC<PluginElementProps> = ({
     if (e.button !== 0) return;
 
     // onClick 핸들러 실행 (자동 래핑되어 있음)
-    const handler = (window as any)[element.onClick];
-    if (typeof handler === "function") {
-      handler(e);
+    if (typeof element.onClick === "string") {
+      const handler = (window as any)[element.onClick];
+      if (typeof handler === "function") {
+        handler(e);
+      }
     }
   };
 
@@ -389,7 +438,7 @@ export const PluginElement: React.FC<PluginElementProps> = ({
   const handleContextMenuSelect = (itemId: string) => {
     if (itemId === "delete") {
       // onDelete 핸들러 호출 (자동 래핑되어 있음)
-      if (element.onDelete) {
+      if (element.onDelete && typeof element.onDelete === "string") {
         const handler = (window as any)[element.onDelete];
         if (typeof handler === "function") {
           handler();

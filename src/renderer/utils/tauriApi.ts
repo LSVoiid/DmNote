@@ -776,6 +776,52 @@ const api: DMNoteAPI = {
               }
             });
 
+            // Input blur 핸들러: min/max 자동 정규화
+            const handleInputBlur = (e: Event) => {
+              const targetEl = e.target as HTMLInputElement;
+              if (
+                targetEl.tagName === "INPUT" &&
+                targetEl.type === "number" &&
+                targetEl.hasAttribute("data-plugin-input-blur")
+              ) {
+                const minStr = targetEl.getAttribute("data-plugin-input-min");
+                const maxStr = targetEl.getAttribute("data-plugin-input-max");
+                const currentValue = targetEl.value;
+
+                // 빈 값이거나 숫자가 아닌 경우
+                if (currentValue === "" || isNaN(parseFloat(currentValue))) {
+                  // min이 있으면 min으로, 없으면 0으로
+                  const defaultValue = minStr ? parseFloat(minStr) : 0;
+                  targetEl.value = String(defaultValue);
+                  // change 이벤트 발생
+                  targetEl.dispatchEvent(
+                    new Event("change", { bubbles: true })
+                  );
+                  return;
+                }
+
+                const numValue = parseFloat(currentValue);
+                let clampedValue = numValue;
+
+                // min/max 범위로 제한
+                if (minStr && numValue < parseFloat(minStr)) {
+                  clampedValue = parseFloat(minStr);
+                }
+                if (maxStr && numValue > parseFloat(maxStr)) {
+                  clampedValue = parseFloat(maxStr);
+                }
+
+                // 값이 변경되었으면 업데이트
+                if (clampedValue !== numValue) {
+                  targetEl.value = String(clampedValue);
+                  // change 이벤트 발생
+                  targetEl.dispatchEvent(
+                    new Event("change", { bubbles: true })
+                  );
+                }
+              }
+            };
+
             // data-plugin-handler 이벤트 위임
             const handleEvent = (e: Event) => {
               const target = e.target as HTMLElement;
@@ -812,6 +858,7 @@ const api: DMNoteAPI = {
             dialogContent.addEventListener("click", handleEvent);
             dialogContent.addEventListener("change", handleEvent);
             dialogContent.addEventListener("input", handleEvent);
+            dialogContent.addEventListener("blur", handleInputBlur, true); // capture phase
           }, 0);
         });
       },

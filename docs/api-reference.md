@@ -3133,6 +3133,14 @@ window.handleCheckboxChange = function (e) {
 
 **반환형**: `string` - HTML 문자열
 
+**자동 값 정규화**:
+
+- `type="number"`이고 `min` 또는 `max`가 설정된 경우, 포커스를 잃을 때(`onBlur`) 자동으로 값을 검증합니다
+- 빈 값이거나 유효하지 않은 값: `min` 값으로 설정 (min이 없으면 0)
+- `min`보다 작은 값: `min`으로 제한
+- `max`보다 큰 값: `max`로 제한
+- 값이 변경되면 자동으로 `change` 이벤트가 발생합니다
+
 **사용 예**:
 
 ```javascript
@@ -3150,6 +3158,8 @@ const numberInput = window.api.ui.components.input({
   max: 100,
   step: 5,
   width: 100,
+  // 사용자가 150을 입력하고 포커스를 잃으면 자동으로 100으로 조정됨
+  // 사용자가 -10을 입력하고 포커스를 잃으면 자동으로 0으로 조정됨
 });
 ```
 

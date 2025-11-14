@@ -152,7 +152,15 @@ export function createInput(options: InputOptions = {}): string {
   const maxAttr = max !== undefined ? `max="${max}"` : "";
   const stepAttr = step !== undefined ? `step="${step}"` : "";
 
-  return `<input ${idAttr} type="${type}" value="${value}" placeholder="${placeholder}" class="text-center px-[12px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943] focus:border-[#459BF8] text-style-4 text-[#DBDEE8] outline-none" style="width: ${width}px" ${minAttr} ${maxAttr} ${stepAttr} ${
+  // onBlur 핸들러: type="number"이고 min/max가 설정된 경우 자동 정규화
+  const onBlurAttr =
+    type === "number" && (min !== undefined || max !== undefined)
+      ? `data-plugin-input-blur="true" data-plugin-input-min="${
+          min ?? ""
+        }" data-plugin-input-max="${max ?? ""}"`
+      : "";
+
+  return `<input ${idAttr} type="${type}" value="${value}" placeholder="${placeholder}" class="text-center px-[12px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943] focus:border-[#459BF8] text-style-4 text-[#DBDEE8] outline-none" style="width: ${width}px" ${minAttr} ${maxAttr} ${stepAttr} ${onBlurAttr} ${
     disabled ? "disabled" : ""
   } ${onInputAttr} ${onChangeAttr} />`;
 }
