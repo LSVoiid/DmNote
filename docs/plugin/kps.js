@@ -4,11 +4,12 @@
  * KPS (Keys Per Second) 카운터 플러그인
  *
  * 주요 기능:
- * 1. 그리드 컨텍스트 메뉴에서 KPS 패널 추가/제거
+ * 1. 그리드 컨텍스트 메뉴에서 KPS 패널 추가 (다중 패널 지원)
  * 2. Display Element로 드래그 가능한 패널 구현
- * 3. 패널 클릭 시 TOTAL/AVG/MAX 표시 설정 모달
+ * 3. 패널 클릭 시 KPS/AVG/MAX 표시 및 그래프 설정 모달
  * 4. 오버레이에서 계산된 KPS 데이터를 브릿지로 수신
- * 5. 패널 위치 및 설정값 영속성 보장
+ * 5. 실시간 그래프 표시 (Chart.js)
+ * 6. 패널별 위치 및 설정값 영속성 보장
  */
 (function () {
   // 메인 윈도우 전용
@@ -17,106 +18,197 @@
   }
 
   // ===== 상태 관리 =====
-  let panelElementId = null; // Display Element ID
-  let currentKpsData = { total: 0, avg: 0, max: 0 }; // 오버레이로부터 수신한 KPS 데이터
+  const panels = new Map(); // panelId => { elementId, settings, chartData, maxval }
+  let currentKpsData = { kps: 0, avg: 0, max: 0 }; // 오버레이로부터 수신한 KPS 데이터
+  let nextPanelId = 1;
+  const GRAPH_UPDATE_MS = 100; // 그래프 업데이트 주기
 
   // 기본 설정
-  const DEFAULT_SETTINGS = {
+  const DEFAULT_PANEL_SETTINGS = {
     position: { x: 100, y: 100 },
     visibility: {
-      total: true,
+      kps: true,
       avg: true,
       max: true,
     },
+    showGraph: true,
+    graphType: "line", // "bar" 또는 "line"
+    graphSpeed: 1000, // backlog (밀리초) - 그래프에 표시될 데이터 기간
   };
 
-  let settings = JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
-
   // ===== 스토리지 초기화 =====
-  async function loadSettings() {
-    const saved = await window.api.plugin.storage.get("settings");
-
-    if (saved) {
-      // 중첩된 객체도 제대로 병합
-      settings = {
-        ...DEFAULT_SETTINGS,
-        ...saved,
-        visibility: {
-          ...DEFAULT_SETTINGS.visibility,
-          ...(saved.visibility || {}),
-        },
-      };
+  async function loadPanels() {
+    const saved = await window.api.plugin.storage.get("panels");
+    if (saved && Array.isArray(saved)) {
+      return saved;
     }
-
-    return settings;
+    return [];
   }
 
-  async function saveSettings() {
-    await window.api.plugin.storage.set("settings", settings);
+  async function savePanels() {
+    const panelsData = Array.from(panels.entries()).map(([id, panel]) => ({
+      id,
+      settings: panel.settings,
+    }));
+    await window.api.plugin.storage.set("panels", panelsData);
   }
 
-  async function loadPanelState() {
-    const deployed = await window.api.plugin.storage.get("deployed");
-    return deployed === true;
+  async function saveNextPanelId() {
+    await window.api.plugin.storage.set("nextPanelId", nextPanelId);
   }
 
-  async function savePanelState(deployed) {
-    if (deployed) {
-      await window.api.plugin.storage.set("deployed", true);
-    } else {
-      await window.api.plugin.storage.remove("deployed");
-    }
+  async function loadNextPanelId() {
+    const saved = await window.api.plugin.storage.get("nextPanelId");
+    return saved || 1;
   }
 
   // ===== KPS 패널 HTML 생성 =====
-  function generatePanelHtml() {
-    const { total, avg, max } = currentKpsData;
-    const { visibility } = settings;
+  function generatePanelHtml(panelId) {
+    const panel = panels.get(panelId);
+    if (!panel) return "";
+
+    const { kps, avg, max } = currentKpsData;
+    const { visibility, showGraph } = panel.settings;
 
     let rows = "";
-    if (visibility.total) {
+    if (visibility.kps) {
       rows += `
-        <div class="dmn-kps-key">TOTAL</div>
-        <div class="dmn-kps-val">${total}</div>
+        <div class="kps-key-${panelId}">KPS</div>
+        <div class="kps-val-${panelId}">${kps}</div>
       `;
     }
     if (visibility.avg) {
       rows += `
-        <div class="dmn-kps-key">AVG</div>
-        <div class="dmn-kps-val">${avg}</div>
+        <div class="kps-key-${panelId}">AVG</div>
+        <div class="kps-val-${panelId}">${avg}</div>
       `;
     }
     if (visibility.max) {
       rows += `
-        <div class="dmn-kps-key">MAX</div>
-        <div class="dmn-kps-val">${max}</div>
+        <div class="kps-key-${panelId}">MAX</div>
+        <div class="kps-val-${panelId}">${max}</div>
       `;
     }
 
     if (!rows) {
       rows = `
-        <div class="dmn-kps-key dmn-kps-muted">No data</div>
-        <div class="dmn-kps-val dmn-kps-muted">-</div>
+        <div class="kps-key-${panelId} kps-muted-${panelId}">No data</div>
+        <div class="kps-val-${panelId} kps-muted-${panelId}">-</div>
       `;
+    }
+
+    // CSS 기반 그래프 생성 (KPS만 표시)
+    let graphHtml = "";
+    if (showGraph) {
+      const history = panel.chartData || [];
+      const graphType = panel.settings.graphType || "bar";
+      const maxval = panel.maxval || 1; // KeysPerSecond 스타일: 지금까지 본 최대값
+
+      if (graphType === "bar") {
+        const bars = history
+          .map((value, index) => {
+            const height =
+              maxval > 0 ? Math.min((value / maxval) * 100, 100) : 0;
+            const opacity = 0.3 + (index / history.length) * 0.7;
+            return `<div class="kps-bar-${panelId}" style="height: ${height}%; opacity: ${opacity};"></div>`;
+          })
+          .join("");
+
+        graphHtml = `
+          <div class="kps-graph-${panelId}">
+            ${bars}
+          </div>
+        `;
+      } else {
+        // 선 그래프 + 평균선
+        if (history.length === 0) {
+          graphHtml = `<div class="kps-graph-${panelId}"></div>`;
+        } else {
+          // 라인 포인트 생성
+          const linePoints = history
+            .map((value, index) => {
+              const x = (index / (history.length - 1)) * 100;
+              const y = 100 - Math.min((value / maxval) * 100, 100);
+              return `${x},${y}`;
+            })
+            .join(" ");
+
+          // 면적 채우기용 polygon points (왼쪽 하단 → 라인 → 오른쪽 하단)
+          const fillPoints = [
+            "0,100", // 시작점 (왼쪽 하단)
+            ...history.map((value, index) => {
+              const x = (index / (history.length - 1)) * 100;
+              const y = 100 - Math.min((value / maxval) * 100, 100);
+              return `${x},${y}`;
+            }),
+            "100,100", // 끝점 (오른쪽 하단)
+          ].join(" ");
+
+          // 평균선 위치 계산
+          const avgY = 100 - Math.min((avg / maxval) * 100, 100);
+
+          graphHtml = `
+            <div class="kps-graph-${panelId}">
+              <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id="lineGradient-${panelId}" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" style="stop-color:#86EFAC;stop-opacity:0.3" />
+                    <stop offset="100%" style="stop-color:#86EFAC;stop-opacity:1" />
+                  </linearGradient>
+                  <linearGradient id="fillGradient-${panelId}" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" style="stop-color:#86EFAC;stop-opacity:0.05" />
+                    <stop offset="100%" style="stop-color:#86EFAC;stop-opacity:0.15" />
+                  </linearGradient>
+                </defs>
+                <!-- 면적 채우기 -->
+                <polygon
+                  points="${fillPoints}"
+                  fill="url(#fillGradient-${panelId})"
+                />
+                <!-- 평균선 (KeysPerSecond 스타일) -->
+                <line
+                  x1="0" y1="${avgY}"
+                  x2="100" y2="${avgY}"
+                  stroke="#86EFAC"
+                  stroke-width="1"
+                  stroke-dasharray="2,2"
+                  opacity="0.5"
+                  vector-effect="non-scaling-stroke"
+                />
+                <!-- KPS 라인 -->
+                <polyline
+                  points="${linePoints}"
+                  fill="none"
+                  stroke="url(#lineGradient-${panelId})"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  vector-effect="non-scaling-stroke"
+                />
+              </svg>
+            </div>
+          `;
+        }
+      }
     }
 
     return `
       <style>
-        .dmn-kps-panel {
-          background: rgba(17, 17, 20, 0.88);
+        .kps-panel-${panelId} {
+          background: rgba(17, 17, 20, 0.9);
           color: #fff;
-          border: 1px solid rgba(255,255,255,0.12);
+          border: 1px solid rgba(255, 255, 255, 0.1);
           border-radius: 8px;
           padding: 8px;
           min-width: 100px;
           max-width: 260px;
-          backdrop-filter: blur(3px);
-          font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-          box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+          backdrop-filter: blur(4px);
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
           cursor: pointer;
           user-select: none;
+          font-family: ui-monospace, monospace;
         }
-        .dmn-kps-header {
+        .kps-header-${panelId} {
           display: flex;
           align-items: center;
           justify-content: space-between;
@@ -124,112 +216,243 @@
           font-size: 14px;
           font-weight: 600;
         }
-        .dmn-kps-body {
+        .kps-body-${panelId} {
           display: grid;
           grid-template-columns: 1fr auto;
           gap: 4px 8px;
           font-size: 12px;
           line-height: 1.3;
         }
-        .dmn-kps-key {
+        .kps-key-${panelId} {
           color: #CBD5E1;
           white-space: nowrap;
         }
-        .dmn-kps-val {
+        .kps-val-${panelId} {
           color: #86EFAC;
           text-align: right;
           font-weight: 700;
         }
-        .dmn-kps-muted {
+        .kps-muted-${panelId} {
           color: #6B7280;
         }
+        .kps-graph-${panelId} {
+          display: flex;
+          align-items: flex-end;
+          justify-content: space-between;
+          height: 60px;
+          margin-top: 8px;
+          padding: 4px;
+          background: rgba(0, 0, 0, 0.3);
+          border-radius: 4px;
+          gap: 1px;
+          position: relative;
+        }
+        .kps-bar-${panelId} {
+          flex: 1;
+          background: linear-gradient(to top, #86EFAC, #34D399);
+          border-radius: 2px 2px 0 0;
+          min-height: 2px;
+          transition: height 0.15s ease-out;
+        }
+        .kps-graph-${panelId} svg {
+          position: absolute;
+          top: 4px;
+          left: 4px;
+          right: 4px;
+          bottom: 4px;
+          width: calc(100% - 8px);
+          height: calc(100% - 8px);
+        }
       </style>
-      <div class="dmn-kps-panel">
-        <div class="dmn-kps-header">
+      <div class="kps-panel-${panelId}">
+        <div class="kps-header-${panelId}">
           <div>Keys per Second</div>
         </div>
-        <div class="dmn-kps-body">
+        <div class="kps-body-${panelId}">
           ${rows}
         </div>
+        ${graphHtml}
       </div>
     `;
   }
 
   // ===== KPS 패널 생성 =====
-  function createPanel() {
-    if (panelElementId) return; // 이미 존재하면 무시
+  async function createPanel(position) {
+    const panelId = nextPanelId++;
+    await saveNextPanelId();
 
-    panelElementId = window.api.ui.displayElement.add({
-      html: generatePanelHtml(),
+    const settings = {
+      ...JSON.parse(JSON.stringify(DEFAULT_PANEL_SETTINGS)),
+      position: position || DEFAULT_PANEL_SETTINGS.position,
+    };
+
+    // 그래프 데이터 초기화
+    const dataPoints = Math.ceil(settings.graphSpeed / GRAPH_UPDATE_MS);
+    const chartData = Array(dataPoints).fill(0);
+
+    // panels.set을 먼저 호출 (generatePanelHtml에서 panels.get 사용)
+    panels.set(panelId, {
+      elementId: null, // 임시로 null
+      settings,
+      chartData,
+      maxval: 1, // KeysPerSecond 스타일: 지금까지 본 최대값
+    });
+
+    const elementId = window.api.ui.displayElement.add({
+      html: generatePanelHtml(panelId),
       position: settings.position,
       draggable: true,
       zIndex: 100,
-      scoped: true,
-      onClick: "handleKpsPanelClick",
-      onPositionChange: "handleKpsPositionChange",
-      onDelete: "handleKpsDelete",
-      estimatedSize: { width: 150, height: 100 },
+      scoped: false,
+      onClick: `handleKpsPanelClick_${panelId}`,
+      onPositionChange: `handleKpsPositionChange_${panelId}`,
+      onDelete: `handleKpsDelete_${panelId}`,
+      estimatedSize: { width: 250, height: 180 },
       contextMenu: {
         enableDelete: true,
         deleteLabel: "🗑️ KPS 패널 제거",
       },
     });
 
-    savePanelState(true);
-  }
+    // elementId 업데이트
+    panels.get(panelId).elementId = elementId;
 
-  // ===== KPS 패널 제거 =====
-  function removePanel() {
-    if (!panelElementId) return;
+    // 핸들러 등록
+    window[`handleKpsPanelClick_${panelId}`] = async () =>
+      await handlePanelClick(panelId);
+    window[`handleKpsPositionChange_${panelId}`] = async (pos) =>
+      await handlePositionChange(panelId, pos);
+    window[`handleKpsDelete_${panelId}`] = async () =>
+      await handlePanelDelete(panelId);
 
-    window.api.ui.displayElement.remove(panelElementId);
-    panelElementId = null;
-    savePanelState(false);
+    await savePanels();
+
+    return panelId;
   }
 
   // ===== KPS 패널 업데이트 =====
-  function updatePanel() {
-    if (!panelElementId) return;
+  function updatePanel(panelId) {
+    const panel = panels.get(panelId);
+    if (!panel) return;
 
-    window.api.ui.displayElement.update(panelElementId, {
-      html: generatePanelHtml(),
+    window.api.ui.displayElement.update(panel.elementId, {
+      html: generatePanelHtml(panelId),
     });
   }
 
-  // ===== 위치 변경 핸들러 =====
-  async function handleKpsPositionChange(position) {
-    settings.position = position;
-    await saveSettings();
+  // ===== 모든 패널 업데이트 =====
+  function updateAllPanels() {
+    const { kps, avg, max } = currentKpsData;
+
+    for (const [panelId, panel] of panels.entries()) {
+      // 그래프 데이터 업데이트 (좌→우 스크롤)
+      if (panel.settings.showGraph) {
+        // KeysPerSecond 스타일: maxval 추적 (지금까지 본 최대값)
+        if (kps > panel.maxval) {
+          panel.maxval = kps;
+        }
+
+        panel.chartData.shift(); // 가장 오래된 데이터 제거
+        panel.chartData.push(kps); // 새 데이터 추가
+
+        // backlog 크기 조정
+        const targetSize = Math.ceil(
+          panel.settings.graphSpeed / GRAPH_UPDATE_MS
+        );
+        while (panel.chartData.length > targetSize) {
+          panel.chartData.shift();
+        }
+        while (panel.chartData.length < targetSize) {
+          panel.chartData.unshift(0);
+        }
+      }
+
+      // HTML 업데이트 (값 + 그래프 반영)
+      window.api.ui.displayElement.update(panel.elementId, {
+        html: generatePanelHtml(panelId),
+      });
+    }
+  } // ===== 위치 변경 핸들러 =====
+  async function handlePositionChange(panelId, position) {
+    const panel = panels.get(panelId);
+    if (!panel) return;
+
+    panel.settings.position = position;
+    await savePanels();
   }
 
   // ===== 삭제 핸들러 =====
-  async function handleKpsDelete() {
-    panelElementId = null;
-    await savePanelState(false);
+  async function handlePanelDelete(panelId) {
+    const panel = panels.get(panelId);
+    if (!panel) return;
+
+    delete window[`handleKpsPanelClick_${panelId}`];
+    delete window[`handleKpsPositionChange_${panelId}`];
+    delete window[`handleKpsDelete_${panelId}`];
+
+    panels.delete(panelId);
+    await savePanels();
   }
 
   // ===== 설정 모달 열기 =====
-  async function handleKpsPanelClick() {
-    const { visibility } = settings;
+  async function handlePanelClick(panelId) {
+    const panel = panels.get(panelId);
+    if (!panel) return;
 
-    // 임시 설정값 (모달에서 변경사항 추적)
-    const tempSettings = { ...visibility };
+    const { visibility, showGraph, graphType, graphSpeed } = panel.settings;
 
-    // 체크박스 change 핸들러
+    // 임시 설정값
+    const tempSettings = {
+      visibility: { ...visibility },
+      showGraph,
+      graphType: graphType || "bar",
+      graphSpeed: graphSpeed !== undefined ? graphSpeed : 3000,
+    };
+
+    // 체크박스 핸들러
     function checkboxHandler(e) {
-      // input id는 "{id}-input" 형식이므로 "-input" 제거
       const id = e.target.id.replace("-input", "");
       const checked = e.target.checked;
 
-      if (id === "kps-total-checkbox") tempSettings.total = checked;
-      else if (id === "kps-avg-checkbox") tempSettings.avg = checked;
-      else if (id === "kps-max-checkbox") tempSettings.max = checked;
+      if (id === "kps-kps-checkbox") tempSettings.visibility.kps = checked;
+      else if (id === "kps-avg-checkbox") tempSettings.visibility.avg = checked;
+      else if (id === "kps-max-checkbox") tempSettings.visibility.max = checked;
+      else if (id === "kps-graph-checkbox") tempSettings.showGraph = checked;
     }
 
-    // Components로 체크박스 생성
-    const totalCheckbox = window.api.ui.components.checkbox({
-      checked: visibility.total,
-      id: "kps-total-checkbox",
+    // 드롭다운 핸들러
+    function dropdownHandler(e) {
+      const dropdown = e.target.closest(".plugin-dropdown");
+      if (dropdown) {
+        tempSettings.graphType = dropdown.getAttribute("data-selected");
+      }
+    }
+
+    // Input 핸들러
+    function inputHandler(e) {
+      const targetId = e.target.id;
+      if (targetId === "kps-speed-input") {
+        const value = parseInt(e.target.value, 10);
+        if (!isNaN(value) && value > 0) {
+          tempSettings.graphSpeed = value;
+        }
+      }
+    }
+
+    window.__kpsCheckboxHandler = checkboxHandler;
+    window.__kpsDropdownHandler = dropdownHandler;
+    window.__kpsInputHandler = inputHandler;
+
+    const addChangeHandler = (html, id) => {
+      return html.replace(
+        `id="${id}"`,
+        `id="${id}" data-plugin-handler-change="__kpsCheckboxHandler"`
+      );
+    };
+
+    const kpsCheckbox = window.api.ui.components.checkbox({
+      checked: visibility.kps,
+      id: "kps-kps-checkbox",
     });
 
     const avgCheckbox = window.api.ui.components.checkbox({
@@ -242,22 +465,48 @@
       id: "kps-max-checkbox",
     });
 
-    // 전역에 핸들러 등록 (Display Element 콜백용)
-    window.__kpsCheckboxHandler = checkboxHandler;
+    const graphCheckbox = window.api.ui.components.checkbox({
+      checked: showGraph,
+      id: "kps-graph-checkbox",
+    });
 
-    // change 이벤트 핸들러 추가
-    const addChangeHandler = (html, id) => {
+    const graphTypeDropdown = window.api.ui.components.dropdown({
+      options: [
+        { value: "bar", label: "바 그래프" },
+        { value: "line", label: "선 그래프" },
+      ],
+      selected: tempSettings.graphType,
+      id: "kps-graph-type",
+    });
+
+    const graphSpeedInput = window.api.ui.components.input({
+      type: "number",
+      value: tempSettings.graphSpeed,
+      min: 100,
+      step: 100,
+      width: 60,
+      id: "kps-speed-input",
+    });
+
+    const addDropdownHandler = (html, id) => {
       return html.replace(
         `id="${id}"`,
-        `id="${id}" data-plugin-handler-change="__kpsCheckboxHandler"`
+        `id="${id}" data-plugin-handler-change="__kpsDropdownHandler"`
+      );
+    };
+
+    const addInputHandler = (html, id) => {
+      return html.replace(
+        `id="${id}"`,
+        `id="${id}" data-plugin-handler-input="__kpsInputHandler" data-plugin-handler-change="__kpsInputHandler"`
       );
     };
 
     const formHtml = `
-      <div class="flex flex-col gap-[12px]">
+      <div class="flex flex-col gap-[16px] w-full">
         ${window.api.ui.components.formRow(
-          "TOTAL 표시",
-          addChangeHandler(totalCheckbox, "kps-total-checkbox")
+          "KPS 표시",
+          addChangeHandler(kpsCheckbox, "kps-kps-checkbox")
         )}
         ${window.api.ui.components.formRow(
           "AVG 표시",
@@ -266,6 +515,18 @@
         ${window.api.ui.components.formRow(
           "MAX 표시",
           addChangeHandler(maxCheckbox, "kps-max-checkbox")
+        )}
+        ${window.api.ui.components.formRow(
+          "그래프 표시",
+          addChangeHandler(graphCheckbox, "kps-graph-checkbox")
+        )}
+        ${window.api.ui.components.formRow(
+          "그래프 형태",
+          addDropdownHandler(graphTypeDropdown, "kps-graph-type")
+        )}
+        ${window.api.ui.components.formRow(
+          "그래프 속도 (ms)",
+          addInputHandler(graphSpeedInput, "kps-speed-input")
         )}
       </div>
     `;
@@ -276,50 +537,109 @@
       showCancel: true,
     });
 
-    // 핸들러 정리
     delete window.__kpsCheckboxHandler;
+    delete window.__kpsDropdownHandler;
+    delete window.__kpsInputHandler;
 
     if (confirmed) {
-      // 임시 설정값을 실제 설정에 적용
-      settings.visibility = { ...tempSettings };
-      await saveSettings();
-      updatePanel();
+      panel.settings.visibility = { ...tempSettings.visibility };
+      panel.settings.showGraph = tempSettings.showGraph;
+      panel.settings.graphType = tempSettings.graphType;
+      panel.settings.graphSpeed = tempSettings.graphSpeed;
+
+      // graphSpeed 변경 시 chartData 크기 조정
+      const newSize = Math.ceil(tempSettings.graphSpeed / GRAPH_UPDATE_MS);
+      if (panel.chartData.length !== newSize) {
+        const diff = newSize - panel.chartData.length;
+        if (diff > 0) {
+          // 크기 증가: 앞에 0 추가
+          panel.chartData = [...Array(diff).fill(0), ...panel.chartData];
+        } else {
+          // 크기 감소: 앞에서 제거
+          panel.chartData = panel.chartData.slice(-newSize);
+        }
+      }
+
+      await savePanels();
+      updatePanel(panelId);
     }
   }
-
-  // 전역에 핸들러 등록 (Display Element 콜백용)
-  window.handleKpsPanelClick = handleKpsPanelClick;
-  window.handleKpsPositionChange = handleKpsPositionChange;
-  window.handleKpsDelete = handleKpsDelete;
 
   // ===== 그리드 컨텍스트 메뉴에 KPS 패널 추가 메뉴 등록 =====
   const menuId = window.api.ui.contextMenu.addGridMenuItem({
     id: "add-kps-panel",
     label: "📊 KPS 패널 추가",
     onClick: async (context) => {
-      settings.position = { x: context.position.dx, y: context.position.dy };
-      await saveSettings();
-      createPanel();
+      await createPanel({ x: context.position.dx, y: context.position.dy });
     },
   });
 
   // ===== 브릿지로 오버레이로부터 KPS 데이터 수신 =====
   const unsubBridge = window.api.bridge.on("KPS_UPDATE", (data) => {
     currentKpsData = {
-      total: data.total || 0,
+      kps: data.kps || 0,
       avg: data.avg || 0,
       max: data.max || 0,
     };
-    updatePanel();
+    updateAllPanels();
   });
 
   // ===== 초기화 =====
   async function init() {
-    await loadSettings();
-    const deployed = await loadPanelState();
+    nextPanelId = await loadNextPanelId();
+    const savedPanels = await loadPanels();
 
-    if (deployed) {
-      createPanel();
+    for (const savedPanel of savedPanels) {
+      const panelId = savedPanel.id;
+      const settings = {
+        ...JSON.parse(JSON.stringify(DEFAULT_PANEL_SETTINGS)),
+        ...savedPanel.settings,
+        visibility: {
+          ...DEFAULT_PANEL_SETTINGS.visibility,
+          ...(savedPanel.settings?.visibility || {}),
+        },
+      };
+
+      const dataPoints = Math.ceil(settings.graphSpeed / GRAPH_UPDATE_MS);
+      const chartData = Array(dataPoints).fill(0);
+
+      // panels.set을 먼저 호출 (generatePanelHtml에서 panels.get 사용)
+      panels.set(panelId, {
+        elementId: null, // 임시로 null
+        settings,
+        chartData,
+        maxval: 1,
+      });
+
+      const elementId = window.api.ui.displayElement.add({
+        html: generatePanelHtml(panelId),
+        position: settings.position,
+        draggable: true,
+        zIndex: 100,
+        scoped: false,
+        onClick: `handleKpsPanelClick_${panelId}`,
+        onPositionChange: `handleKpsPositionChange_${panelId}`,
+        onDelete: `handleKpsDelete_${panelId}`,
+        estimatedSize: { width: 250, height: 180 },
+        contextMenu: {
+          enableDelete: true,
+          deleteLabel: "🗑️ KPS 패널 제거",
+        },
+      });
+
+      // elementId 업데이트
+      panels.get(panelId).elementId = elementId;
+
+      window[`handleKpsPanelClick_${panelId}`] = async () =>
+        await handlePanelClick(panelId);
+      window[`handleKpsPositionChange_${panelId}`] = async (pos) =>
+        await handlePositionChange(panelId, pos);
+      window[`handleKpsDelete_${panelId}`] = async () =>
+        await handlePanelDelete(panelId);
+
+      if (panelId >= nextPanelId) {
+        nextPanelId = panelId + 1;
+      }
     }
   }
 
@@ -330,9 +650,13 @@
     unsubBridge();
     window.api.ui.contextMenu.removeMenuItem(menuId);
     window.api.ui.displayElement.clearMyElements();
-    delete window.handleKpsPanelClick;
-    delete window.handleKpsPositionChange;
-    delete window.handleKpsDelete;
+
+    for (const [panelId] of panels.entries()) {
+      delete window[`handleKpsPanelClick_${panelId}`];
+      delete window[`handleKpsPositionChange_${panelId}`];
+      delete window[`handleKpsDelete_${panelId}`];
+    }
+
     delete window.__kpsCheckboxHandler;
   });
 })();
@@ -346,7 +670,7 @@
 
   // 설정값
   const WINDOW_MS = 1000; // 집계 윈도우
-  const REFRESH_MS = 100; // 계산 주기
+  const REFRESH_MS = 50; // 계산 주기
 
   // 내부 상태
   let currentMode = null;
@@ -408,7 +732,7 @@
 
     // 메인 윈도우로 브릿지 전송 (Display Element 업데이트용)
     window.api.bridge.sendTo("main", "KPS_UPDATE", {
-      total,
+      kps: total,
       avg,
       max: maxKps,
     });
