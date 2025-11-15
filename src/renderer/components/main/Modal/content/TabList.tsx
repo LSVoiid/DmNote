@@ -146,6 +146,8 @@ const TabList = ({ onClose }: TabListProps) => {
           name: customTabs.find((t) => t.id === selectedKeyType)?.name || "",
         })}
         confirmText={t("tabs.delete")}
+        cancelText={t("common.cancel")}
+        showCancel
         onConfirm={async () => {
           setAskDelete(false);
           await handleDelete();
