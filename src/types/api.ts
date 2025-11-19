@@ -164,6 +164,7 @@ export type PluginDisplayElement = {
   definitionId?: string;
   settings?: Record<string, any>;
   state?: Record<string, any>;
+  tabId?: string; // 탭 ID (4key, 5key, custom-tab-id 등)
 };
 
 export type PluginSettingType =

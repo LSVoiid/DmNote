@@ -85,6 +85,13 @@ export function useCustomJsInjection() {
           usePluginMenuStore.getState().clearAll();
           usePluginDisplayElementStore.getState().elements = [];
           displayElementInstanceRegistry.clearAll();
+
+          // 오버레이에도 삭제 동기화 (명시적)
+          if (window.api?.bridge) {
+            window.api.bridge.sendTo("overlay", "plugin:displayElements:sync", {
+              elements: [],
+            });
+          }
         } catch (error) {
           console.error("Failed to clear plugin UI elements", error);
         }
@@ -118,6 +125,18 @@ export function useCustomJsInjection() {
                   .getState()
                   .clearByPluginId(pluginId);
                 displayElementInstanceRegistry.clearByPluginId(pluginId);
+
+                // 오버레이에도 삭제 동기화 (명시적)
+                if (window.api?.bridge) {
+                  window.api.bridge.sendTo(
+                    "overlay",
+                    "plugin:displayElements:sync",
+                    {
+                      elements:
+                        usePluginDisplayElementStore.getState().elements,
+                    }
+                  );
+                }
               } catch (error) {
                 console.error(
                   `Failed to clear UI elements for plugin '${pluginId}'`,
@@ -297,6 +316,7 @@ export function useCustomJsInjection() {
                       position: el.position,
                       settings: el.settings,
                       measuredSize: el.measuredSize,
+                      tabId: el.tabId, // 탭 ID 저장
                     }));
 
                     await namespacedStorage.set(INSTANCES_KEY, instances);
@@ -324,23 +344,34 @@ export function useCustomJsInjection() {
                     registerCleanup(unsubStore);
                   }
 
-                  // 초기 설정값 구성
-                  const initialSettings: Record<string, any> = {};
+                  // 초기 설정값 구성 (스키마 기본값)
+                  const defaultSettings: Record<string, any> = {};
                   if (definition.settings) {
                     Object.entries(definition.settings).forEach(
                       ([key, schema]: [string, any]) => {
-                        initialSettings[key] = schema.default;
+                        defaultSettings[key] = schema.default;
                       }
                     );
                   }
 
-                  // 설정 다이얼로그 열기 함수
-                  const openSettings = async () => {
-                    const savedSettings =
-                      (await namespacedStorage.get("settings")) || {};
+                  // 설정 다이얼로그 열기 함수 (인스턴스별)
+                  const openInstanceSettings = async (instanceId: string) => {
+                    // 해당 인스턴스 찾기
+                    const element = usePluginDisplayElementStore
+                      .getState()
+                      .elements.find((el) => el.fullId === instanceId);
+
+                    if (!element) {
+                      console.warn(
+                        `[Plugin ${pluginId}] Cannot find element ${instanceId} for settings`
+                      );
+                      return;
+                    }
+
+                    // 인스턴스 설정 로드 (없으면 기본값)
                     const currentSettings = {
-                      ...initialSettings,
-                      ...savedSettings,
+                      ...defaultSettings,
+                      ...(element.settings || {}),
                     };
                     // 취소 시 복원을 위한 원본 저장
                     const originalSettings = { ...currentSettings };
@@ -363,22 +394,10 @@ export function useCustomJsInjection() {
                           currentSettings[key] = newValue;
                           const newSettings = { ...currentSettings };
 
-                          // 2. 스토리지 저장
-                          await namespacedStorage.set("settings", newSettings);
-
-                          // 3. 활성화된 모든 인스턴스 업데이트
-                          const elements = usePluginDisplayElementStore
-                            .getState()
-                            .elements.filter((el) => el.definitionId === defId);
-
-                          elements.forEach((el) => {
-                            window.api.ui.displayElement.update(el.fullId, {
-                              settings: newSettings,
-                            });
+                          // 2. 해당 인스턴스만 업데이트 (스토리지 저장은 Store 구독에 의해 자동 처리됨)
+                          window.api.ui.displayElement.update(instanceId, {
+                            settings: newSettings,
                           });
-
-                          // 인스턴스 정보도 업데이트 (settings가 포함되어 있으므로)
-                          saveInstances();
                         };
 
                         // 래핑된 핸들러 (플러그인 컨텍스트 유지)
@@ -398,7 +417,8 @@ export function useCustomJsInjection() {
                             );
                             if (!target) return;
 
-                            const pickerId = `plugin-${pluginId}-setting-${key}`;
+                            // 인스턴스별 고유 ID 생성
+                            const pickerId = `plugin-${pluginId}-${instanceId}-${key}`;
 
                             // 이미 이 버튼에 해당하는 픽커가 열려 있다면, 토글로 닫기만 수행
                             if (
@@ -508,19 +528,20 @@ export function useCustomJsInjection() {
 
                     // 취소 시 원본 설정으로 복원
                     if (!confirmed) {
-                      await namespacedStorage.set("settings", originalSettings);
-
-                      const elements = usePluginDisplayElementStore
-                        .getState()
-                        .elements.filter((el) => el.definitionId === defId);
-
-                      elements.forEach((el) => {
-                        window.api.ui.displayElement.update(el.fullId, {
-                          settings: originalSettings,
-                        });
+                      window.api.ui.displayElement.update(instanceId, {
+                        settings: originalSettings,
                       });
+                    }
+                  };
 
-                      saveInstances();
+                  // 요소 클릭 핸들러 (설정 열기)
+                  const handleElementClick = (e: Event) => {
+                    const target = e.currentTarget as HTMLElement;
+                    const instanceId = target.getAttribute(
+                      "data-plugin-element"
+                    );
+                    if (instanceId) {
+                      openInstanceSettings(instanceId);
                     }
                   };
 
@@ -535,15 +556,7 @@ export function useCustomJsInjection() {
                       id: `create-${defId}`,
                       label: createLabel,
                       onClick: async (context) => {
-                        // 최신 설정 로드
-                        const savedSettings =
-                          (await namespacedStorage.get("settings")) || {};
-                        const settings = {
-                          ...initialSettings,
-                          ...savedSettings,
-                        };
-
-                        // 인스턴스 생성
+                        // 인스턴스 생성 (기본값 사용)
                         window.api.ui.displayElement.add({
                           html: "<!-- plugin-element -->", // 템플릿 사용
                           position: {
@@ -552,10 +565,9 @@ export function useCustomJsInjection() {
                           },
                           draggable: true,
                           definitionId: defId,
-                          settings: settings,
+                          settings: { ...defaultSettings }, // 기본값 복사
                           state: definition.previewState || {},
-                          // 설정 다이얼로그 연결
-                          onClick: wrapFunctionWithContext(openSettings),
+                          onClick: handleElementClick, // 좌클릭 시 설정 열기
                           // 삭제 메뉴 연결
                           contextMenu: {
                             enableDelete: true,
@@ -563,8 +575,6 @@ export function useCustomJsInjection() {
                               definition.contextMenu?.delete || "삭제",
                           },
                         } as any);
-
-                        // 저장 (Store 구독에 의해 자동 처리되지만 명시적으로 호출해도 됨)
                       },
                     });
 
@@ -592,23 +602,17 @@ export function useCustomJsInjection() {
                         )) as any[];
 
                         if (savedInstances && Array.isArray(savedInstances)) {
-                          const savedSettings =
-                            (await namespacedStorage.get("settings")) || {};
-                          const settings = {
-                            ...initialSettings,
-                            ...savedSettings,
-                          };
-
                           savedInstances.forEach((inst) => {
                             window.api.ui.displayElement.add({
                               html: "<!-- plugin-element -->", // 빈 문자열 대신 주석 사용
                               position: inst.position,
                               draggable: true,
                               definitionId: defId,
-                              settings: settings, // 전역 설정 사용
+                              settings: inst.settings || { ...defaultSettings }, // 저장된 설정 또는 기본값
                               state: definition.previewState || {},
                               measuredSize: inst.measuredSize,
-                              onClick: wrapFunctionWithContext(openSettings),
+                              tabId: inst.tabId, // 저장된 탭 ID 복원
+                              onClick: handleElementClick, // 좌클릭 시 설정 열기
                               contextMenu: {
                                 enableDelete: true,
                                 deleteLabel:

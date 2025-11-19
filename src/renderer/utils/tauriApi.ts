@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { usePluginMenuStore } from "@stores/usePluginMenuStore";
 import { usePluginDisplayElementStore } from "@stores/usePluginDisplayElementStore";
+import { useKeyStore } from "@stores/useKeyStore";
 import { DisplayElementInstance } from "@utils/displayElementInstance";
 import { html } from "@utils/templateEngine";
 import type {
@@ -650,6 +651,10 @@ const api: DMNoteAPI = {
           ...elementOptions
         } = element as PluginDisplayElementConfig;
 
+        // 현재 활성화된 탭 ID 가져오기
+        const currentTabId =
+          elementOptions.tabId || useKeyStore.getState().selectedKeyType;
+
         const templateFn =
           typeof template === "function" ? template : undefined;
         const stateSnapshot = initialState
@@ -695,6 +700,7 @@ const api: DMNoteAPI = {
           id,
           pluginId,
           fullId,
+          tabId: currentTabId, // 탭 ID 저장
           onClick:
             onClickId ||
             (typeof elementOptions.onClick === "string"

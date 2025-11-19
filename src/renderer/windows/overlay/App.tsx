@@ -188,35 +188,37 @@ export default function App() {
     });
 
     // 플러그인 요소 위치 (앵커 기반 계산 포함)
-    pluginElements.forEach((element) => {
-      let x = element.position.x;
-      let y = element.position.y;
+    pluginElements
+      .filter((el) => !el.tabId || el.tabId === selectedKeyType)
+      .forEach((element) => {
+        let x = element.position.x;
+        let y = element.position.y;
 
-      // 앵커 기반 위치 계산
-      if (element.anchor?.keyCode && selectedKeyType) {
-        const keyIndex = currentKeys.findIndex(
-          (key) => key === element.anchor?.keyCode
-        );
-        if (keyIndex >= 0 && currentPositions[keyIndex]) {
-          const keyPosition = currentPositions[keyIndex];
-          const offsetX = element.anchor.offset?.x ?? 0;
-          const offsetY = element.anchor.offset?.y ?? 0;
-          x = keyPosition.dx + offsetX;
-          y = keyPosition.dy + offsetY;
+        // 앵커 기반 위치 계산
+        if (element.anchor?.keyCode && selectedKeyType) {
+          const keyIndex = currentKeys.findIndex(
+            (key) => key === element.anchor?.keyCode
+          );
+          if (keyIndex >= 0 && currentPositions[keyIndex]) {
+            const keyPosition = currentPositions[keyIndex];
+            const offsetX = element.anchor.offset?.x ?? 0;
+            const offsetY = element.anchor.offset?.y ?? 0;
+            x = keyPosition.dx + offsetX;
+            y = keyPosition.dy + offsetY;
+          }
         }
-      }
 
-      // 실제 측정된 크기 또는 추정 크기 사용
-      const width =
-        element.measuredSize?.width ?? element.estimatedSize?.width ?? 200;
-      const height =
-        element.measuredSize?.height ?? element.estimatedSize?.height ?? 150;
+        // 실제 측정된 크기 또는 추정 크기 사용
+        const width =
+          element.measuredSize?.width ?? element.estimatedSize?.width ?? 200;
+        const height =
+          element.measuredSize?.height ?? element.estimatedSize?.height ?? 150;
 
-      xs.push(x);
-      ys.push(y);
-      widths.push(x + width);
-      heights.push(y + height);
-    });
+        xs.push(x);
+        ys.push(y);
+        widths.push(x + width);
+        heights.push(y + height);
+      });
 
     if (xs.length === 0) return null;
 
