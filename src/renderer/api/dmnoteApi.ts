@@ -63,6 +63,46 @@ import type {
   SettingsDiff,
 } from "@src/types/settings";
 
+const LOCALE_STORAGE_KEY = "dmnote:locale";
+const DEFAULT_LOCALE = "ko";
+const SUPPORTED_LOCALES = new Set(["ko", "en"]);
+
+let cachedLocale: string | null = null;
+const i18nListeners = new Set<(locale: string) => void>();
+
+function initializeCachedLocale() {
+  if (cachedLocale || typeof window === "undefined") return;
+  try {
+    const stored = window.localStorage.getItem(LOCALE_STORAGE_KEY);
+    if (stored && SUPPORTED_LOCALES.has(stored)) {
+      cachedLocale = stored;
+    }
+  } catch (error) {
+    console.warn("[I18n] Failed to read cached locale", error);
+  }
+}
+
+function notifyLocaleChanged(next: string) {
+  if (!next || cachedLocale === next) return;
+  cachedLocale = next;
+  if (typeof window !== "undefined") {
+    try {
+      window.localStorage.setItem(LOCALE_STORAGE_KEY, next);
+    } catch (error) {
+      console.warn("[I18n] Failed to persist locale", error);
+    }
+  }
+  i18nListeners.forEach((listener) => {
+    try {
+      listener(next);
+    } catch (error) {
+      console.error("[I18n] Locale listener failed", error);
+    }
+  });
+}
+
+initializeCachedLocale();
+
 function subscribe<T>(
   event: string,
   listener: (payload: T) => void
@@ -308,6 +348,28 @@ const api: DMNoteAPI = {
       },
     };
   })(),
+  i18n: {
+    getLocale: async () => {
+      if (cachedLocale) {
+        return cachedLocale;
+      }
+      try {
+        const settings = await invoke<SettingsState>("settings_get");
+        const next = settings.language || DEFAULT_LOCALE;
+        notifyLocaleChanged(next);
+        return next;
+      } catch (error) {
+        console.warn("[I18n] Failed to fetch locale", error);
+        return cachedLocale || DEFAULT_LOCALE;
+      }
+    },
+    onLocaleChange: (listener) => {
+      i18nListeners.add(listener);
+      return () => {
+        i18nListeners.delete(listener);
+      };
+    },
+  },
   plugin: {
     storage: {
       get: <T = any>(key: string) =>
@@ -695,3 +757,10 @@ export {
 } from "./pluginDisplayElements";
 
 export default api;
+
+subscribe<SettingsDiff>("settings:changed", (diff) => {
+  const next = diff.changed.language;
+  if (typeof next === "string") {
+    notifyLocaleChanged(next);
+  }
+});

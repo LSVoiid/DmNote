@@ -5,6 +5,7 @@ import {
   handlerRegistry,
   displayElementInstanceRegistry,
 } from "@api/pluginDisplayElements";
+import { translatePluginMessage } from "@utils/pluginI18n";
 import type { PluginDefinition } from "@src/types/api";
 import type { JsPlugin } from "@src/types/js";
 
@@ -294,6 +295,55 @@ export function createCustomJsRuntime(): CustomJsRuntime {
               );
             }
 
+            let currentLocale = "ko";
+            const applyLocale = (next?: string) => {
+              if (typeof next === "string" && next.trim().length > 0) {
+                currentLocale = next;
+              }
+            };
+
+            if (window.api?.i18n?.getLocale) {
+              window.api.i18n
+                .getLocale()
+                .then(applyLocale)
+                .catch(() => undefined);
+            } else if (window.api?.settings?.get) {
+              window.api.settings
+                .get()
+                .then((settings) => applyLocale((settings as any)?.language))
+                .catch(() => undefined);
+            }
+
+            let localeCleanup: (() => void) | null = null;
+            if (window.api?.i18n?.onLocaleChange) {
+              localeCleanup = window.api.i18n.onLocaleChange(applyLocale);
+              if (localeCleanup) {
+                registerCleanup(pluginId, () => {
+                  try {
+                    localeCleanup && localeCleanup();
+                  } catch (error) {
+                    console.error(
+                      `[Plugin ${pluginId}] Failed to cleanup locale listener`,
+                      error
+                    );
+                  }
+                });
+              }
+            }
+
+            const translate = (
+              key?: string,
+              params?: Record<string, string | number>,
+              fallback?: string
+            ) =>
+              translatePluginMessage({
+                messages: definition.messages,
+                locale: currentLocale,
+                key,
+                params,
+                fallback,
+              });
+
             const buildActionsProxy = (elementId: string) =>
               new Proxy(
                 {},
@@ -379,6 +429,19 @@ export function createCustomJsRuntime(): CustomJsRuntime {
                       ? currentSettings[key]
                       : schema.default;
                   let componentHtml = "";
+                  const labelText = translate(
+                    schema.label,
+                    undefined,
+                    schema.label
+                  );
+                  const placeholderText =
+                    typeof schema.placeholder === "string"
+                      ? translate(
+                          schema.placeholder,
+                          undefined,
+                          schema.placeholder
+                        )
+                      : schema.placeholder;
 
                   const handleChange = async (newValue: any) => {
                     currentSettings[key] = newValue;
@@ -481,12 +544,18 @@ export function createCustomJsRuntime(): CustomJsRuntime {
                       min: schema.min,
                       max: schema.max,
                       step: schema.step,
-                      placeholder: schema.placeholder,
+                      placeholder: placeholderText,
                       width: inputWidth,
                     });
                   } else if (schema.type === "select") {
+                    const translatedOptions = (schema.options || []).map(
+                      (option: { label: string; value: any }) => ({
+                        ...option,
+                        label: translate(option.label, undefined, option.label),
+                      })
+                    );
                     componentHtml = window.api.ui.components.dropdown({
-                      options: schema.options || [],
+                      options: translatedOptions,
                       selected: value,
                       onChange: wrappedChange,
                     });
@@ -494,22 +563,40 @@ export function createCustomJsRuntime(): CustomJsRuntime {
 
                   htmlContent += `
                           <div class="flex justify-between w-full items-center">
-                            <p class="text-white text-style-2">${schema.label}</p>
+                            <p class="text-white text-style-2">${labelText}</p>
                             ${componentHtml}
                           </div>
                         `;
                 }
               } else {
-                htmlContent +=
-                  '<div class="text-gray-400 text-center">설정할 항목이 없습니다.</div>';
+                const noSettingsText = await window.api.settings
+                  .get()
+                  .then((s) => {
+                    const locale = (s as any).language || "ko";
+                    return locale === "en"
+                      ? "No settings available."
+                      : "설정할 항목이 없습니다.";
+                  })
+                  .catch(() => "설정할 항목이 없습니다.");
+                htmlContent += `<div class="text-gray-400 text-center">${noSettingsText}</div>`;
               }
 
               htmlContent += "</div>";
 
+              const [saveText, cancelText] = await window.api.settings
+                .get()
+                .then((s) => {
+                  const locale = (s as any).language || "ko";
+                  return locale === "en"
+                    ? ["Apply", "Cancel"]
+                    : ["저장", "취소"];
+                })
+                .catch(() => ["저장", "취소"]);
+
               const confirmed = await window.api.ui.dialog.custom(htmlContent, {
                 showCancel: true,
-                confirmText: "저장",
-                cancelText: "취소",
+                confirmText: saveText,
+                cancelText: cancelText,
               });
 
               if (!confirmed) {

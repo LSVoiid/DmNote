@@ -125,26 +125,67 @@ window.api.plugin.defineElement({
 - `actions`: `onMount`에서 `expose`로 공개한 함수를 여기서 호출합니다.
 - 실행은 overlay에서 일어나고, 메뉴 클릭은 main에서 overlay로 브릿지됩니다.
 
+### 다국어(i18n) 적용하기
+
+플러그인에서 다국어 텍스트를 사용하려면 `messages` 필드에 locale별 번역을 정의하고, 라벨 자리에는 메시지 키를 전달하면 됩니다. 템플릿 헬퍼의 `t()` 함수와 `onMount` 컨텍스트의 `locale`, `onLocaleChange()`도 함께 제공됩니다.
+
+```javascript
+window.api.plugin.defineElement({
+  name: "Localized Panel",
+  messages: {
+    en: {
+      "menu.create": "Create Panel",
+      "menu.delete": "Delete Panel",
+      "metrics.count": "Count",
+    },
+    ko: {
+      "menu.create": "패널 생성",
+      "menu.delete": "패널 삭제",
+      "metrics.count": "카운트",
+    },
+  },
+  contextMenu: {
+    create: "menu.create",
+    delete: "menu.delete",
+  },
+  template: (state, settings, { html, t, locale }) => html`
+    <div data-locale="${locale}">
+      ${t("metrics.count")}: ${state.value ?? 0}
+    </div>
+  `,
+  onMount: ({ setState, locale, onLocaleChange }) => {
+    console.log("current locale", locale);
+    const unsub = onLocaleChange((next) => {
+      console.log("locale changed", next);
+    });
+    setState({ value: 1 });
+    return () => unsub();
+  },
+});
+```
+
+필요하다면 `window.api.i18n.getLocale()`와 `window.api.i18n.onLocaleChange()`를 직접 호출해 언어 설정을 가져오거나 감지할 수도 있습니다.
+
 // @id simple-kps
 
 window.api.plugin.defineElement({
-  name: "Simple KPS",
+name: "Simple KPS",
 
-  contextMenu: {
-    create: "KPS 패널 생성",
-    delete: "KPS 패널 삭제",
-  },
+contextMenu: {
+create: "KPS 패널 생성",
+delete: "KPS 패널 삭제",
+},
 
-  settings: {
-    showGraph: { type: "boolean", default: true, label: "그래프 표시" },
-    textColor: { type: "color", default: "#FFFFFF", label: "텍스트 색상" },
-    graphColor: { type: "color", default: "#00FF00", label: "그래프 색상" },
-  },
+settings: {
+showGraph: { type: "boolean", default: true, label: "그래프 표시" },
+textColor: { type: "color", default: "#FFFFFF", label: "텍스트 색상" },
+graphColor: { type: "color", default: "#00FF00", label: "그래프 색상" },
+},
 
-  // 템플릿: htm 라이브러리로 React Element 생성
-  // - style 속성에 문자열 직접 사용 가능
-  // - 값은 ${state.kps} 형태로 직접 보간
-  template: (state, settings, { html }) => html`
+// 템플릿: htm 라이브러리로 React Element 생성
+// - style 속성에 문자열 직접 사용 가능
+// - 값은 ${state.kps} 형태로 직접 보간
+template: (state, settings, { html }) => html`
     <div
       style="background: rgba(0, 0, 0, 0.7); padding: 10px; border-radius: 8px; color: ${settings.textColor}; font-family: sans-serif; min-width: 100px; text-align: center;"
     >
@@ -154,29 +195,28 @@ window.api.plugin.defineElement({
       </div>
       ${settings.showGraph
         ? html`
-            <div
+<div
               style="margin-top: 5px; height: 4px; background: #333; border-radius: 2px; overflow: hidden;"
             >
-              <div
+<div
                 style="height: 100%; width: ${Math.min(
                   ((state.kps || 0) / 20) * 100,
                   100
                 )}%; background: ${settings.graphColor}; transition: width 0.1s linear;"
               ></div>
-            </div>
-          `
-        : ""}
+</div>
+`        : ""}
     </div>
-  `,
+ `,
 
-  // 메인 윈도우에서 보여줄 미리보기 상태
-  previewState: {
-    kps: 12,
-  },
+// 메인 윈도우에서 보여줄 미리보기 상태
+previewState: {
+kps: 12,
+},
 
-  // 오버레이 로직: 실제 동작 구현
-  onMount: ({ setState, onHook }) => {
-    const timestamps = [];
+// 오버레이 로직: 실제 동작 구현
+onMount: ({ setState, onHook }) => {
+const timestamps = [];
 
     // 키 입력 이벤트 구독 (자동으로 해제됨)
     onHook("key", ({ state }) => {
@@ -198,9 +238,11 @@ window.api.plugin.defineElement({
 
     // 클린업 함수
     return () => clearInterval(interval);
-  },
+
+},
 });
-```
+
+````
 
 ---
 
@@ -223,7 +265,7 @@ template: (state, settings, { html }) => html`
 template: (state, settings, { html }) => html`
   <div>현재 값: ${(state) => state.value}</div>
 `;
-```
+````
 
 #### 2. 스타일 속성
 

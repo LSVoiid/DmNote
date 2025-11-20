@@ -4,29 +4,70 @@ window.api.plugin.defineElement({
   name: "Simple KPS",
 
   contextMenu: {
-    create: "KPS 패널 추가",
-    delete: "KPS 패널 삭제",
+    create: "menu.create",
+    delete: "menu.delete",
     items: [
       {
-        label: "통계 초기화",
+        label: "menu.reset",
         onClick: ({ actions }) => actions.reset(),
       },
     ],
   },
 
+  messages: {
+    en: {
+      "menu.create": "Create KPS Panel",
+      "menu.delete": "Delete KPS Panel",
+      "settings.showKps": "Show KPS",
+      "settings.showAvg": "Show AVG",
+      "settings.showMax": "Show MAX",
+      "settings.showGraph": "Show Graph",
+      "settings.graphType": "Graph Type",
+      "settings.graphType.line": "Line Graph",
+      "settings.graphType.bar": "Bar Graph",
+      "settings.graphSpeed": "Graph Speed (ms)",
+      "settings.graphColor": "Graph Color",
+      "metrics.kps": "KPS",
+      "metrics.avg": "AVG",
+      "metrics.max": "MAX",
+      "menu.reset": "Reset Stats",
+    },
+    ko: {
+      "menu.create": "KPS 패널 생성",
+      "menu.delete": "KPS 패널 삭제",
+      "settings.showKps": "KPS 표시",
+      "settings.showAvg": "AVG 표시",
+      "settings.showMax": "MAX 표시",
+      "settings.showGraph": "그래프 표시",
+      "settings.graphType": "그래프 형태",
+      "settings.graphType.line": "선 그래프",
+      "settings.graphType.bar": "바 그래프",
+      "settings.graphSpeed": "그래프 속도 (ms)",
+      "settings.graphColor": "그래프 색상",
+      "metrics.kps": "KPS",
+      "metrics.avg": "AVG",
+      "metrics.max": "MAX",
+      "menu.reset": "통계 초기화",
+    },
+  },
+
   settings: {
-    showKps: { type: "boolean", default: true, label: "KPS 표시" },
-    showAvg: { type: "boolean", default: true, label: "AVG 표시" },
-    showMax: { type: "boolean", default: true, label: "MAX 표시" },
-    showGraph: { type: "boolean", default: true, label: "그래프 표시" },
+    showKps: { type: "boolean", default: true, label: "settings.showKps" },
+    showAvg: { type: "boolean", default: true, label: "settings.showAvg" },
+    showMax: { type: "boolean", default: true, label: "settings.showMax" },
+    showGraph: {
+      type: "boolean",
+      default: true,
+      label: "settings.showGraph",
+    },
     graphType: {
       type: "select",
       options: [
-        { value: "line", label: "라인 그래프" },
-        { value: "bar", label: "바 그래프" },
+        { value: "line", label: "settings.graphType.line" },
+        { value: "bar", label: "settings.graphType.bar" },
       ],
       default: "line",
-      label: "그래프 종류",
+      label: "settings.graphType",
     },
     graphSpeed: {
       type: "number",
@@ -34,12 +75,16 @@ window.api.plugin.defineElement({
       min: 500,
       max: 5000,
       step: 100,
-      label: "그래프 속도 (ms)",
+      label: "settings.graphSpeed",
     },
-    graphColor: { type: "color", default: "#86EFAC", label: "그래프 색상" },
+    graphColor: {
+      type: "color",
+      default: "#86EFAC",
+      label: "settings.graphColor",
+    },
   },
 
-  template: (state, settings, { html }) => {
+  template: (state, settings, { html, t }) => {
     const {
       kps = 0,
       avg = 0,
@@ -181,7 +226,9 @@ window.api.plugin.defineElement({
           ${settings.showKps
             ? html`
                 <div style="display: contents;">
-                  <div style="color: #cbd5e1; white-space: nowrap;">KPS</div>
+                  <div style="color: #cbd5e1; white-space: nowrap;">
+                    ${t("metrics.kps")}
+                  </div>
                   <div
                     style="color: ${graphColor}; text-align: right; font-weight: 700;"
                   >
@@ -193,7 +240,9 @@ window.api.plugin.defineElement({
           ${settings.showAvg
             ? html`
                 <div style="display: contents;">
-                  <div style="color: #cbd5e1; white-space: nowrap;">AVG</div>
+                  <div style="color: #cbd5e1; white-space: nowrap;">
+                    ${t("metrics.avg")}
+                  </div>
                   <div
                     style="color: ${graphColor}; text-align: right; font-weight: 700;"
                   >
@@ -205,7 +254,9 @@ window.api.plugin.defineElement({
           ${settings.showMax
             ? html`
                 <div style="display: contents;">
-                  <div style="color: #cbd5e1; white-space: nowrap;">MAX</div>
+                  <div style="color: #cbd5e1; white-space: nowrap;">
+                    ${t("metrics.max")}
+                  </div>
                   <div
                     style="color: ${graphColor}; text-align: right; font-weight: 700;"
                   >

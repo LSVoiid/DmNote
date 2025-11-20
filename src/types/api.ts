@@ -170,6 +170,14 @@ export type PluginDisplayElement = {
   tabId?: string; // 탭 ID (4key, 5key, custom-tab-id 등)
 };
 
+export type PluginMessages = Record<string, Record<string, any>>;
+export type PluginI18nParams = Record<string, string | number>;
+export type PluginTranslateFn = (
+  key: string,
+  params?: PluginI18nParams,
+  fallback?: string
+) => string;
+
 export interface PluginDefinitionContextMenuItem {
   label: string;
   action?: string; // name of the exposed action to call
@@ -206,6 +214,9 @@ export interface PluginDefinitionHookContext {
   getSettings: () => Record<string, any>;
   onHook: (event: string, callback: (...args: any[]) => void) => void;
   expose: (actions: Record<string, (...args: any[]) => any>) => void;
+  locale: string;
+  t: PluginTranslateFn;
+  onLocaleChange: (listener: (locale: string) => void) => Unsubscribe;
 }
 
 export interface PluginDefinition {
@@ -216,6 +227,7 @@ export interface PluginDefinition {
     items?: PluginDefinitionContextMenuItem[];
   };
   settings?: Record<string, PluginSettingSchema>;
+  messages?: PluginMessages;
   template: (
     state: Record<string, any>,
     settings: Record<string, any>,
@@ -257,6 +269,8 @@ export interface DisplayElementTemplateHelpers {
     strings: TemplateStringsArray,
     ...values: (string | number | undefined | null)[]
   ): string;
+  locale: string;
+  t: PluginTranslateFn;
 }
 
 export type DisplayElementTemplateFunction = (
@@ -448,6 +462,10 @@ export interface DMNoteAPI {
     ): Unsubscribe;
     onAny(listener: BridgeAnyListener): Unsubscribe;
     off(type: string, listener?: BridgeMessageListener): void;
+  };
+  i18n: {
+    getLocale(): Promise<string>;
+    onLocaleChange(listener: (locale: string) => void): Unsubscribe;
   };
   plugin: {
     storage: {

@@ -15,6 +15,7 @@
 - [JavaScript (js)](#javascript-js)
 - [프리셋 (presets)](#프리셋-presets)
 - [브릿지 (bridge)](#브릿지-bridge)
+- [다국어 (i18n)](#다국어-i18n)
 - [플러그인 (plugin)](#플러그인-plugin)
 - [UI (ui)](#ui-ui)
 - [공통 타입](#공통-타입)
@@ -1681,6 +1682,36 @@ onBridgeMessage("WPM_UPDATE", (data) => {
 
 ---
 
+## 다국어 (i18n)
+
+앱의 현재 언어 코드를 조회하거나, 설정 변경에 반응하고 싶을 때 사용합니다. 플러그인에서 자체 메시지 번들을 정의하면 `window.api.i18n`과 함께 동작하여 다국어 UI를 만들 수 있습니다.
+
+### `window.api.i18n.getLocale()`
+
+현재 언어 코드를 가져옵니다. (예: `"ko"`, `"en"`)
+
+**반환형**: `Promise<string>`
+
+```javascript
+const locale = await window.api.i18n.getLocale();
+console.log("Locale:", locale);
+```
+
+### `window.api.i18n.onLocaleChange(listener)`
+
+언어가 변경될 때마다 호출되는 콜백을 등록합니다. 반환되는 `Unsubscribe`를 사용해 정리하세요.
+
+```javascript
+const unsubscribe = window.api.i18n.onLocaleChange((locale) => {
+  console.log("Locale changed to", locale);
+});
+
+// 더 이상 필요 없다면 해제
+unsubscribe();
+```
+
+---
+
 ## 플러그인 (plugin)
 
 플러그인 API는 커스텀 JS 플러그인에서 사용할 수 있는 추가 기능을 제공합니다.
@@ -1697,6 +1728,9 @@ onBridgeMessage("WPM_UPDATE", (data) => {
 interface PluginDefinition {
   // 플러그인 이름 (컨텍스트 메뉴 등에 표시됨)
   name: string;
+
+  // 다국어 메시지 번들 (locale -> key -> value)
+  messages?: Record<string, Record<string, string>>;
 
   // 설정 스키마 (자동으로 설정 다이얼로그 생성)
   settings?: {
@@ -1718,11 +1752,22 @@ interface PluginDefinition {
     items?: {
       label: string;
       action?: string; // name of the exposed action (actions[action])
-      onClick?: (ctx: { element: any; actions: Record<string, Function> }) =>
-        void |
-        Promise<void>;
-      visible?: boolean | ((ctx: { element: any; actions: Record<string, Function> }) => boolean);
-      disabled?: boolean | ((ctx: { element: any; actions: Record<string, Function> }) => boolean);
+      onClick?: (ctx: {
+        element: any;
+        actions: Record<string, Function>;
+      }) => void | Promise<void>;
+      visible?:
+        | boolean
+        | ((ctx: {
+            element: any;
+            actions: Record<string, Function>;
+          }) => boolean);
+      disabled?:
+        | boolean
+        | ((ctx: {
+            element: any;
+            actions: Record<string, Function>;
+          }) => boolean);
       position?: "top" | "bottom";
     }[];
   };
@@ -1731,10 +1776,18 @@ interface PluginDefinition {
   previewState?: Record<string, any>;
 
   // HTML 템플릿 함수
-  // state: 현재 상태, settings: 현재 설정, helpers: { html }
+  // state: 현재 상태, settings: 현재 설정, helpers: { html, t, locale }
   // 반환값은 React Node여야 합니다 (html 태그 함수 사용)
   // htm 라이브러리를 사용하여 React Element를 생성합니다.
-  template: (state: any, settings: any, helpers: { html: any }) => ReactNode;
+  template: (
+    state: any,
+    settings: any,
+    helpers: {
+      html: any;
+      t: (key: string, params?: Record<string, string | number>) => string;
+      locale: string;
+    }
+  ) => ReactNode;
 
   // 오버레이 마운트 시 실행될 로직
   onMount?: (context: PluginContext) => (() => void) | void;
@@ -1753,9 +1806,17 @@ interface PluginContext {
 
   // Expose functions to be invoked from context menu/actions
   expose: (actions: Record<string, (...args: any[]) => any>) => void;
+
+  // 현재 locale 및 번역 함수
+  locale: string;
+  t: (key: string, params?: Record<string, string | number>) => string;
+
+  // 언어 변경 구독자 (Unsubscribe 반환)
+  onLocaleChange: (listener: (locale: string) => void) => () => void;
 }
 ```
 
+> ℹ️ `settings.*.label`, 컨텍스트 메뉴 라벨, 옵션 라벨 등에는 문자열 대신 메시지 키를 전달할 수 있습니다. 해당 키가 `messages` 객체에 정의되어 있으면 현재 locale에 맞는 번역이 표시되고, 없으면 원문 문자열이 그대로 노출됩니다.
 
 **사용 예**:
 

@@ -10,8 +10,10 @@ import { PluginDisplayElementInternal } from "@src/types/api";
 import { useDraggable } from "@hooks/useDraggable";
 import { usePluginDisplayElementStore } from "@stores/usePluginDisplayElementStore";
 import { useKeyStore } from "@stores/useKeyStore";
+import { useTranslation } from "@contexts/I18nContext";
 import ListPopup, { ListItem } from "./main/Modal/ListPopup";
 import { html, styleMap, css } from "@utils/templateEngine";
+import { translatePluginMessage } from "@utils/pluginI18n";
 import {
   registerExposedActions,
   clearExposedActions,
@@ -39,12 +41,49 @@ export const PluginElement: React.FC<PluginElementProps> = ({
   const definition = element.definitionId
     ? definitions.get(element.definitionId)
     : undefined;
+  const { i18n } = useTranslation();
+  const locale = i18n.language;
+  const localeRef = useRef(locale);
+
+  useEffect(() => {
+    localeRef.current = locale;
+  }, [locale]);
+
+  const pluginTranslate = useCallback(
+    (
+      key: string,
+      params?: Record<string, string | number>,
+      fallback?: string
+    ) =>
+      translatePluginMessage({
+        messages: definition?.messages,
+        locale,
+        key,
+        params,
+        fallback,
+      }),
+    [definition?.messages, locale]
+  );
+
+  const pluginTranslateStable = useCallback(
+    (
+      key: string,
+      params?: Record<string, string | number>,
+      fallback?: string
+    ) =>
+      translatePluginMessage({
+        messages: definition?.messages,
+        locale: localeRef.current,
+        key,
+        params,
+        fallback,
+      }),
+    [definition?.messages]
+  );
 
   const positions = useKeyStore((state) => state.positions);
   const selectedKeyType = useKeyStore((state) => state.selectedKeyType);
-  const exposedActionsRef = useRef<Record<string, (...args: any[]) => any>>(
-    {}
-  );
+  const exposedActionsRef = useRef<Record<string, (...args: any[]) => any>>({});
 
   // 컨텍스트 메뉴 상태
   const [contextMenuOpen, setContextMenuOpen] = useState(false);
@@ -154,6 +193,8 @@ export const PluginElement: React.FC<PluginElementProps> = ({
           html: html as any,
           styleMap,
           css,
+          locale,
+          t: pluginTranslate,
         });
       } catch (error) {
         console.error(`[PluginElement] Template render error:`, error);
@@ -161,7 +202,14 @@ export const PluginElement: React.FC<PluginElementProps> = ({
       }
     }
     return null;
-  }, [definition, element.state, element.settings, windowType]);
+  }, [
+    definition,
+    element.state,
+    element.settings,
+    windowType,
+    locale,
+    pluginTranslate,
+  ]);
 
   // 이벤트 위임 (메인 윈도우에서만)
   useEffect(() => {
@@ -430,6 +478,17 @@ export const PluginElement: React.FC<PluginElementProps> = ({
         };
         registerExposedActions(element.fullId, exposedActionsRef.current);
       },
+      locale: localeRef.current,
+      t: pluginTranslateStable,
+      onLocaleChange: (listener: (locale: string) => void) => {
+        if (window.api?.i18n?.onLocaleChange) {
+          return window.api.i18n.onLocaleChange(listener);
+        }
+        console.warn(
+          "[PluginElement] i18n API is not available in this context"
+        );
+        return () => undefined;
+      },
     };
 
     console.log(`[PluginElement] Mounting ${element.fullId}`);
@@ -444,7 +503,7 @@ export const PluginElement: React.FC<PluginElementProps> = ({
       exposedActionsRef.current = {};
       cleanups.forEach((fn) => fn());
     };
-  }, [windowType, definition?.id, element.fullId]);
+  }, [windowType, definition?.id, element.fullId, pluginTranslateStable]);
 
   const elementStyle: React.CSSProperties = useMemo(
     () => ({
@@ -536,19 +595,22 @@ export const PluginElement: React.FC<PluginElementProps> = ({
     const items: ListItem[] = [];
 
     if (enableDelete) {
-      items.push({ id: "delete", label: deleteLabel });
+      items.push({
+        id: "delete",
+        label: pluginTranslate(deleteLabel, undefined, deleteLabel),
+      });
     }
 
     // 커스텀 항목 추가
     customItems.forEach((item, index) => {
       items.push({
         id: `custom-${index}`,
-        label: item.label,
+        label: pluginTranslate(item.label, undefined, item.label),
       });
     });
 
     return items;
-  }, [element.contextMenu]);
+  }, [element.contextMenu, pluginTranslate]);
 
   const createActionsProxy = useCallback(
     (elementId: string) =>
