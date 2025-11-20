@@ -1722,7 +1722,9 @@ interface PluginDefinition {
 
   // HTML 템플릿 함수
   // state: 현재 상태, settings: 현재 설정, helpers: { html }
-  template: (state: any, settings: any, helpers: any) => string;
+  // 반환값은 React Node여야 합니다 (html 태그 함수 사용)
+  // htm 라이브러리를 사용하여 React Element를 생성합니다.
+  template: (state: any, settings: any, helpers: { html: any }) => ReactNode;
 
   // 오버레이 마운트 시 실행될 로직
   onMount?: (context: PluginContext) => (() => void) | void;
@@ -1749,6 +1751,8 @@ window.api.plugin.defineElement({
   settings: {
     color: { type: "color", default: "#ff0000", label: "색상" },
   },
+  // htm 문법 사용: style 속성에 객체 대신 문자열 사용 가능
+  // 값 보간은 ${value} 형태로 사용
   template: (state, settings, { html }) => html`
     <div style="color: ${settings.color}">Value: ${state.val}</div>
   `,
@@ -2503,19 +2507,16 @@ type PluginDisplayElementConfig = {
   template?: (
     state: Record<string, any>,
     helpers?: {
-      html(
-        strings: TemplateStringsArray,
-        ...values: unknown[]
-      ): DisplayElementTemplateResult;
+      html(strings: TemplateStringsArray, ...values: unknown[]): ReactNode;
     }
-  ) => string | DisplayElementTemplateResult;
+  ) => string | ReactNode;
 };
 ```
 
 - `state`가 있으면 내부적으로 얕은 복사본을 유지하며, `template`은 `setState()` 호출 시마다 다시 실행됩니다.
 - `window.api.ui.displayElement.template` 태그를 사용하면 `const { html } = window.api.ui.displayElement` 없이도 템플릿을 작성할 수 있습니다.
-- 템플릿 리터럴 내부에서는 `${(state) => state.value}` 혹은 `${(state, helpers) => helpers.html`...`}`과 같이 상태/헬퍼를 직접 활용할 수 있습니다.
-- 기존처럼 `(state) => html\`...\``함수를 수동 정의해도 되며, 이때 두 번째 인자로 제공되는`helpers`객체에서`html` helper를 사용할 수 있습니다.
+- 템플릿 리터럴 내부에서는 `${state.value}`와 같이 상태 값을 직접 보간합니다. (이전 버전의 `${state => state.value}` 함수 보간 방식은 더 이상 지원되지 않습니다.)
+- `style="color: ${color}"`와 같은 표준 HTML 속성 문법을 지원합니다.
 - 반환된 인스턴스는 문자열처럼 사용할 수 있으며(`String` 상속), 다른 API에 그대로 전달 가능합니다.
 
 #### `window.api.ui.displayElement.template\`...\``
@@ -2523,11 +2524,12 @@ type PluginDisplayElementConfig = {
 템플릿을 보다 선언적으로 작성할 수 있는 **태그드 템플릿 헬퍼**입니다. 내부적으로 `html` helper를 자동 주입하므로 별도 임포트가 필요 없습니다.
 
 ```javascript
-const panelTemplate = window.api.ui.displayElement.template`
+// htm 문법 사용 (React 기반)
+const panelTemplate = (state, { html }) => html`
   <div class="panel">
-    <strong>${(state) => state.value}</strong>
-    <div class="history">${(state) =>
-      state.history.map((v) => `<span style="height:${v}%"></span>`).join("")}
+    <strong>${state.value}</strong>
+    <div class="history">
+      ${state.history.map((v) => html`<span style="height:${v}%"></span>`)}
     </div>
   </div>
 `;
@@ -2539,9 +2541,9 @@ window.api.ui.displayElement.add({
 });
 ```
 
-- `${(state) => state.value}`처럼 **상태 기반 값**을 직접 기입할 수 있으며, 함수 리턴값은 자동으로 문자열화됩니다.
-- `${(state, helpers) => helpers.html`<span>HTML</span>`}`처럼 **일부 구간만 `html` helper**로 감쌀 수도 있습니다.
-- 함수 대신 문자열/숫자 literal을 그대로 넣을 수도 있고, 필요한 경우 일반 템플릿 함수(`(state) => html\`...\``)도 계속 지원됩니다.
+- `${state.value}`처럼 **값**을 직접 기입합니다.
+- 배열을 렌더링할 때는 `map` 내부에서 다시 `html` 태그 함수를 사용하여 React Element 배열을 반환해야 합니다.
+- `style` 속성에 문자열을 직접 사용할 수 있습니다.
 
 #### DisplayElementInstance 메서드
 

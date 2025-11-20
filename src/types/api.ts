@@ -13,8 +13,6 @@ import {
   SettingsState,
 } from "@src/types/settings";
 
-export const TEMPLATE_RESULT_FLAG = Symbol("dmn.template.result");
-
 export type ModeChangePayload = { mode: string };
 export type CustomTabsChangePayload = {
   customTabs: CustomTab[];
@@ -223,9 +221,8 @@ export type PluginDisplayElementInternal = PluginDisplayElement & {
 };
 
 export interface DisplayElementTemplateResult {
-  readonly strings: TemplateStringsArray;
-  readonly values: unknown[];
-  readonly [TEMPLATE_RESULT_FLAG]: true;
+  // ReactNode or similar
+  [key: string]: any;
 }
 
 export interface DisplayElementTemplateHelpers {
@@ -233,6 +230,13 @@ export interface DisplayElementTemplateHelpers {
     strings: TemplateStringsArray,
     ...values: unknown[]
   ): DisplayElementTemplateResult;
+  styleMap(
+    styles: Record<string, string | number | undefined | null>
+  ): Record<string, string | number | undefined | null>;
+  css(
+    strings: TemplateStringsArray,
+    ...values: (string | number | undefined | null)[]
+  ): string;
 }
 
 export type DisplayElementTemplateFunction = (

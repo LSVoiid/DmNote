@@ -6,38 +6,35 @@
   const MAX_HISTORY = 32;
   let unsubBridge = null;
 
-  const renderStats = (state) => {
+  const renderStats = (state, html) => {
     const rows = [
       { label: "KPS", value: state.kps.toFixed(1) },
       { label: "AVG", value: state.avg.toFixed(1) },
       { label: "MAX", value: state.max.toFixed(1) },
     ];
 
-    return rows
-      .map(
-        (row) => `
-          <div class="kps-stat">
-            <span>${row.label}</span>
-            <strong>${row.value}</strong>
-          </div>
-        `
-      )
-      .join("");
+    return rows.map(
+      (row) => html`
+        <div class="kps-stat">
+          <span>${row.label}</span>
+          <strong>${row.value}</strong>
+        </div>
+      `
+    );
   };
 
-  const renderBars = (state) => {
+  const renderBars = (state, html) => {
     const history = Array.isArray(state.history) ? state.history : [];
-    return history
-      .map((value) => {
-        const ratio = state.max ? Math.min(value / state.max, 1) : 0;
-        return `<div class="bar" style="height:${Math.round(
-          ratio * 100
-        )}%"></div>`;
-      })
-      .join("");
+    return history.map((value) => {
+      const ratio = state.max ? Math.min(value / state.max, 1) : 0;
+      return html`<div
+        class="bar"
+        style="height:${Math.round(ratio * 100)}%"
+      ></div>`;
+    });
   };
 
-  const kpsTemplate = window.api.ui.displayElement.template`
+  const kpsTemplate = (state, { html }) => html`
     <style>
       .kps-card {
         width: 220px;
@@ -46,8 +43,7 @@
         background: rgba(8, 10, 16, 0.85);
         border: 1px solid rgba(255, 255, 255, 0.08);
         backdrop-filter: blur(10px);
-        font-family: "Pretendard", -apple-system, BlinkMacSystemFont,
-          system-ui;
+        font-family: "Pretendard", -apple-system, BlinkMacSystemFont, system-ui;
         color: #f8fafc;
         box-shadow: 0 15px 35px rgba(0, 0, 0, 0.55);
       }
@@ -117,9 +113,9 @@
         <span>Live Keys</span>
         <span class="kps-pill">real time</span>
       </div>
-      <div class="kps-value">${(state) => state.kps.toFixed(1)}</div>
-      <div class="kps-stats">${renderStats}</div>
-      <div class="kps-bars">${renderBars}</div>
+      <div class="kps-value">${state.kps.toFixed(1)}</div>
+      <div class="kps-stats">${renderStats(state, html)}</div>
+      <div class="kps-bars">${renderBars(state, html)}</div>
     </div>
   `;
 

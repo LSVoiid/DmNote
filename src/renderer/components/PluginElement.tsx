@@ -1,126 +1,17 @@
-import React, { useRef, useEffect, useMemo, useState } from "react";
+import React, {
+  useRef,
+  useEffect,
+  useMemo,
+  useState,
+  useCallback,
+} from "react";
+import { createPortal } from "react-dom";
 import { PluginDisplayElementInternal } from "@src/types/api";
 import { useDraggable } from "@hooks/useDraggable";
 import { usePluginDisplayElementStore } from "@stores/usePluginDisplayElementStore";
 import { useKeyStore } from "@stores/useKeyStore";
 import ListPopup, { ListItem } from "./main/Modal/ListPopup";
-import { renderTemplate } from "@utils/templateHelper";
-import { html } from "@utils/templateEngine";
-
-type PatchTarget = Element | ShadowRoot;
-
-const createNodesFromHtml = (html: string): Node[] => {
-  if (typeof document === "undefined") {
-    return [];
-  }
-  const template = document.createElement("template");
-  template.innerHTML = html;
-  return Array.from(template.content.childNodes).map((node) =>
-    node.cloneNode(true)
-  );
-};
-
-const canPatchNode = (current: Node, next: Node): boolean => {
-  if (current.nodeType !== next.nodeType) return false;
-  if (
-    current.nodeType === Node.ELEMENT_NODE &&
-    next.nodeType === Node.ELEMENT_NODE
-  ) {
-    return (current as Element).tagName === (next as Element).tagName;
-  }
-  return true;
-};
-
-const syncAttributes = (target: Element, source: Element): void => {
-  for (const attr of Array.from(target.attributes)) {
-    if (!source.hasAttribute(attr.name)) {
-      target.removeAttribute(attr.name);
-    }
-  }
-  for (const attr of Array.from(source.attributes)) {
-    const value = attr.value;
-    if (target.getAttribute(attr.name) !== value) {
-      target.setAttribute(attr.name, value);
-    }
-  }
-};
-function reconcileChildren(
-  parent: PatchTarget,
-  oldNodes: Node[],
-  newNodes: Node[]
-): void {
-  let oldIndex = 0;
-  let newIndex = 0;
-
-  while (oldIndex < oldNodes.length || newIndex < newNodes.length) {
-    const currentOld = oldNodes[oldIndex];
-    const currentNew = newNodes[newIndex];
-
-    if (!currentNew && currentOld) {
-      parent.removeChild(currentOld);
-      oldIndex += 1;
-      continue;
-    }
-
-    if (!currentOld && currentNew) {
-      parent.appendChild(currentNew.cloneNode(true));
-      newIndex += 1;
-      continue;
-    }
-
-    if (!currentOld || !currentNew) {
-      oldIndex += 1;
-      newIndex += 1;
-      continue;
-    }
-
-    if (canPatchNode(currentOld, currentNew)) {
-      patchNode(currentOld, currentNew);
-    } else {
-      parent.replaceChild(currentNew.cloneNode(true), currentOld);
-    }
-
-    oldIndex += 1;
-    newIndex += 1;
-  }
-}
-
-function patchNode(current: Node, next: Node): void {
-  if (!canPatchNode(current, next)) {
-    current.parentNode?.replaceChild(next.cloneNode(true), current);
-    return;
-  }
-
-  if (
-    current.nodeType === Node.TEXT_NODE ||
-    current.nodeType === Node.COMMENT_NODE
-  ) {
-    if (current.textContent !== next.textContent) {
-      current.textContent = next.textContent ?? "";
-    }
-    return;
-  }
-
-  if (
-    current.nodeType === Node.ELEMENT_NODE &&
-    next.nodeType === Node.ELEMENT_NODE
-  ) {
-    const currentEl = current as Element;
-    const nextEl = next as Element;
-    syncAttributes(currentEl, nextEl);
-    reconcileChildren(
-      currentEl,
-      Array.from(currentEl.childNodes),
-      Array.from(nextEl.childNodes)
-    );
-  }
-}
-
-function patchDomWithHtml(target: PatchTarget, html: string): void {
-  const nextNodes = createNodesFromHtml(html);
-  const currentNodes = Array.from(target.childNodes);
-  reconcileChildren(target, currentNodes, nextNodes);
-}
+import { html, styleMap, css } from "@utils/templateEngine";
 
 interface PluginElementProps {
   element: PluginDisplayElementInternal;
@@ -134,9 +25,7 @@ export const PluginElement: React.FC<PluginElementProps> = ({
   positionOffset = { x: 0, y: 0 },
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const shadowRootRef = useRef<ShadowRoot | null>(null);
-  const hasRenderedHtmlRef = useRef(false);
-  const lastHtmlRef = useRef<string>("");
+  const [shadowRoot, setShadowRoot] = useState<ShadowRoot | null>(null);
   const updateElement = usePluginDisplayElementStore(
     (state) => state.updateElement
   );
@@ -219,31 +108,31 @@ export const PluginElement: React.FC<PluginElementProps> = ({
     },
   });
 
+  const { ref: draggableRef, dx: renderX, dy: renderY } = draggable;
+
   // Shadow DOM 설정 (scoped 옵션)
   useEffect(() => {
-    if (element.scoped && containerRef.current && !shadowRootRef.current) {
+    if (element.scoped && containerRef.current && !shadowRoot) {
       try {
-        shadowRootRef.current = containerRef.current.attachShadow({
-          mode: "open",
-        });
+        // 이미 shadowRoot가 있는지 확인
+        if (containerRef.current.shadowRoot) {
+          setShadowRoot(containerRef.current.shadowRoot);
+        } else {
+          const root = containerRef.current.attachShadow({
+            mode: "open",
+          });
+          setShadowRoot(root);
+        }
       } catch (err) {
         console.warn(
           `[PluginElement] Shadow DOM already attached for ${element.fullId}`
         );
       }
     }
-  }, [element.scoped, element.fullId]);
+  }, [element.scoped, element.fullId, shadowRoot]);
 
-  // HTML 콘텐츠 렌더링 + 이벤트 위임
-  useEffect(() => {
-    const target = element.scoped
-      ? shadowRootRef.current
-      : containerRef.current;
-    if (!target) return;
-
-    let nextHtml = element.html || "";
-
-    // Definition 기반 렌더링
+  // 템플릿 렌더링 결과 계산
+  const renderedContent = useMemo(() => {
     if (definition && definition.template) {
       const state = element.state || {};
       const settings = element.settings || {};
@@ -253,27 +142,27 @@ export const PluginElement: React.FC<PluginElementProps> = ({
           ? { ...state, ...definition.previewState }
           : state;
 
-      // console.log(`[PluginElement] Rendering template for ${element.fullId}`, renderState);
-      const result = definition.template(renderState, settings, { html });
-      nextHtml = renderTemplate(result);
-      // console.log(`[PluginElement] Generated HTML:`, nextHtml);
-      // console.log(`[PluginElement] Generated HTML:`, nextHtml);
-    } else {
-      // console.warn(`[PluginElement] No definition or template for ${element.fullId}`);
+      try {
+        return definition.template(renderState, settings, {
+          html: html as any,
+          styleMap,
+          css,
+        });
+      } catch (error) {
+        console.error(`[PluginElement] Template render error:`, error);
+        return null;
+      }
     }
+    return null;
+  }, [definition, element.state, element.settings, windowType]);
 
-    const htmlChanged = lastHtmlRef.current !== nextHtml;
-
-    if (!hasRenderedHtmlRef.current) {
-      target.innerHTML = nextHtml;
-      hasRenderedHtmlRef.current = true;
-    } else if (htmlChanged) {
-      patchDomWithHtml(target, nextHtml);
-    }
-    lastHtmlRef.current = nextHtml;
+  // 이벤트 위임 (메인 윈도우에서만)
+  useEffect(() => {
+    const target = element.scoped ? shadowRoot : containerRef.current;
+    if (!target) return;
 
     // 메인 윈도우에서만 실제 크기 측정 후 store 업데이트
-    if (windowType === "main" && containerRef.current && htmlChanged) {
+    if (windowType === "main" && containerRef.current) {
       requestAnimationFrame(() => {
         if (containerRef.current) {
           const rect = containerRef.current.getBoundingClientRect();
@@ -473,16 +362,7 @@ export const PluginElement: React.FC<PluginElementProps> = ({
     }
 
     return undefined;
-  }, [
-    element.html,
-    element.scoped,
-    element.fullId,
-    updateElement,
-    windowType,
-    definition,
-    element.state,
-    element.settings,
-  ]);
+  }, [element.scoped, element.fullId, updateElement, windowType, shadowRoot]);
 
   // Overlay Logic (onMount)
   useEffect(() => {
@@ -540,9 +420,6 @@ export const PluginElement: React.FC<PluginElementProps> = ({
     };
   }, [windowType, definition?.id, element.fullId]);
 
-  const renderX = draggable.dx;
-  const renderY = draggable.dy;
-
   const elementStyle: React.CSSProperties = useMemo(
     () => ({
       position: "absolute",
@@ -571,14 +448,17 @@ export const PluginElement: React.FC<PluginElementProps> = ({
     ]
   );
 
-  const attachRef = (node: HTMLDivElement | null) => {
-    if (node) {
-      containerRef.current = node;
-      if (element.draggable && windowType === "main") {
-        draggable.ref(node);
+  const attachRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      if (node) {
+        containerRef.current = node;
+        if (element.draggable && windowType === "main") {
+          draggableRef(node);
+        }
       }
-    }
-  };
+    },
+    [element.draggable, windowType, draggableRef]
+  );
 
   // 컨텍스트 메뉴 핸들러
   const handleContextMenu = (e: React.MouseEvent) => {
@@ -669,6 +549,26 @@ export const PluginElement: React.FC<PluginElementProps> = ({
       }
     }
   };
+
+  // 렌더링 로직
+  const renderContent = (): React.ReactNode => {
+    if (renderedContent) {
+      // 템플릿 결과가 문자열인 경우 (레거시)
+      if (typeof renderedContent === "string") {
+        return <div dangerouslySetInnerHTML={{ __html: renderedContent }} />;
+      }
+      // React Element인 경우
+      return renderedContent as React.ReactNode;
+    }
+
+    // 템플릿이 없고 html 속성만 있는 경우 (레거시)
+    if (element.html) {
+      return <div dangerouslySetInnerHTML={{ __html: element.html }} />;
+    }
+
+    return null;
+  };
+
   return (
     <>
       <div
@@ -680,7 +580,11 @@ export const PluginElement: React.FC<PluginElementProps> = ({
         data-plugin-id={element.pluginId}
         onClick={handleClick}
         onContextMenu={handleContextMenu}
-      />
+      >
+        {element.scoped && shadowRoot
+          ? createPortal(renderContent(), shadowRoot as any)
+          : renderContent()}
+      </div>
 
       {/* 컨텍스트 메뉴 */}
       {windowType === "main" && element.contextMenu && (

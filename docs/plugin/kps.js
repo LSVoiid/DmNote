@@ -55,7 +55,7 @@
 
   // ===== KPS 패널 HTML 생성 (템플릿 함수) =====
   function generateTemplate(panelId) {
-    const renderRowClass = (key) => (state) => {
+    const renderRowClass = (key, state) => {
       const visibility = state.visibility || {};
       return `kps-row ${visibility[key] ? "" : "kps-row--hidden"}`;
     };
@@ -66,20 +66,21 @@
       return `kps-row ${hasStats ? "kps-row--hidden" : ""}`;
     };
 
-    const renderGraph = (state) => {
+    const renderGraph = (state, html) => {
       const { showGraph, history = [], graphType, maxval, avg } = state;
       if (!showGraph || history.length === 0) return "";
 
       const safeMax = maxval > 0 ? maxval : 1;
       if (graphType === "bar") {
-        const bars = history
-          .map((value, index) => {
-            const height = Math.min((value / safeMax) * 100, 100);
-            const opacity = 0.3 + (index / history.length) * 0.7;
-            return `<div class="kps-bar" style="height: ${height}%; opacity: ${opacity};"></div>`;
-          })
-          .join("");
-        return `<div class="kps-graph">${bars}</div>`;
+        const bars = history.map((value, index) => {
+          const height = Math.min((value / safeMax) * 100, 100);
+          const opacity = 0.3 + (index / history.length) * 0.7;
+          return html`<div
+            class="kps-bar"
+            style="height: ${height}%; opacity: ${opacity};"
+          ></div>`;
+        });
+        return html`<div class="kps-graph">${bars}</div>`;
       }
 
       const denominator = Math.max(history.length - 1, 1);
@@ -103,28 +104,72 @@
 
       const avgY = 100 - Math.min(((avg || 0) / safeMax) * 100, 100);
 
-      return `
+      return html`
         <div class="kps-graph">
-          <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <svg
+            width="100%"
+            height="100%"
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+          >
             <defs>
-              <linearGradient id="lineGradient-${panelId}" x1="0%" y1="0%" x2="100%" y2="0%">
+              <linearGradient
+                id="lineGradient-${panelId}"
+                x1="0%"
+                y1="0%"
+                x2="100%"
+                y2="0%"
+              >
                 <stop offset="0%" style="stop-color:#86EFAC;stop-opacity:0.3" />
                 <stop offset="100%" style="stop-color:#86EFAC;stop-opacity:1" />
               </linearGradient>
-              <linearGradient id="fillGradient-${panelId}" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" style="stop-color:#86EFAC;stop-opacity:0.05" />
-                <stop offset="100%" style="stop-color:#86EFAC;stop-opacity:0.15" />
+              <linearGradient
+                id="fillGradient-${panelId}"
+                x1="0%"
+                y1="0%"
+                x2="100%"
+                y2="0%"
+              >
+                <stop
+                  offset="0%"
+                  style="stop-color:#86EFAC;stop-opacity:0.05"
+                />
+                <stop
+                  offset="100%"
+                  style="stop-color:#86EFAC;stop-opacity:0.15"
+                />
               </linearGradient>
             </defs>
-            <polygon points="${fillPoints}" fill="url(#fillGradient-${panelId})" />
-            <line x1="0" y1="${avgY}" x2="100" y2="${avgY}" stroke="#86EFAC" stroke-width="1" stroke-dasharray="2,2" opacity="0.5" vector-effect="non-scaling-stroke" />
-            <polyline points="${linePoints}" fill="none" stroke="url(#lineGradient-${panelId})" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" />
+            <polygon
+              points="${fillPoints}"
+              fill="url(#fillGradient-${panelId})"
+            />
+            <line
+              x1="0"
+              y1="${avgY}"
+              x2="100"
+              y2="${avgY}"
+              stroke="#86EFAC"
+              stroke-width="1"
+              stroke-dasharray="2,2"
+              opacity="0.5"
+              vector-effect="non-scaling-stroke"
+            />
+            <polyline
+              points="${linePoints}"
+              fill="none"
+              stroke="url(#lineGradient-${panelId})"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              vector-effect="non-scaling-stroke"
+            />
           </svg>
         </div>
       `;
     };
 
-    return window.api.ui.displayElement.template`
+    return (state, { html }) => html`
       <link
         href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css"
         rel="stylesheet"
@@ -142,8 +187,8 @@
           box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
           cursor: pointer;
           user-select: none;
-          font-family: Pretendard, -apple-system, BlinkMacSystemFont,
-            system-ui, Roboto, "Helvetica Neue", sans-serif;
+          font-family: Pretendard, -apple-system, BlinkMacSystemFont, system-ui,
+            Roboto, "Helvetica Neue", sans-serif;
         }
         .kps-body {
           display: grid;
@@ -202,24 +247,24 @@
       </style>
       <div class="kps-panel">
         <div class="kps-body">
-          <div class="${renderRowClass("kps")}">
+          <div class="${renderRowClass("kps", state)}">
             <div class="kps-key">KPS</div>
-            <div class="kps-val">${(state) => state.kps}</div>
+            <div class="kps-val">${state.kps}</div>
           </div>
-          <div class="${renderRowClass("avg")}">
+          <div class="${renderRowClass("avg", state)}">
             <div class="kps-key">AVG</div>
-            <div class="kps-val">${(state) => state.avg}</div>
+            <div class="kps-val">${state.avg}</div>
           </div>
-          <div class="${renderRowClass("max")}">
+          <div class="${renderRowClass("max", state)}">
             <div class="kps-key">MAX</div>
-            <div class="kps-val">${(state) => state.max}</div>
+            <div class="kps-val">${state.max}</div>
           </div>
-          <div class="${renderNoDataClass}">
+          <div class="${renderNoDataClass(state)}">
             <div class="kps-key kps-muted">No data</div>
             <div class="kps-val kps-muted">-</div>
           </div>
         </div>
-        ${renderGraph}
+        ${renderGraph(state, html)}
       </div>
     `;
   }

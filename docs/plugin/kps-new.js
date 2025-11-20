@@ -34,7 +34,14 @@ window.api.plugin.defineElement({
   },
 
   template: (state, settings, { html }) => {
-    const { kps = 0, avg = 0, max = 0, history = [], maxval = 1, uid = "" } = state;
+    const {
+      kps = 0,
+      avg = 0,
+      max = 0,
+      history = [],
+      maxval = 1,
+      uid = "",
+    } = state;
     const safeMax = maxval > 0 ? maxval : 1;
     const graphColor = settings.graphColor || "#86EFAC";
 
@@ -44,14 +51,18 @@ window.api.plugin.defineElement({
 
       if (settings.graphType === "bar") {
         // 바 그래프
-        const bars = history
-          .map((value, index) => {
-            const height = Math.min((value / safeMax) * 100, 100);
-            const opacity = 0.3 + (index / history.length) * 0.7;
-            return `<div style="flex: 1; border-radius: 2px 2px 0 0; min-height: 2px; transition: height 0.15s ease-out; background: ${graphColor}; height: ${height}%; opacity: ${opacity};"></div>`;
-          })
-          .join("");
-        return `<div style="display: flex; align-items: flex-end; justify-content: space-between; height: 60px; margin-top: 8px; padding: 4px; background: rgba(0, 0, 0, 0.3); border-radius: 4px; gap: 1px; position: relative;">${bars}</div>`;
+        const bars = history.map((value, index) => {
+          const height = Math.min((value / safeMax) * 100, 100);
+          const opacity = 0.3 + (index / history.length) * 0.7;
+          return html`<div
+            style="flex: 1; border-radius: 2px 2px 0 0; min-height: 2px; transition: height 0.15s ease-out; background: ${graphColor}; height: ${height}%; opacity: ${opacity};"
+          ></div>`;
+        });
+        return html`<div
+          style="display: flex; align-items: flex-end; justify-content: space-between; height: 60px; margin-top: 8px; padding: 4px; background: rgba(0, 0, 0, 0.3); border-radius: 4px; gap: 1px; position: relative;"
+        >
+          ${bars}
+        </div>`;
       } else {
         // 선 그래프
         const denominator = Math.max(history.length - 1, 1);
@@ -75,22 +86,75 @@ window.api.plugin.defineElement({
 
         const avgY = 100 - Math.min((avg / safeMax) * 100, 100);
 
-        return `
-          <div style="display: flex; align-items: flex-end; justify-content: space-between; height: 60px; margin-top: 8px; padding: 4px; background: rgba(0, 0, 0, 0.3); border-radius: 4px; gap: 1px; position: relative;">
-            <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" style="position: absolute; top: 4px; left: 4px; right: 4px; bottom: 4px; width: calc(100% - 8px); height: calc(100% - 8px);">
+        return html`
+          <div
+            style="display: flex; align-items: flex-end; justify-content: space-between; height: 60px; margin-top: 8px; padding: 4px; background: rgba(0, 0, 0, 0.3); border-radius: 4px; gap: 1px; position: relative;"
+          >
+            <svg
+              width="100%"
+              height="100%"
+              viewBox="0 0 100 100"
+              preserveAspectRatio="none"
+              style="position: absolute; top: 4px; left: 4px; right: 4px; bottom: 4px; width: calc(100% - 8px); height: calc(100% - 8px);"
+            >
               <defs>
-                <linearGradient id="lineGradient-${uid}" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" style="stop-color:${graphColor};stop-opacity:0.3" />
-                  <stop offset="100%" style="stop-color:${graphColor};stop-opacity:1" />
+                <linearGradient
+                  id=${`lineGradient-${uid}`}
+                  x1="0%"
+                  y1="0%"
+                  x2="100%"
+                  y2="0%"
+                >
+                  <stop
+                    offset="0%"
+                    style="stop-color: ${graphColor}; stop-opacity: 0.3"
+                  />
+                  <stop
+                    offset="100%"
+                    style="stop-color: ${graphColor}; stop-opacity: 1"
+                  />
                 </linearGradient>
-                <linearGradient id="fillGradient-${uid}" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" style="stop-color:${graphColor};stop-opacity:0.05" />
-                  <stop offset="100%" style="stop-color:${graphColor};stop-opacity:0.15" />
+                <linearGradient
+                  id=${`fillGradient-${uid}`}
+                  x1="0%"
+                  y1="0%"
+                  x2="100%"
+                  y2="0%"
+                >
+                  <stop
+                    offset="0%"
+                    style="stop-color: ${graphColor}; stop-opacity: 0.05"
+                  />
+                  <stop
+                    offset="100%"
+                    style="stop-color: ${graphColor}; stop-opacity: 0.15"
+                  />
                 </linearGradient>
               </defs>
-              <polygon points="${fillPoints}" fill="url(#fillGradient-${uid})" />
-              <line x1="0" y1="${avgY}" x2="100" y2="${avgY}" stroke="${graphColor}" stroke-width="1" stroke-dasharray="2,2" opacity="0.5" vector-effect="non-scaling-stroke" />
-              <polyline points="${linePoints}" fill="none" stroke="url(#lineGradient-${uid})" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" />
+              <polygon
+                points=${fillPoints}
+                fill=${`url(#fillGradient-${uid})`}
+              />
+              <line
+                x1="0"
+                y1=${avgY}
+                x2="100"
+                y2=${avgY}
+                stroke=${graphColor}
+                stroke-width="1"
+                stroke-dasharray="2,2"
+                opacity="0.5"
+                vector-effect="non-scaling-stroke"
+              />
+              <polyline
+                points=${linePoints}
+                fill="none"
+                stroke=${`url(#lineGradient-${uid})`}
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                vector-effect="non-scaling-stroke"
+              />
             </svg>
           </div>
         `;
@@ -98,33 +162,57 @@ window.api.plugin.defineElement({
     };
 
     return html`
-      <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet" />
-      <div style="background: rgba(17, 17, 20, 0.9); color: #fff; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 8px; min-width: 100px; max-width: 260px; backdrop-filter: blur(4px); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35); cursor: pointer; user-select: none; font-family: Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', sans-serif;">
-        <div style="display: grid; width: 120px; grid-template-columns: 1fr auto; gap: 4px 8px; font-size: 12px; line-height: 1.3;">
-          ${settings.showKps ? html`
-            <div style="display: contents;">
-              <div style="color: #cbd5e1; white-space: nowrap;">KPS</div>
-              <div style="color: ${graphColor}; text-align: right; font-weight: 700;">${kps}</div>
-            </div>
-          ` : ""}
-          ${settings.showAvg ? html`
-            <div style="display: contents;">
-              <div style="color: #cbd5e1; white-space: nowrap;">AVG</div>
-              <div style="color: ${graphColor}; text-align: right; font-weight: 700;">${avg}</div>
-            </div>
-          ` : ""}
-          ${settings.showMax ? html`
-            <div style="display: contents;">
-              <div style="color: #cbd5e1; white-space: nowrap;">MAX</div>
-              <div style="color: ${graphColor}; text-align: right; font-weight: 700;">${max}</div>
-            </div>
-          ` : ""}
+      <link
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css"
+        rel="stylesheet"
+      />
+      <div
+        style="background: rgba(17, 17, 20, 0.9); color: #fff; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 8px; min-width: 100px; max-width: 260px; backdrop-filter: blur(4px); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35); cursor: pointer; user-select: none; font-family: Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', sans-serif;"
+      >
+        <div
+          style="display: grid; width: 120px; grid-template-columns: 1fr auto; gap: 4px 8px; font-size: 12px; line-height: 1.3;"
+        >
+          ${settings.showKps
+            ? html`
+                <div style="display: contents;">
+                  <div style="color: #cbd5e1; white-space: nowrap;">KPS</div>
+                  <div
+                    style="color: ${graphColor}; text-align: right; font-weight: 700;"
+                  >
+                    ${kps}
+                  </div>
+                </div>
+              `
+            : ""}
+          ${settings.showAvg
+            ? html`
+                <div style="display: contents;">
+                  <div style="color: #cbd5e1; white-space: nowrap;">AVG</div>
+                  <div
+                    style="color: ${graphColor}; text-align: right; font-weight: 700;"
+                  >
+                    ${avg}
+                  </div>
+                </div>
+              `
+            : ""}
+          ${settings.showMax
+            ? html`
+                <div style="display: contents;">
+                  <div style="color: #cbd5e1; white-space: nowrap;">MAX</div>
+                  <div
+                    style="color: ${graphColor}; text-align: right; font-weight: 700;"
+                  >
+                    ${max}
+                  </div>
+                </div>
+              `
+            : ""}
         </div>
         ${renderGraphContent()}
       </div>
     `;
   },
-
   previewState: {
     kps: 14,
     avg: 12,
@@ -140,13 +228,15 @@ window.api.plugin.defineElement({
     let kpsSum = 0;
     let kpsCount = 0;
     let maxval = 1;
-    
+
     // 초기 설정으로 historyBuffer 크기 결정
     const initialSettings = getSettings();
     const GRAPH_UPDATE_MS = 100; // 그래프 히스토리 업데이트 주기
-    const initialTargetSize = Math.ceil((initialSettings.graphSpeed || 1000) / GRAPH_UPDATE_MS);
+    const initialTargetSize = Math.ceil(
+      (initialSettings.graphSpeed || 1000) / GRAPH_UPDATE_MS
+    );
     let historyBuffer = new Array(initialTargetSize).fill(0);
-    
+
     const uid = Math.random().toString(36).substr(2, 9);
     setState({ uid, history: [...historyBuffer] });
 
@@ -157,7 +247,7 @@ window.api.plugin.defineElement({
     onHook("key", ({ key, state }) => {
       if (typeof state === "string") {
         const keyState = state.toLowerCase();
-        
+
         if (keyState === "down") {
           // 키가 이미 눌려있지 않은 경우에만 카운팅 (홀드 방지)
           if (!pressedKeys.has(key)) {
@@ -195,22 +285,24 @@ window.api.plugin.defineElement({
       if (kps > maxval) maxval = kps;
 
       // 히스토리 업데이트 (50ms마다)
-      historyBuffer.shift(); 
-      historyBuffer.push(kps); 
+      historyBuffer.shift();
+      historyBuffer.push(kps);
 
       // targetSize로 배열 크기 조정
       const settings = getSettings();
-      const targetSize = Math.ceil((settings.graphSpeed || 1000) / GRAPH_UPDATE_MS);
-      
+      const targetSize = Math.ceil(
+        (settings.graphSpeed || 1000) / GRAPH_UPDATE_MS
+      );
+
       while (historyBuffer.length > targetSize) historyBuffer.shift();
       while (historyBuffer.length < targetSize) historyBuffer.unshift(0);
 
-      setState({ 
-        kps, 
-        max, 
-        avg, 
+      setState({
+        kps,
+        max,
+        avg,
         history: [...historyBuffer],
-        maxval 
+        maxval,
       });
     }, 50);
 

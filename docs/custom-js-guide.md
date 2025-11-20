@@ -52,15 +52,14 @@ window.api.plugin.defineElement({
   },
 
   // 4. HTML 템플릿 (상태와 설정에 따라 렌더링)
+  // ✨ htm 라이브러리 기반 - React Element를 생성합니다
+  // - 값 보간: ${state.value} 형태로 직접 사용
+  // - style 속성: 문자열로 작성 가능 (style="color: ${color}")
+  // - 조건부 렌더링: 삼항 연산자 또는 && 연산자 사용
+  // - 배열 렌더링: map()으로 React Element 배열 반환
   template: (state, settings, { html }) => html`
     <div
-      style="
-      color: ${settings.textColor};
-      font-size: ${settings.fontSize}px;
-      background: rgba(0,0,0,0.5);
-      padding: 10px;
-      border-radius: 8px;
-    "
+      style="color: ${settings.textColor}; font-size: ${settings.fontSize}px; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 8px;"
     >
       값: ${state.value || 0} ${settings.showGraph
         ? html`<div class="graph">...</div>`
@@ -114,18 +113,12 @@ window.api.plugin.defineElement({
     graphColor: { type: "color", default: "#00FF00", label: "그래프 색상" },
   },
 
-  // 템플릿: 상태(state)와 설정(settings)을 받아 HTML 문자열 반환
+  // 템플릿: htm 라이브러리로 React Element 생성
+  // - style 속성에 문자열 직접 사용 가능
+  // - 값은 ${state.kps} 형태로 직접 보간
   template: (state, settings, { html }) => html`
     <div
-      style="
-      background: rgba(0, 0, 0, 0.7);
-      padding: 10px;
-      border-radius: 8px;
-      color: ${settings.textColor};
-      font-family: sans-serif;
-      min-width: 100px;
-      text-align: center;
-    "
+      style="background: rgba(0, 0, 0, 0.7); padding: 10px; border-radius: 8px; color: ${settings.textColor}; font-family: sans-serif; min-width: 100px; text-align: center;"
     >
       <div style="font-size: 24px; font-weight: bold;">
         ${state.kps || 0}
@@ -134,21 +127,13 @@ window.api.plugin.defineElement({
       ${settings.showGraph
         ? html`
             <div
-              style="
-          margin-top: 5px;
-          height: 4px;
-          background: #333;
-          border-radius: 2px;
-          overflow: hidden;
-        "
+              style="margin-top: 5px; height: 4px; background: #333; border-radius: 2px; overflow: hidden;"
             >
               <div
-                style="
-            height: 100%;
-            width: ${Math.min(((state.kps || 0) / 20) * 100, 100)}%;
-            background: ${settings.graphColor};
-            transition: width 0.1s linear;
-          "
+                style="height: 100%; width: ${Math.min(
+                  ((state.kps || 0) / 20) * 100,
+                  100
+                )}%; background: ${settings.graphColor}; transition: width 0.1s linear;"
               ></div>
             </div>
           `
@@ -188,6 +173,150 @@ window.api.plugin.defineElement({
   },
 });
 ```
+
+---
+
+## 📘 템플릿 문법 가이드 (htm)
+
+DM Note는 내부적으로 **htm** 라이브러리를 사용하여 템플릿을 React Element로 변환합니다. 이는 표준 HTML 문법에 가까운 직관적인 작성을 가능하게 합니다.
+
+### ✨ 핵심 문법
+
+#### 1. 값 보간 (Value Interpolation)
+
+```javascript
+// ✅ 올바른 방법: 값을 직접 보간
+template: (state, settings, { html }) => html`
+  <div>현재 값: ${state.value}</div>
+  <div style="color: ${settings.color};">색상 텍스트</div>
+`;
+
+// ❌ 잘못된 방법: 함수 보간 (더 이상 지원되지 않음)
+template: (state, settings, { html }) => html`
+  <div>현재 값: ${(state) => state.value}</div>
+`;
+```
+
+#### 2. 스타일 속성
+
+```javascript
+// ✅ 권장: 문자열로 직접 작성
+html`<div style="color: ${color}; font-size: ${size}px;">텍스트</div>`;
+
+// ⚠️ 동작하지만 권장하지 않음: 템플릿 리터럴 중첩
+html`<div style=${`color: ${color}; font-size: ${size}px;`}>텍스트</div>`;
+```
+
+#### 3. 조건부 렌더링
+
+```javascript
+// 삼항 연산자
+html`
+  <div>${isVisible ? html`<span>보임</span>` : html`<span>숨김</span>`}</div>
+`;
+
+// && 연산자 (true일 때만 렌더링)
+html` <div>${showGraph ? html`<div class="graph">그래프</div>` : ""}</div> `;
+```
+
+#### 4. 배열 렌더링 (리스트)
+
+```javascript
+// map으로 React Element 배열 반환
+html`
+  <div class="list">
+    ${items.map((item) => html` <div class="item">${item.name}</div> `)}
+  </div>
+`;
+
+// 인덱스 활용
+html`
+  <div>
+    ${data.map((value, index) => html` <span key=${index}>${value}</span> `)}
+  </div>
+`;
+```
+
+#### 5. 클래스 이름
+
+```javascript
+// 문자열로 직접 지정
+html`<div class="btn ${isActive ? "active" : ""}">버튼</div>`;
+
+// className도 동일하게 동작 (React 호환)
+html`<div className="btn">버튼</div>`;
+```
+
+#### 6. 이벤트 핸들러 (주의)
+
+템플릿 내에서 이벤트 핸들러는 **문자열 ID**로만 등록 가능합니다:
+
+```javascript
+// Display Element의 이벤트는 config에서 등록
+window.api.ui.displayElement.add({
+  template: (state, { html }) => html`<div>클릭하세요</div>`,
+  onClick: async () => {
+    /* 핸들러 로직 */
+  }, // ✅ config에서 등록
+});
+
+// 템플릿 내부의 개별 요소 이벤트는 data-plugin-handler 사용
+html`<button data-plugin-handler="myHandler">버튼</button>`;
+// window.myHandler = () => { ... } 로 핸들러 등록 필요
+```
+
+### 🔍 실전 예제
+
+```javascript
+template: (state, settings, { html }) => html`
+  <style>
+    .panel {
+      background: ${settings.bgColor};
+      padding: 16px;
+      border-radius: 8px;
+    }
+    .bar {
+      height: 100%;
+      background: ${settings.barColor};
+    }
+  </style>
+
+  <div class="panel">
+    <!-- 값 보간 -->
+    <h3>KPS: ${state.kps.toFixed(1)}</h3>
+
+    <!-- 조건부 렌더링 -->
+    ${settings.showStats
+      ? html`
+          <div>최대: ${state.max}</div>
+          <div>평균: ${state.avg}</div>
+        `
+      : ""}
+
+    <!-- 배열 렌더링 -->
+    <div
+      class="graph"
+      style="display: flex; gap: 2px; height: 40px; align-items: flex-end;"
+    >
+      ${state.history.map(
+        (value) => html`
+          <div
+            class="bar"
+            style="flex: 1; height: ${(value / state.max) * 100}%;"
+          ></div>
+        `
+      )}
+    </div>
+  </div>
+`;
+```
+
+### ⚠️ 주의사항
+
+1. **함수 보간 미지원**: `${state => state.value}` 형태는 작동하지 않습니다. `${state.value}`를 사용하세요.
+2. **중첩된 템플릿**: `html` 태그 안에서 다시 `html` 태그를 사용할 때는 꼭 명시해야 합니다.
+3. **빈 값 처리**: 조건부 렌더링에서 `false`가 아닌 빈 문자열(`''`)을 반환하세요.
+4. **스타일 객체 미지원**: `style={{ color: 'red' }}` 형태는 지원되지 않습니다. 문자열을 사용하세요.
 
 ---
 
@@ -756,25 +885,44 @@ const panel = window.api.ui.displayElement.add({
   zIndex: 110,
   contextMenu: { enableDelete: true },
   state: { value: 0, history: [] },
-  template: (state) => `
+  template: (state, { html }) => html`
     <style>
-      .meter { padding: 16px; border-radius: 12px; background: rgba(9,9,12,0.9); color: #fff; }
-      .bars { margin-top: 12px; display: flex; gap: 3px; height: 40px; align-items: flex-end; }
-      .bars span { flex: 1; border-radius: 999px 999px 0 0; background: linear-gradient(180deg,#8B5CF6,#6366F1); opacity: 0.35; }
-      .bars span:last-child { opacity: 1; box-shadow: 0 0 12px rgba(99,102,241,0.4); }
+      .meter {
+        padding: 16px;
+        border-radius: 12px;
+        background: rgba(9, 9, 12, 0.9);
+        color: #fff;
+      }
+      .bars {
+        margin-top: 12px;
+        display: flex;
+        gap: 3px;
+        height: 40px;
+        align-items: flex-end;
+      }
+      .bars span {
+        flex: 1;
+        border-radius: 999px 999px 0 0;
+        background: linear-gradient(180deg, #8b5cf6, #6366f1);
+        opacity: 0.35;
+      }
+      .bars span:last-child {
+        opacity: 1;
+        box-shadow: 0 0 12px rgba(99, 102, 241, 0.4);
+      }
     </style>
     <div class="meter">
-      <div class="text-[12px] uppercase tracking-[0.3em] text-slate-300">Live KPS</div>
-      <div class="text-[42px] font-semibold leading-none">${state.value.toFixed(
-        1
-      )}</div>
+      <div class="text-[12px] uppercase tracking-[0.3em] text-slate-300">
+        Live KPS
+      </div>
+      <div class="text-[42px] font-semibold leading-none">
+        ${state.value.toFixed(1)}
+      </div>
       <div class="bars">
-        ${state.history
-          .map((value) => {
-            const ratio = state.peak ? Math.min(value / state.peak, 1) : 0;
-            return `<span style="height:${Math.round(ratio * 100)}%"></span>`;
-          })
-          .join("")}
+        ${state.history.map((value) => {
+          const ratio = state.peak ? Math.min(value / state.peak, 1) : 0;
+          return html`<span style="height:${Math.round(ratio * 100)}%"></span>`;
+        })}
       </div>
     </div>
   `,
@@ -805,14 +953,14 @@ const meterTemplate = window.api.ui.displayElement.template`
   <div class="meter">
     <strong>${(state) => state.value.toFixed(1)}</strong>
     <div class="history">
-      ${(state) =>
-        state.history
-          .map((value) => {
-            const peak = state.peak || 1;
-            const ratio = peak > 0 ? value / peak : 0;
-            return `<span style="height:${Math.round(ratio * 100)}%"></span>`;
-          })
-          .join("")}
+      ${(state, { html }) =>
+        state.history.map((value) => {
+          const peak = state.peak || 1;
+          const ratio = peak > 0 ? value / peak : 0;
+          return html`<span
+            style=${`height:${Math.round(ratio * 100)}%`}
+          ></span>`;
+        })}
     </div>
   </div>
 `;
