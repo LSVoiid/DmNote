@@ -749,6 +749,9 @@ const api: DMNoteAPI = {
 
 if (typeof window !== "undefined") {
   window.api = api;
+  // dmn 별칭 추가 (window. 없이 바로 접근 가능)
+  (window as any).dmn = api;
+  (globalThis as any).dmn = api;
 }
 
 export {

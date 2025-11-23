@@ -1,6 +1,6 @@
 // @id kps-new
 
-window.api.plugin.defineElement({
+dmn.plugin.defineElement({
   name: "Simple KPS",
 
   contextMenu: {
@@ -394,3 +394,4 @@ window.api.plugin.defineElement({
     };
   },
 });
+

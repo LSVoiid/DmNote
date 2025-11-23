@@ -1,5 +1,5 @@
 // 메인 윈도우 전용
-if (window.api.window.type !== "main") {
+if (dmn.window.type !== "main") {
   return;
 }
 
@@ -302,12 +302,12 @@ const unsubscribers = [];
 
 async function bootstrap() {
   try {
-    if (!window.api) {
+    if (!dmn) {
       throw new Error("API not available");
     }
 
     // 키 입력 이벤트 구독
-    unsubscribers.push(window.api.keys.onKeyState(onKeyState));
+    unsubscribers.push(dmn.keys.onKeyState(onKeyState));
 
     // 버튼 생성
     createRecordButton();
@@ -322,7 +322,7 @@ async function bootstrap() {
 bootstrap();
 
 // 클린업 함수
-window.api.plugin.registerCleanup(() => {
+dmn.plugin.registerCleanup(() => {
   if (disposed) return;
   disposed = true;
 
@@ -387,3 +387,4 @@ window.api.plugin.registerCleanup(() => {
 
   console.log("[Record] Cleanup completed");
 });
+

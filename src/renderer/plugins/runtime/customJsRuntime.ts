@@ -694,6 +694,7 @@ export function createCustomJsRuntime(): CustomJsRuntime {
       const proxyWindow = new Proxy(window, {
         get(target, prop: string | symbol, receiver) {
           if (prop === "api") return proxiedApi;
+          if (prop === "dmn") return proxiedApi; // dmn 별칭도 프록시된 API 반환
           return Reflect.get(target as any, prop, receiver);
         },
         set(target, prop: string | symbol, value, receiver) {
@@ -707,6 +708,12 @@ export function createCustomJsRuntime(): CustomJsRuntime {
             ;(function(window){
               'use strict';
               const __PLUGIN_ID__ = "${pluginId}";
+              
+              // dmn을 전역 변수로 추가 (window. 없이 바로 접근 가능)
+              const dmn = window.api;
+              if (typeof globalThis !== 'undefined') {
+                globalThis.dmn = window.api;
+              }
               
               const __autoWrapAsync__ = () => {
                 const globalWindow = typeof window !== 'undefined' ? window : globalThis;
