@@ -195,6 +195,7 @@ template: (state, settings, { html }) => html`
       </div>
       ${settings.showGraph
         ? html`
+
 <div
               style="margin-top: 5px; height: 4px; background: #333; border-radius: 2px; overflow: hidden;"
             >
@@ -1860,95 +1861,93 @@ const checkbox = window.api.ui.components.checkbox({
 오버레이에 초당 키 입력 횟수를 표시하는 패널을 추가합니다.
 
 ```javascript
-(function () {
-  // 오버레이 전용
-  if (window.api.window.type !== "overlay") return;
+// 오버레이 전용
+if (window.api.window.type !== "overlay") return;
 
-  // 설정
-  const WINDOW_MS = 1000; // 1초 윈도우
-  const REFRESH_MS = 100; // 100ms마다 갱신
+// 설정
+const WINDOW_MS = 1000; // 1초 윈도우
+const REFRESH_MS = 100; // 100ms마다 갱신
 
-  // 상태
-  let currentMode = null;
-  let keyMap = {};
-  let trackedKeys = new Set();
-  const buckets = new Map(); // key => timestamp[]
+// 상태
+let currentMode = null;
+let keyMap = {};
+let trackedKeys = new Set();
+const buckets = new Map(); // key => timestamp[]
 
-  // UI 생성
-  const style = document.createElement("style");
-  style.textContent = `
-    .cps-panel {
-      position: fixed;
-      top: 10px;
-      right: 10px;
-      background: rgba(0, 0, 0, 0.8);
-      color: #fff;
-      padding: 10px;
-      border-radius: 8px;
-      font-family: monospace;
-      z-index: 999999;
-    }
-  `;
-  document.head.appendChild(style);
-
-  const panel = document.createElement("div");
-  panel.className = "cps-panel";
-  panel.innerHTML = '<div>Total CPS: <span id="cps-value">0</span></div>';
-  document.body.appendChild(panel);
-  const valueEl = panel.querySelector("#cps-value");
-
-  // 로직
-  function pruneOld(now) {
-    const cutoff = now - WINDOW_MS;
-    for (const [key, arr] of buckets.entries()) {
-      buckets.set(
-        key,
-        arr.filter((ts) => ts >= cutoff)
-      );
-    }
+// UI 생성
+const style = document.createElement("style");
+style.textContent = `
+  .cps-panel {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.8);
+    color: #fff;
+    padding: 10px;
+    border-radius: 8px;
+    font-family: monospace;
+    z-index: 999999;
   }
+`;
+document.head.appendChild(style);
 
-  function render() {
-    const now = Date.now();
-    pruneOld(now);
-    let total = 0;
-    for (const key of trackedKeys) {
-      total += (buckets.get(key) || []).length;
-    }
-    valueEl.textContent = total;
+const panel = document.createElement("div");
+panel.className = "cps-panel";
+panel.innerHTML = '<div>Total CPS: <span id="cps-value">0</span></div>';
+document.body.appendChild(panel);
+const valueEl = panel.querySelector("#cps-value");
+
+// 로직
+function pruneOld(now) {
+  const cutoff = now - WINDOW_MS;
+  for (const [key, arr] of buckets.entries()) {
+    buckets.set(
+      key,
+      arr.filter((ts) => ts >= cutoff)
+    );
   }
+}
 
-  const timer = setInterval(render, REFRESH_MS);
+function render() {
+  const now = Date.now();
+  pruneOld(now);
+  let total = 0;
+  for (const key of trackedKeys) {
+    total += (buckets.get(key) || []).length;
+  }
+  valueEl.textContent = total;
+}
 
-  // 이벤트 구독
-  const unsubKeyState = window.api.keys.onKeyState(({ key, state }) => {
-    if (!trackedKeys.has(key) || state !== "DOWN") return;
-    if (!buckets.has(key)) buckets.set(key, []);
-    buckets.get(key).push(Date.now());
-  });
+const timer = setInterval(render, REFRESH_MS);
 
-  const unsubMode = window.api.keys.onModeChanged(({ mode }) => {
-    currentMode = mode;
-    trackedKeys = new Set(keyMap[mode] || []);
-  });
+// 이벤트 구독
+const unsubKeyState = window.api.keys.onKeyState(({ key, state }) => {
+  if (!trackedKeys.has(key) || state !== "DOWN") return;
+  if (!buckets.has(key)) buckets.set(key, []);
+  buckets.get(key).push(Date.now());
+});
 
-  // 초기화
-  (async () => {
-    const boot = await window.api.app.bootstrap();
-    keyMap = boot.keys || {};
-    currentMode = boot.selectedKeyType || Object.keys(keyMap)[0];
-    trackedKeys = new Set(keyMap[currentMode] || []);
-  })();
+const unsubMode = window.api.keys.onModeChanged(({ mode }) => {
+  currentMode = mode;
+  trackedKeys = new Set(keyMap[mode] || []);
+});
 
-  // ✨ 클린업 등록
-  window.api.plugin.registerCleanup(() => {
-    clearInterval(timer);
-    unsubKeyState();
-    unsubMode();
-    panel.remove();
-    style.remove();
-  });
+// 초기화
+(async () => {
+  const boot = await window.api.app.bootstrap();
+  keyMap = boot.keys || {};
+  currentMode = boot.selectedKeyType || Object.keys(keyMap)[0];
+  trackedKeys = new Set(keyMap[currentMode] || []);
 })();
+
+// ✨ 클린업 등록
+window.api.plugin.registerCleanup(() => {
+  clearInterval(timer);
+  unsubKeyState();
+  unsubMode();
+  panel.remove();
+  style.remove();
+});
 ```
 
 ---
@@ -1958,59 +1957,57 @@ const checkbox = window.api.ui.components.checkbox({
 최근 입력된 키를 시각적으로 강조 표시합니다.
 
 ```javascript
-(function () {
-  if (window.api.window.type !== "overlay") return;
+if (window.api.window.type !== "overlay") return;
 
-  const style = document.createElement("style");
-  style.textContent = `
-    .key-heatmap {
-      position: fixed;
-      bottom: 10px;
-      left: 10px;
-      background: rgba(0, 0, 0, 0.7);
-      color: #fff;
-      padding: 8px;
-      border-radius: 6px;
-      font-family: monospace;
-      font-size: 12px;
-      z-index: 999999;
-    }
-    .key-heatmap .key-item {
-      display: inline-block;
-      margin: 2px;
-      padding: 4px 8px;
-      background: rgba(100, 200, 255, 0.3);
-      border-radius: 4px;
-      animation: fadeOut 2s forwards;
-    }
-    @keyframes fadeOut {
-      to { opacity: 0; }
-    }
-  `;
-  document.head.appendChild(style);
+const style = document.createElement("style");
+style.textContent = `
+  .key-heatmap {
+    position: fixed;
+    bottom: 10px;
+    left: 10px;
+    background: rgba(0, 0, 0, 0.7);
+    color: #fff;
+    padding: 8px;
+    border-radius: 6px;
+    font-family: monospace;
+    font-size: 12px;
+    z-index: 999999;
+  }
+  .key-heatmap .key-item {
+    display: inline-block;
+    margin: 2px;
+    padding: 4px 8px;
+    background: rgba(100, 200, 255, 0.3);
+    border-radius: 4px;
+    animation: fadeOut 2s forwards;
+  }
+  @keyframes fadeOut {
+    to { opacity: 0; }
+  }
+`;
+document.head.appendChild(style);
 
-  const container = document.createElement("div");
-  container.className = "key-heatmap";
-  document.body.appendChild(container);
+const container = document.createElement("div");
+container.className = "key-heatmap";
+document.body.appendChild(container);
 
-  const unsub = window.api.keys.onKeyState(({ key, state }) => {
-    if (state !== "DOWN") return;
+const unsub = window.api.keys.onKeyState(({ key, state }) => {
+  if (state !== "DOWN") return;
 
-    const keyEl = document.createElement("span");
-    keyEl.className = "key-item";
-    keyEl.textContent = key;
-    container.appendChild(keyEl);
+  const keyEl = document.createElement("span");
+  keyEl.className = "key-item";
+  keyEl.textContent = key;
+  container.appendChild(keyEl);
 
-    setTimeout(() => keyEl.remove(), 2000);
-  });
+  setTimeout(() => keyEl.remove(), 2000);
+});
 
-  // ✨ 클린업 등록
-  window.api.plugin.registerCleanup(() => {
-    unsub();
-    container.remove();
-    style.remove();
-  });
-})();
+// ✨ 클린업 등록
+window.api.plugin.registerCleanup(() => {
+  unsub();
+  container.remove();
+  style.remove();
+});
 ```
 
 ---
@@ -2020,35 +2017,49 @@ const checkbox = window.api.ui.components.checkbox({
 메인 윈도우 콘솔에 설정 변경 이력을 기록합니다.
 
 ```javascript
-(function () {
-  // 메인 전용
-  if (window.api.window.type !== "main") return;
+// 메인 전용
+if (window.api.window.type !== "main") return;
 
-  console.log("[Settings Logger] Started");
+console.log("[Settings Logger] Started");
 
-  const unsub = window.api.settings.onChanged((settings) => {
-    console.log("[Settings Changed]", new Date().toISOString(), settings);
-  });
+const unsub = window.api.settings.onChanged((settings) => {
+  console.log("[Settings Changed]", new Date().toISOString(), settings);
+});
 
-  // ✨ 클린업 등록
-  window.api.plugin.registerCleanup(() => {
-    unsub();
-    console.log("[Settings Logger] Stopped");
-  });
-})();
+// ✨ 클린업 등록
+window.api.plugin.registerCleanup(() => {
+  unsub();
+  console.log("[Settings Logger] Stopped");
+});
 ```
 
 ---
 
 ## 베스트 프랙티스
 
-### 1. 즉시 실행 함수로 감싸기
+### 1. 자동 스코프 격리 ✨
 
-스코프 오염을 방지합니다.
+DM Note는 각 플러그인 코드를 **자동으로 별도의 함수 스코프로 격리**합니다.
+
+- ✅ **자동 strict mode**: 모든 플러그인이 엄격 모드로 실행됩니다
+- ✅ **변수 격리**: 플러그인 간 변수 충돌이 자동으로 방지됩니다
+- ✅ **IIFE 불필요**: 명시적으로 감쌀 필요가 없습니다
 
 ```javascript
+// ✅ 이렇게 자연스럽게 작성하세요
+const myData = 123;
+
+window.api.plugin.registerCleanup(() => {
+  console.log("cleanup");
+});
+```
+
+**선택사항**: 레거시 호환성을 위해 IIFE로 감싼 코드도 계속 작동합니다.
+
+```javascript
+// ✅ 기존 방식도 지원됨 (선택)
 (function () {
-  // 스크립트 코드
+  const myData = 123;
 })();
 ```
 
@@ -2090,29 +2101,7 @@ window.api.plugin.registerCleanup(() => unsubscribers.forEach((fn) => fn()));
 window.api.plugin.registerCleanup(() => panel.remove());
 ```
 
-### 4. 레거시 방식 (하위 호환성)
-
-```javascript
-// 재주입 대비 기존 리소스 정리
-if (window.__dmn_custom_js_cleanup) window.__dmn_custom_js_cleanup();
-
-window.__dmn_custom_js_cleanup = function () {
-  // 타이머 정리
-  clearInterval(timerId);
-  clearTimeout(timeoutId);
-
-  // 이벤트 구독 해제
-  unsubscribers.forEach((fn) => fn && fn());
-
-  // DOM 정리
-  elements.forEach((el) => el.remove());
-
-  // 자기 자신 제거
-  delete window.__dmn_custom_js_cleanup;
-};
-```
-
-### 5. 에러 핸들링
+### 4. 에러 핸들링
 
 ```javascript
 try {
@@ -2123,7 +2112,7 @@ try {
 }
 ```
 
-### 6. 성능 고려
+### 5. 성능 고려
 
 - `requestAnimationFrame`으로 렌더링 최적화
 - 과도한 DOM 조작 지양

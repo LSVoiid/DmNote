@@ -705,6 +705,7 @@ export function createCustomJsRuntime(): CustomJsRuntime {
 
       const wrappedContent = `
             ;(function(window){
+              'use strict';
               const __PLUGIN_ID__ = "${pluginId}";
               
               const __autoWrapAsync__ = () => {
@@ -744,7 +745,10 @@ export function createCustomJsRuntime(): CustomJsRuntime {
               };
               
               try {
+                // User code is automatically wrapped in a function scope for isolation
+                (function(){
             ${plugin.content}
+                })();
               } catch (e) {
                 console.error('Failed to run JS plugin: ${plugin.name}', e);
               }
