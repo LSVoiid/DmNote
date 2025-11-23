@@ -4,13 +4,8 @@ import { html, styleMap, css } from "@src/renderer/utils/templateEngine";
 import type {
   DisplayElementTemplate,
   DisplayElementTemplateHelpers,
+  PluginTranslateFn,
 } from "@src/types/api";
-
-const sharedTemplateHelpers: DisplayElementTemplateHelpers = {
-  html,
-  styleMap,
-  css,
-};
 
 interface DisplayElementInstanceOptions {
   fullId: string;
@@ -23,6 +18,8 @@ interface DisplayElementInstanceOptions {
     updates: Partial<PluginDisplayElement>
   ) => void;
   removeElement: (fullId: string) => void;
+  locale: string;
+  t: PluginTranslateFn;
 }
 
 export class DisplayElementInstance extends String {
@@ -49,7 +46,13 @@ export class DisplayElementInstance extends String {
     this.updateElement = options.updateElement;
     this.removeElement = options.removeElement;
     this.template = options.template;
-    this.templateHelpers = sharedTemplateHelpers;
+    this.templateHelpers = {
+      html,
+      styleMap,
+      css,
+      locale: options.locale,
+      t: options.t,
+    };
 
     if (options.initialState) {
       this.state = { ...options.initialState };

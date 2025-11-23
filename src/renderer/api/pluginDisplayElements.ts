@@ -1,8 +1,9 @@
 import { usePluginDisplayElementStore } from "@stores/usePluginDisplayElementStore";
 import { useKeyStore } from "@stores/useKeyStore";
 import { DisplayElementInstance } from "@utils/displayElementInstance";
-import { html } from "@utils/templateEngine";
+import { html, styleMap, css } from "@utils/templateEngine";
 import { clearComponentHandlers } from "@utils/pluginUtils";
+import { createPluginTranslator } from "@utils/pluginI18n";
 import type {
   DisplayElementTemplate,
   DisplayElementTemplateFactoryValue,
@@ -135,6 +136,8 @@ const createNoopDisplayElementInstance = () =>
     pluginId: "",
     updateElement: () => undefined,
     removeElement: () => undefined,
+    locale: "ko",
+    t: (key) => key,
   });
 
 const clearInstancesByPlugin = (pluginId: string) => {
@@ -156,6 +159,10 @@ type CompiledTemplateChunk =
 
 const displayElementTemplateHelpers: DisplayElementTemplateHelpers = {
   html,
+  styleMap,
+  css,
+  locale: "ko",
+  t: (key) => key,
 };
 
 const buildDisplayElementTemplate = (
@@ -295,6 +302,10 @@ const displayElementApi = {
 
     usePluginDisplayElementStore.getState().addElement(internalElement);
 
+    const currentLocale = (window as any).__dmn_current_locale || "ko";
+    const pluginMessages = (window as any).__dmn_plugin_messages?.[pluginId];
+    const t = createPluginTranslator(pluginMessages, currentLocale);
+
     const instance = new DisplayElementInstance({
       fullId,
       pluginId,
@@ -309,6 +320,8 @@ const displayElementApi = {
       removeElement: (targetId) => {
         removeDisplayElementInternal(targetId);
       },
+      locale: currentLocale,
+      t,
     });
 
     registerDisplayElementInstance(instance);
