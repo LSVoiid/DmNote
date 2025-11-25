@@ -85,6 +85,52 @@ export const PluginElement: React.FC<PluginElementProps> = ({
   const selectedKeyType = useKeyStore((state) => state.selectedKeyType);
   const exposedActionsRef = useRef<Record<string, (...args: any[]) => any>>({});
 
+  // Settings 변경 감지용 ref와 콜백 리스트
+  const prevSettingsRef = useRef<Record<string, any> | null>(null);
+  const settingsChangeListenersRef = useRef<
+    Set<
+      (
+        newSettings: Record<string, any>,
+        oldSettings: Record<string, any>
+      ) => void
+    >
+  >(new Set());
+
+  // Settings 변경 감지 (overlay에서만)
+  useEffect(() => {
+    if (windowType !== "overlay") return;
+
+    const currentSettings = element.settings || {};
+    const prevSettings = prevSettingsRef.current;
+
+    // 최초 마운트 시에는 이전 설정 저장만
+    if (prevSettings === null) {
+      prevSettingsRef.current = { ...currentSettings };
+      return;
+    }
+
+    // 설정이 실제로 변경되었는지 확인
+    const hasChanged =
+      JSON.stringify(currentSettings) !== JSON.stringify(prevSettings);
+
+    if (hasChanged) {
+      // 모든 리스너에게 변경 알림
+      settingsChangeListenersRef.current.forEach((listener) => {
+        try {
+          listener(currentSettings, prevSettings);
+        } catch (error) {
+          console.error(
+            "[PluginElement] onSettingsChange listener error:",
+            error
+          );
+        }
+      });
+
+      // 이전 설정 업데이트
+      prevSettingsRef.current = { ...currentSettings };
+    }
+  }, [windowType, element.settings]);
+
   // 컨텍스트 메뉴 상태
   const [contextMenuOpen, setContextMenuOpen] = useState(false);
   const [contextMenuPosition, setContextMenuPosition] = useState({
@@ -508,6 +554,17 @@ export const PluginElement: React.FC<PluginElementProps> = ({
           "[PluginElement] i18n API is not available in this context"
         );
         return () => undefined;
+      },
+      onSettingsChange: (
+        listener: (
+          newSettings: Record<string, any>,
+          oldSettings: Record<string, any>
+        ) => void
+      ) => {
+        settingsChangeListenersRef.current.add(listener);
+        cleanups.push(() => {
+          settingsChangeListenersRef.current.delete(listener);
+        });
       },
     };
 

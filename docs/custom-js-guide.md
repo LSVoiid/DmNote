@@ -166,6 +166,155 @@ dmn.plugin.defineElement({
 
 필요하다면 `dmn.i18n.getLocale()`와 `dmn.i18n.onLocaleChange()`를 직접 호출해 언어 설정을 가져오거나 감지할 수도 있습니다.
 
+### 설정 변경 감지 (onSettingsChange)
+
+플러그인 설정이 변경되었을 때 특정 작업을 수행해야 하는 경우 `onSettingsChange` 콜백을 사용할 수 있습니다. 이는 설정 값에 따라 외부 데이터를 다시 가져오거나 리소스를 재초기화해야 할 때 유용합니다.
+
+```javascript
+dmn.plugin.defineElement({
+  name: "Dynamic Data Panel",
+
+  settings: {
+    nickname: { type: "string", default: "", label: "닉네임" },
+    refreshInterval: {
+      type: "number",
+      default: 5,
+      min: 1,
+      max: 60,
+      label: "갱신 주기(분)",
+    },
+  },
+
+  template: (state, settings, { html }) => html`
+    <div style="padding: 10px; background: rgba(0,0,0,0.8); color: white;">
+      <div>닉네임: ${settings.nickname || "미설정"}</div>
+      <div>데이터: ${state.data ?? "로딩 중..."}</div>
+    </div>
+  `,
+
+  previewState: {
+    data: "미리보기 데이터",
+  },
+
+  onMount: ({ setState, getSettings, onSettingsChange }) => {
+    // 데이터 가져오기 함수
+    const fetchData = async (nickname) => {
+      if (!nickname) {
+        setState({ data: null, error: "닉네임을 입력하세요" });
+        return;
+      }
+
+      try {
+        setState({ loading: true });
+        const response = await fetch(
+          `https://api.example.com/user/${nickname}`
+        );
+        const data = await response.json();
+        setState({ data: data.value, loading: false, error: null });
+      } catch (error) {
+        setState({ data: null, loading: false, error: error.message });
+      }
+    };
+
+    // 초기 데이터 로드
+    const settings = getSettings();
+    fetchData(settings.nickname);
+
+    // ✨ 설정 변경 감지 - 닉네임이 바뀌면 다시 데이터 가져오기
+    onSettingsChange((newSettings, oldSettings) => {
+      if (newSettings.nickname !== oldSettings.nickname) {
+        fetchData(newSettings.nickname);
+      }
+    });
+
+    // 주기적 갱신
+    const interval = setInterval(() => {
+      const currentSettings = getSettings();
+      fetchData(currentSettings.nickname);
+    }, getSettings().refreshInterval * 60 * 1000);
+
+    return () => {
+      clearInterval(interval);
+    };
+  },
+});
+```
+
+**`onSettingsChange` 특징:**
+
+- ✅ **선택적 사용**: 필요한 플러그인에서만 사용 (대부분의 플러그인은 불필요)
+- ✅ **세밀한 제어**: 어떤 설정이 변경되었는지 비교 가능
+- ✅ **자동 클린업**: 플러그인 언마운트 시 자동으로 리스너 해제
+- ✅ **overlay 전용**: 오버레이 윈도우에서만 동작 (main에서는 previewState 사용)
+
+**사용 시점:**
+
+- 설정 값에 따라 **외부 API를 호출**해야 할 때
+- 설정 변경 시 **리소스를 재초기화**해야 할 때
+- **특정 설정 변경에만 반응**해야 할 때
+
+**주의사항:**
+
+- `getSettings()`로 항상 최신 설정을 가져올 수 있으므로, 단순히 최신 값을 사용하는 경우에는 `onSettingsChange`가 불필요합니다.
+- 템플릿은 설정 변경 시 자동으로 재렌더링되므로, UI 업데이트만 필요한 경우에도 불필요합니다.
+
+#### 플러그인 유형별 선택 가이드
+
+플러그인의 데이터 처리 방식에 따라 `onSettingsChange` 필요 여부가 달라집니다:
+
+| 플러그인 유형                     | 예시            | `onSettingsChange` 필요? | 이유                                               |
+| --------------------------------- | --------------- | ------------------------ | -------------------------------------------------- |
+| **빠른 interval + getSettings()** | KPS 측정기      | ❌ 불필요                | interval에서 매번 최신 설정을 조회하므로 자동 반영 |
+| **외부 API 호출**                 | V-ARCHIVE 티어  | ✅ 필요                  | 설정 변경 시 즉시 새 데이터를 fetch해야 함         |
+| **UI만 변경**                     | 색상, 표시 토글 | ❌ 불필요                | template이 자동으로 재렌더링됨                     |
+| **리소스 재초기화**               | WebSocket 연결  | ✅ 필요                  | 설정 변경 시 연결을 다시 맺어야 함                 |
+
+**비교 예시:**
+
+```javascript
+// ✅ KPS 플러그인 - onSettingsChange 불필요
+// interval이 50ms마다 실행되며 매번 getSettings() 호출
+onMount: ({ setState, getSettings }) => {
+  const interval = setInterval(() => {
+    const settings = getSettings(); // 항상 최신 설정
+    // ... 설정값으로 계산
+    setState({ kps });
+  }, 50); // 매우 빠른 주기
+
+  return () => clearInterval(interval);
+};
+
+// ✅ V-ARCHIVE 플러그인 - onSettingsChange 필요
+// API 호출은 비용이 크므로 설정 변경 시에만 실행
+onMount: ({ setState, getSettings, onSettingsChange }) => {
+  const fetchData = async () => {
+    const { nickname } = getSettings();
+    const data = await fetch(`/api/${nickname}`);
+    setState({ data });
+  };
+
+  fetchData(); // 최초 로드
+
+  // 닉네임 변경 시 즉시 다시 fetch
+  onSettingsChange((newSettings, oldSettings) => {
+    if (newSettings.nickname !== oldSettings.nickname) {
+      fetchData();
+    }
+  });
+
+  // 5분마다 자동 갱신 (긴 주기)
+  const interval = setInterval(fetchData, 5 * 60 * 1000);
+
+  return () => clearInterval(interval);
+};
+```
+
+**핵심 원칙:**
+
+- interval 주기가 **짧은 경우** (< 1초): `getSettings()`로 충분
+- interval 주기가 **긴 경우** 또는 **이벤트 기반**: `onSettingsChange` 사용
+- **비용이 큰 작업** (API 호출, 리소스 초기화): `onSettingsChange`로 필요할 때만 실행
+
 // @id simple-kps
 
 dmn.plugin.defineElement({
@@ -1133,19 +1282,13 @@ Display Element에 이벤트 핸들러를 등록하는 방식이 크게 개선�
       // 위치 변경 핸들러
       onPositionChange: async (pos) => {
         panels.get(panelId).position = pos;
-        await dmn.plugin.storage.set(
-          "panels",
-          Array.from(panels.values())
-        );
+        await dmn.plugin.storage.set("panels", Array.from(panels.values()));
       },
 
       // 삭제 핸들러
       onDelete: async () => {
         panels.delete(panelId);
-        await dmn.plugin.storage.set(
-          "panels",
-          Array.from(panels.values())
-        );
+        await dmn.plugin.storage.set("panels", Array.from(panels.values()));
       },
     });
 
@@ -2216,4 +2359,3 @@ Tracking Prevention blocked access to storage for https://cdn.jsdelivr.net/...
 ---
 
 커스텀 JS로 DM Note를 자유롭게 확장하세요! 🎹✨
-

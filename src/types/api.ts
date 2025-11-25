@@ -232,6 +232,26 @@ export interface PluginDefinitionHookContext {
   locale: string;
   t: PluginTranslateFn;
   onLocaleChange: (listener: (locale: string) => void) => Unsubscribe;
+  /**
+   * Register a listener for settings changes
+   * @param listener - Callback function that receives new and old settings
+   *
+   * Called when any setting value changes. Use this to react to setting changes
+   * that require re-fetching data or re-initializing resources.
+   *
+   * @example
+   * onSettingsChange((newSettings, oldSettings) => {
+   *   if (newSettings.nickname !== oldSettings.nickname) {
+   *     fetchUserData(newSettings.nickname);
+   *   }
+   * });
+   */
+  onSettingsChange: (
+    listener: (
+      newSettings: Record<string, any>,
+      oldSettings: Record<string, any>
+    ) => void
+  ) => void;
 }
 
 export interface PluginDefinition {
