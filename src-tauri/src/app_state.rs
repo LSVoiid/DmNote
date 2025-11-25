@@ -46,6 +46,8 @@ pub struct AppState {
     key_counters: Arc<RwLock<KeyCounters>>,
     key_counter_enabled: Arc<AtomicBool>,
     active_keys: Arc<RwLock<HashSet<String>>>,
+    /// Raw input stream subscriber count - emit only when > 0
+    raw_input_subscribers: Arc<std::sync::atomic::AtomicU32>,
 }
 
 impl AppState {
@@ -71,6 +73,7 @@ impl AppState {
             key_counters,
             key_counter_enabled,
             active_keys,
+            raw_input_subscribers: Arc::new(std::sync::atomic::AtomicU32::new(0)),
         })
     }
 
@@ -451,27 +454,24 @@ impl AppState {
                                 .cloned()
                                 .unwrap_or_else(|| String::from(""));
 
-                            // Emit raw input stream to the main window so UI can bind non-keyboard inputs.
-                            if let Some(main) = app_handle.get_webview_window("main") {
-                                let _ = main.emit(
-                                    "input:raw",
-                                    &json!({
-                                        "label": primary_label,
-                                        "labels": labels_for_emit.clone(),
-                                        "state": state,
-                                        "device": device_str,
-                                    }),
-                                );
-                            } else if let Err(err) = app_handle.emit(
-                                "input:raw",
-                                &json!({
+                            // Emit raw input stream only when there are subscribers
+                            let app_state = app_handle.state::<AppState>();
+                            if app_state.raw_input_subscriber_count() > 0 {
+                                let raw_payload = json!({
                                     "label": primary_label,
                                     "labels": labels_for_emit.clone(),
                                     "state": state,
                                     "device": device_str,
-                                }),
-                            ) {
-                                error!("failed to emit input:raw: {err}");
+                                });
+                                
+                                // Emit to main window first, then fallback to app-wide emit
+                                if let Some(main) = app_handle.get_webview_window("main") {
+                                    let _ = main.emit("input:raw", &raw_payload);
+                                }
+                                // Also emit to overlay for plugins running there
+                                if let Some(overlay) = app_handle.get_webview_window(OVERLAY_LABEL) {
+                                    let _ = overlay.emit("input:raw", &raw_payload);
+                                }
                             }
 
                             let Some(key_label) =
@@ -480,7 +480,6 @@ impl AppState {
                                 continue;
                             };
                             let mode = keyboard.current_mode();
-                            let app_state = app_handle.state::<AppState>();
                             if state == "DOWN" {
                                 if app_state.register_key_down(&mode, &key_label) {
                                     if let Some(count) = app_state.increment_key_counter(&mode, &key_label) {
@@ -882,6 +881,28 @@ impl AppState {
 
     fn compose_active_key(mode: &str, key: &str) -> String {
         format!("{}::{}", mode, key)
+    }
+
+    /// Subscribe to raw input stream (increment subscriber count)
+    pub fn subscribe_raw_input(&self) -> u32 {
+        self.raw_input_subscribers.fetch_add(1, Ordering::SeqCst) + 1
+    }
+
+    /// Unsubscribe from raw input stream (decrement subscriber count)
+    pub fn unsubscribe_raw_input(&self) -> u32 {
+        let prev = self.raw_input_subscribers.fetch_sub(1, Ordering::SeqCst);
+        if prev == 0 {
+            // Prevent underflow
+            self.raw_input_subscribers.store(0, Ordering::SeqCst);
+            0
+        } else {
+            prev - 1
+        }
+    }
+
+    /// Get current raw input subscriber count
+    pub fn raw_input_subscriber_count(&self) -> u32 {
+        self.raw_input_subscribers.load(Ordering::Relaxed)
     }
 }
 

@@ -526,3 +526,24 @@ fn generate_custom_tab_id() -> String {
         .as_millis();
     format!("custom-{}", now)
 }
+
+#[derive(Serialize)]
+pub struct RawInputSubscribeResponse {
+    pub count: u32,
+}
+
+/// Subscribe to raw input stream (increment subscriber count)
+#[tauri::command(permission = "dmnote-allow-all")]
+pub fn raw_input_subscribe(state: State<'_, AppState>) -> Result<RawInputSubscribeResponse, String> {
+    let count = state.subscribe_raw_input();
+    log::debug!("[RawInput] Subscribe: count = {}", count);
+    Ok(RawInputSubscribeResponse { count })
+}
+
+/// Unsubscribe from raw input stream (decrement subscriber count)
+#[tauri::command(permission = "dmnote-allow-all")]
+pub fn raw_input_unsubscribe(state: State<'_, AppState>) -> Result<RawInputSubscribeResponse, String> {
+    let count = state.unsubscribe_raw_input();
+    log::debug!("[RawInput] Unsubscribe: count = {}", count);
+    Ok(RawInputSubscribeResponse { count })
+}

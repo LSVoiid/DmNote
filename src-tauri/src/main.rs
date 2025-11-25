@@ -72,6 +72,8 @@ fn main() {
             commands::keys::keys_reset_mode,
             commands::keys::keys_reset_counters,
             commands::keys::keys_reset_counters_mode,
+            commands::keys::raw_input_subscribe,
+            commands::keys::raw_input_unsubscribe,
             commands::keys::custom_tabs_list,
             commands::keys::custom_tabs_create,
             commands::keys::custom_tabs_delete,
@@ -214,7 +216,7 @@ fn apply_main_window_configuration(
     if let Err(err) = window.set_size(tauri::Size::Logical(size)) {
         log::warn!("failed to set size: {err}");
     }
-    if let Err(err) = window.set_shadow(true) {
+    if let Err(err) = window.set_shadow(false) {
         log::warn!("failed to enable shadow: {err}");
     }
 

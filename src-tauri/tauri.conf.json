@@ -20,12 +20,11 @@
         "maximizable": false,
         "fullscreen": false,
         "center": false,
-        "transparent": false,
+        "transparent": true,
         "decorations": false,
-        "shadow": true,
+        "shadow": false,
         "url": "main/index.html",
-        "visible": false,
-        "backgroundColor": "#1A191E"
+        "visible": false
       }
     ],
     "security": {

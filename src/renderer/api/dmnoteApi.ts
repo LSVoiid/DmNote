@@ -10,6 +10,7 @@ import {
   createFormRow,
 } from "@utils/pluginComponents";
 import { displayElementApi } from "./pluginDisplayElements";
+import { rawKeyEventBus } from "@utils/rawKeyEventBus";
 
 import type {
   CssLoadResult,
@@ -158,8 +159,25 @@ const api: DMNoteAPI = {
       subscribe<ModeChangePayload>("keys:mode-changed", listener),
     onKeyState: (listener: (payload: KeyStatePayload) => void) =>
       subscribe<KeyStatePayload>("keys:state", listener),
-    onRawInput: (listener: (payload: RawInputPayload) => void) =>
-      subscribe<RawInputPayload>("input:raw", listener),
+    onRawInput: (listener: (payload: RawInputPayload) => void): Unsubscribe => {
+      // rawKeyEventBus를 통해 구독 - 구독자가 있을 때만 백엔드가 emit
+      let unsubscribeFn: (() => void) | null = null;
+
+      rawKeyEventBus
+        .subscribe(listener)
+        .then((unsub) => {
+          unsubscribeFn = unsub;
+        })
+        .catch((error) => {
+          console.error("[API] Failed to subscribe to raw input:", error);
+        });
+
+      return () => {
+        if (unsubscribeFn) {
+          unsubscribeFn();
+        }
+      };
+    },
     onCounterChanged: (listener: (payload: KeyCounterUpdate) => void) =>
       subscribe<KeyCounterUpdate>("keys:counter", listener),
     onCountersChanged: (listener: (payload: KeyCounters) => void) =>

@@ -466,6 +466,23 @@ export const PluginElement: React.FC<PluginElementProps> = ({
             });
             cleanups.push(unsub);
           });
+        } else if (event === "rawKey") {
+          // Raw key 이벤트 버스 사용 (구독 기반 - 구독자가 있을 때만 백엔드가 emit)
+          import("@utils/rawKeyEventBus").then(({ rawKeyEventBus }) => {
+            rawKeyEventBus
+              .subscribe((payload) => {
+                callback(payload);
+              })
+              .then((unsub) => {
+                cleanups.push(unsub);
+              })
+              .catch((error) => {
+                console.error(
+                  `[PluginElement] Failed to subscribe to rawKey:`,
+                  error
+                );
+              });
+          });
         }
       },
       expose: (actions: Record<string, (...args: any[]) => any>) => {

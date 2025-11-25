@@ -562,11 +562,13 @@ const unsub = dmn.keys.onKeyState(({ key, state, mode }) => {
 
 ---
 
-#### `window.api.keys.onRawInput(listener)`
+#### `dmn.keys.onRawInput(listener)`
 
-로우 레벨 입력 이벤트를 구독합니다. **오버레이 윈도우에서만 수신 가능합니다.**
+로우 레벨 입력 이벤트를 구독합니다.
 
-키보드와 마우스의 원시 입력 데이터를 수신할 수 있습니다. 매핑되지 않은 키나 마우스 버튼도 감지할 수 있어 커스텀 입력 처리에 유용합니다.
+키보드, 마우스의 원시 입력 데이터를 수신할 수 있습니다. 매핑되지 않은 키나 마우스 버튼도 감지할 수 있어 커스텀 입력 처리에 유용합니다.
+
+**⚡ 최적화**: 이 API는 구독 기반으로 동작합니다. 구독자가 없으면 백엔드에서 이벤트를 emit하지 않아 성능 오버헤드가 없습니다. 첫 번째 구독자가 등록되면 자동으로 백엔드 스트림이 시작되고, 마지막 구독자가 해제되면 자동으로 중지됩니다.
 
 **매개변수**:
 
@@ -575,7 +577,7 @@ const unsub = dmn.keys.onKeyState(({ key, state, mode }) => {
 ```typescript
 interface RawInputPayload {
   device: "keyboard" | "mouse" | "unknown"; // 입력 장치 타입
-  label: string; // 주 레이블 (예: "KeyD", "LButton", "MButton")
+  label: string; // 주 레이블 (예: "KeyD", "MOUSE1", "MOUSE4")
   labels: string[]; // 모든 레이블 목록
   state: string; // "DOWN" | "UP"
 }
@@ -587,7 +589,7 @@ interface RawInputPayload {
 
 ```javascript
 // 모든 입력 감지
-const unsub = window.api.keys.onRawInput(({ device, label, labels, state }) => {
+const unsub = dmn.keys.onRawInput(({ device, label, labels, state }) => {
   console.log(`[${device}] ${label} ${state}`);
   console.log("추가 레이블:", labels);
 
@@ -597,17 +599,17 @@ const unsub = window.api.keys.onRawInput(({ device, label, labels, state }) => {
   }
 
   // 마우스 버튼 클릭 감지
-  if (device === "mouse" && label === "LButton" && state === "DOWN") {
+  if (device === "mouse" && label === "MOUSE1" && state === "DOWN") {
     console.log("좌클릭 감지!");
   }
 
-  // 마우스 측면 버튼 (XButton)
-  if (device === "mouse" && label.startsWith("XButton")) {
+  // 마우스 측면 버튼
+  if (device === "mouse" && (label === "MOUSE4" || label === "MOUSE5")) {
     console.log("마우스 측면 버튼:", label);
   }
 });
 
-// 구독 해제
+// 구독 해제 (백엔드 스트림도 자동 중지됨)
 unsub();
 ```
 
@@ -617,7 +619,7 @@ unsub();
 // 커스텀 입력 기록기
 const inputLog = [];
 
-window.api.keys.onRawInput(({ device, label, state }) => {
+const unsub = dmn.keys.onRawInput(({ device, label, state }) => {
   if (state === "DOWN") {
     inputLog.push({
       device,
@@ -633,6 +635,9 @@ window.api.keys.onRawInput(({ device, label, state }) => {
     console.log(`입력 기록: ${inputLog.length}개`);
   }
 });
+
+// 정리 시 구독 해제 필수!
+// unsub();
 ```
 
 ---
@@ -1876,8 +1881,10 @@ interface PluginContext {
   getSettings: () => Record<string, any>;
 
   // 이벤트 훅 등록 (자동 클린업됨)
-  // 현재 지원되는 이벤트: "key"
-  onHook: (event: string, callback: Function) => void;
+  // 지원되는 이벤트:
+  //   - "key": 매핑된 키 이벤트 (payload: { key, state, mode })
+  //   - "rawKey": 모든 원시 입력 이벤트 (payload: { device, label, labels, state })
+  onHook: (event: "key" | "rawKey", callback: Function) => void;
 
   // Expose functions to be invoked from context menu/actions
   expose: (actions: Record<string, (...args: any[]) => any>) => void;
@@ -1907,7 +1914,36 @@ dmn.plugin.defineElement({
     <div style="color: ${settings.color}">Value: ${state.val}</div>
   `,
   onMount: ({ setState, onHook }) => {
-    onHook("key", () => setState({ val: Math.random() }));
+    // 매핑된 키 이벤트 수신
+    onHook("key", ({ key, state }) => {
+      if (state === "DOWN") {
+        setState({ val: Math.random() });
+      }
+    });
+  },
+});
+```
+
+**rawKey 사용 예**:
+
+```javascript
+// @id keystroke-logger
+
+dmn.plugin.defineElement({
+  name: "Keystroke Logger",
+  template: (state, settings, { html }) => html`
+    <div style="background: rgba(0,0,0,0.8); color: white; padding: 10px;">
+      <div>Last: ${state.lastKey || "None"}</div>
+      <div>Device: ${state.device || "-"}</div>
+    </div>
+  `,
+  onMount: ({ setState, onHook }) => {
+    // 모든 원시 입력 이벤트 수신 (키보드, 마우스)
+    onHook("rawKey", ({ device, label, state }) => {
+      if (state === "DOWN") {
+        setState({ lastKey: label, device });
+      }
+    });
   },
 });
 ```
@@ -2095,8 +2131,7 @@ const defaultSettings = {
   fontSize: 12,
 };
 
-const settings =
-  (await dmn.plugin.storage.get("settings")) || defaultSettings;
+const settings = (await dmn.plugin.storage.get("settings")) || defaultSettings;
 
 // 설정 변경 시 자동 저장
 function updateSetting(key, value) {
@@ -2259,9 +2294,7 @@ async function initializeStorage() {
   // 이벤트 리스너 추가
   const handler = () => console.log("Click");
   panel.addEventListener("click", handler);
-  dmn.plugin.registerCleanup(() =>
-    panel.removeEventListener("click", handler)
-  );
+  dmn.plugin.registerCleanup(() => panel.removeEventListener("click", handler));
 
   // 타이머 설정
   const timerId = setInterval(() => console.log("Tick"), 1000);
@@ -2758,11 +2791,7 @@ dmn.ui.displayElement.setText(panel, ".counter", "42");
 선택자로 지정한 요소의 innerHTML을 설정합니다.
 
 ```javascript
-dmn.ui.displayElement.setHTML(
-  panel,
-  ".content",
-  "<strong>Bold</strong> text"
-);
+dmn.ui.displayElement.setHTML(panel, ".content", "<strong>Bold</strong> text");
 ```
 
 ##### `dmn.ui.displayElement.setStyle(target, selector, styles)`
@@ -3212,9 +3241,7 @@ if (confirmed) {
 
 ```javascript
 async function saveSettings(settings) {
-  const confirmed = await dmn.ui.dialog.confirm(
-    "설정을 저장하시겠습니까?"
-  );
+  const confirmed = await dmn.ui.dialog.confirm("설정을 저장하시겠습니까?");
 
   if (confirmed) {
     await dmn.plugin.storage.set("settings", settings);
@@ -3679,4 +3706,3 @@ async function showCustomSettings() {
 - **IPC 채널 레퍼런스**: [`docs/ipc-channels.md`](./ipc-channels.md) - 백엔드 구현 상세
 - **커스텀 JS 가이드**: [`docs/plugin/custom-js-guide.md`](./plugin/custom-js-guide.md) - 커스텀 스크립트 작성 방법
 - **Tauri 공식 문서**: https://tauri.app/
-

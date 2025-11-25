@@ -219,7 +219,15 @@ export interface PluginSettingSchema {
 export interface PluginDefinitionHookContext {
   setState: (updates: Record<string, any>) => void;
   getSettings: () => Record<string, any>;
-  onHook: (event: string, callback: (...args: any[]) => void) => void;
+  /**
+   * Register event hooks
+   * @param event - Event type: 'key' (mapped key events) or 'rawKey' (all raw input events)
+   * @param callback - Event handler
+   *
+   * 'key' event payload: { key: string, state: 'DOWN' | 'UP', mode: string }
+   * 'rawKey' event payload: { device: 'keyboard' | 'mouse' | 'gamepad' | 'unknown', label: string, labels: string[], state: 'DOWN' | 'UP' }
+   */
+  onHook: (event: "key" | "rawKey", callback: (...args: any[]) => void) => void;
   expose: (actions: Record<string, (...args: any[]) => any>) => void;
   locale: string;
   t: PluginTranslateFn;
