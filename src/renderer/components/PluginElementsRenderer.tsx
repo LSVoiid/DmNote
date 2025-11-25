@@ -1,9 +1,36 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useCallback } from "react";
 import { usePluginDisplayElementStore } from "@stores/usePluginDisplayElementStore";
 import { useKeyStore } from "@stores/useKeyStore";
 import { PluginElement } from "./PluginElement";
 import type { PluginDisplayElementInternal } from "@src/types/api";
 import { invokeExposedAction } from "@utils/displayElementActions";
+
+/**
+ * Main에서 온 elements와 Overlay의 기존 elements를 병합
+ * - Main에서 온 데이터: position, settings 등 동기화 필요한 필드
+ * - Overlay에서 유지: state (로컬에서만 관리되는 런타임 데이터)
+ */
+function mergeElementsFromMain(
+  incomingElements: PluginDisplayElementInternal[],
+  existingElements: PluginDisplayElementInternal[]
+): PluginDisplayElementInternal[] {
+  return incomingElements.map((incoming) => {
+    const existing = existingElements.find(
+      (el) => el.fullId === incoming.fullId
+    );
+
+    if (existing && existing.state) {
+      // 기존 요소가 있고 state가 있으면: Main 데이터 + Overlay의 state 유지
+      return {
+        ...incoming,
+        state: existing.state,
+      };
+    }
+
+    // 새 요소이거나 state가 없으면 그대로 사용
+    return incoming;
+  });
+}
 
 interface PluginElementsRendererProps {
   windowType: "main" | "overlay";
@@ -38,7 +65,14 @@ export const PluginElementsRenderer: React.FC<PluginElementsRendererProps> = ({
       elements: PluginDisplayElementInternal[];
     }>("plugin:displayElements:sync", (data) => {
       if (data?.elements) {
-        setElements(data.elements);
+        // Main에서 온 데이터와 Overlay의 기존 state를 병합
+        const currentElements =
+          usePluginDisplayElementStore.getState().elements;
+        const mergedElements = mergeElementsFromMain(
+          data.elements,
+          currentElements
+        );
+        setElements(mergedElements);
       }
     });
 
