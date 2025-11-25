@@ -283,6 +283,50 @@ export interface PluginDefinitionInternal extends PluginDefinition {
   pluginId: string;
 }
 
+// ========== defineSettings API ==========
+
+/**
+ * 플러그인 전역 설정 정의
+ */
+export interface PluginSettingsDefinition {
+  /** 설정 스키마 (defineElement의 settings와 동일한 형식) */
+  settings: Record<string, PluginSettingSchema>;
+  /** 다국어 메시지 번들 */
+  messages?: PluginMessages;
+  /** 설정 변경 시 호출되는 콜백 */
+  onChange?: (
+    newSettings: Record<string, any>,
+    oldSettings: Record<string, any>
+  ) => void;
+}
+
+/**
+ * defineSettings 반환값 - 설정 관리 인터페이스
+ */
+export interface PluginSettingsInstance {
+  /** 현재 설정값 조회 */
+  get(): Record<string, any>;
+  /** 설정값 변경 */
+  set(updates: Record<string, any>): Promise<void>;
+  /** 설정 다이얼로그 열기 */
+  open(): Promise<boolean>;
+  /** 설정을 기본값으로 초기화 */
+  reset(): Promise<void>;
+  /**
+   * 설정 변경 구독
+   * @param listener - 설정 변경 시 호출되는 콜백
+   * @returns 구독 해제 함수
+   */
+  subscribe(
+    listener: (
+      newSettings: Record<string, any>,
+      oldSettings: Record<string, any>
+    ) => void
+  ): Unsubscribe;
+}
+
+// =========================================
+
 export type PluginDisplayElementInternal = PluginDisplayElement & {
   pluginId: string;
   fullId: string;
@@ -521,6 +565,9 @@ export interface DMNoteAPI {
     };
     registerCleanup(cleanup: () => void): void;
     defineElement(definition: PluginDefinition): void;
+    defineSettings(
+      definition: PluginSettingsDefinition
+    ): PluginSettingsInstance;
   };
   ui: {
     contextMenu: {

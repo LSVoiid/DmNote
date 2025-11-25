@@ -423,6 +423,19 @@ const api: DMNoteAPI = {
         "[Plugin API] defineElement is managed by useCustomJsInjection and should not be called directly from dmnoteApi"
       );
     },
+    defineSettings: () => {
+      console.warn(
+        "[Plugin API] defineSettings is managed by useCustomJsInjection and should not be called directly from dmnoteApi"
+      );
+      // 빈 인스턴스 반환 (타입 호환성)
+      return {
+        get: () => ({}),
+        set: async () => {},
+        open: async () => false,
+        reset: async () => {},
+        subscribe: () => () => {},
+      };
+    },
   },
   ui: {
     contextMenu: {

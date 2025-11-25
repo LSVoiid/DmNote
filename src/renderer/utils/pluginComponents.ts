@@ -225,7 +225,16 @@ export function createInput(options: InputOptions = {}): string {
         }" data-plugin-input-max="${max ?? ""}"`
       : "";
 
-  return `<input ${idAttr} type="${type}" value="${value}" placeholder="${placeholder}" class="text-center px-[12px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943] focus:border-[#459BF8] text-style-4 text-[#DBDEE8] outline-none" style="width: ${width}px" ${minAttr} ${maxAttr} ${stepAttr} ${onBlurAttr} ${
+  // value를 안전하게 처리 (undefined, null, 객체 등 방지)
+  const safeValue = value === undefined || value === null ? "" : String(value);
+  // HTML 속성에서 안전하게 사용하기 위해 특수문자 이스케이프
+  const escapedValue = safeValue
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
+  return `<input ${idAttr} type="${type}" value="${escapedValue}" placeholder="${placeholder}" class="text-center px-[12px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943] focus:border-[#459BF8] text-style-4 text-[#DBDEE8] outline-none" style="width: ${width}px" ${minAttr} ${maxAttr} ${stepAttr} ${onBlurAttr} ${
     disabled ? "disabled" : ""
   } ${onInputAttr} ${onChangeAttr} />`;
 }

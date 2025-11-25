@@ -1991,6 +1991,317 @@ dmn.plugin.defineElement({
 
 ---
 
+### `dmn.plugin.defineSettings(definition)` ✨ 신규
+
+**🎯 설정이 필요한 모든 상황에서 사용할 수 있는 범용 설정 관리 API입니다!**
+
+`defineElement`의 `settings`와 동일한 선언형 형식을 사용하여, UI 자동 생성, Storage 자동 관리, 다국어 지원을 제공합니다. 패널 없이도 독립적으로 사용 가능하며, 여러 패널 간 공유되는 전역 설정, 특정 기능에 종속된 설정 등 다양한 용도로 활용할 수 있습니다.
+
+**활용 사례**:
+
+| 용도                         | 설명                                            |
+| ---------------------------- | ----------------------------------------------- |
+| 🌐 **여러 패널의 전역 설정** | 여러 `defineElement` 패널이 공유하는 공통 설정  |
+| 🔧 **독립 기능 설정**        | 알림, 단축키, API 연동 등 패널 없는 기능의 설정 |
+| 📦 **단일 패널 전용 설정**   | 특정 패널에서만 사용하는 고급 설정              |
+| ⚙️ **플러그인 환경 설정**    | 플러그인 전체에 영향을 미치는 환경 변수/옵션    |
+
+**매개변수**:
+
+- `definition: PluginSettingsDefinition`
+
+```typescript
+interface PluginSettingsDefinition {
+  // 설정 스키마 (defineElement의 settings와 동일한 형식)
+  settings: Record<string, PluginSettingSchema>;
+
+  // 다국어 메시지 번들 (선택)
+  messages?: Record<string, Record<string, string>>;
+
+  // 설정 변경 시 호출되는 콜백 (선택)
+  onChange?: (
+    newSettings: Record<string, any>,
+    oldSettings: Record<string, any>
+  ) => void;
+}
+```
+
+**반환형**: `PluginSettingsInstance`
+
+```typescript
+interface PluginSettingsInstance {
+  // 현재 설정값 조회
+  get(): Record<string, any>;
+
+  // 설정값 변경 (자동 저장)
+  set(updates: Record<string, any>): Promise<void>;
+
+  // 설정 다이얼로그 열기
+  open(): Promise<boolean>;
+
+  // 설정을 기본값으로 초기화
+  reset(): Promise<void>;
+
+  // 설정 변경 구독 (구독 해제 함수 반환)
+  subscribe(
+    listener: (
+      newSettings: Record<string, any>,
+      oldSettings: Record<string, any>
+    ) => void
+  ): () => void;
+}
+```
+
+> **💡 자동 패널 연동**: `defineSettings`로 정의된 설정이 변경되면, 같은 플러그인의 모든 `defineElement` 패널이 자동으로 리렌더링됩니다. `template`에서 `globalSettings.get()`을 호출하면 최신 설정값이 반영됩니다.
+
+**다양한 활용 예시**:
+
+#### 1️⃣ 기본 사용 - 독립 설정 (패널 없이 사용)
+
+```javascript
+// @id my-plugin
+
+const pluginSettings = dmn.plugin.defineSettings({
+  settings: {
+    apiKey: {
+      type: "string",
+      default: "",
+      label: "settings.apiKey",
+      placeholder: "Enter API key",
+    },
+    theme: {
+      type: "select",
+      options: [
+        { value: "dark", label: "settings.theme.dark" },
+        { value: "light", label: "settings.theme.light" },
+      ],
+      default: "dark",
+      label: "settings.theme",
+    },
+    enabled: {
+      type: "boolean",
+      default: true,
+      label: "settings.enabled",
+    },
+  },
+
+  messages: {
+    ko: {
+      "settings.apiKey": "API 키",
+      "settings.theme": "테마",
+      "settings.theme.dark": "다크",
+      "settings.theme.light": "라이트",
+      "settings.enabled": "활성화",
+    },
+    en: {
+      "settings.apiKey": "API Key",
+      "settings.theme": "Theme",
+      "settings.theme.dark": "Dark",
+      "settings.theme.light": "Light",
+      "settings.enabled": "Enabled",
+    },
+  },
+
+  onChange: (newSettings, oldSettings) => {
+    console.log("Settings changed:", newSettings);
+    if (newSettings.apiKey !== oldSettings.apiKey) {
+      // API 키 변경 시 재인증 등
+    }
+  },
+});
+
+// 설정값 조회
+const current = pluginSettings.get();
+console.log("API Key:", current.apiKey);
+console.log("Theme:", current.theme);
+
+// 프로그래밍 방식으로 설정 변경
+await pluginSettings.set({ theme: "light" });
+
+// 설정 다이얼로그 열기
+const confirmed = await pluginSettings.open();
+if (confirmed) {
+  console.log("Settings saved!");
+}
+
+// 설정 변경 구독
+const unsubscribe = pluginSettings.subscribe((newSettings, oldSettings) => {
+  console.log("Settings changed:", { from: oldSettings, to: newSettings });
+  // 특정 설정 변경에 대한 반응
+  if (newSettings.theme !== oldSettings.theme) {
+    console.log("Theme changed to:", newSettings.theme);
+  }
+});
+
+// 구독 해제 (cleanup 시)
+unsubscribe();
+
+// 기본값으로 초기화
+await pluginSettings.reset();
+```
+
+#### 2️⃣ 여러 패널의 전역 설정으로 활용
+
+```javascript
+// @id kps-panel
+
+// 전역 설정 정의
+const globalSettings = dmn.plugin.defineSettings({
+  settings: {
+    defaultColor: {
+      type: "color",
+      default: "#86EFAC",
+      label: "기본 그래프 색상",
+    },
+    refreshRate: {
+      type: "number",
+      default: 50,
+      min: 10,
+      max: 200,
+      label: "갱신 주기 (ms)",
+    },
+  },
+});
+
+// 패널 정의 (컨텍스트 메뉴에서 전역 설정 열기)
+dmn.plugin.defineElement({
+  name: "KPS Panel",
+  maxInstances: 1,
+
+  // 인스턴스별 설정
+  settings: {
+    showGraph: { type: "boolean", default: true, label: "그래프 표시" },
+  },
+
+  contextMenu: {
+    create: "KPS 패널 생성",
+    delete: "KPS 패널 삭제",
+    items: [
+      {
+        label: "전역 설정",
+        onClick: () => globalSettings.open(), // 👈 전역 설정 다이얼로그 열기
+      },
+      {
+        label: "통계 초기화",
+        onClick: ({ actions }) => actions.reset(),
+      },
+    ],
+  },
+
+  template: (state, instanceSettings, { html }) => {
+    const global = globalSettings.get(); // 👈 전역 설정 참조
+    return html`
+      <div style="color: ${global.defaultColor}">KPS: ${state.kps}</div>
+    `;
+  },
+
+  onMount: ({ setState, onHook }) => {
+    const global = globalSettings.get();
+    let count = 0;
+
+    onHook("key", ({ state }) => {
+      if (state === "DOWN") count++;
+    });
+
+    const interval = setInterval(() => {
+      setState({ kps: count });
+      count = 0;
+    }, global.refreshRate); // 👈 전역 설정 사용
+
+    return () => clearInterval(interval);
+  },
+});
+```
+
+#### 3️⃣ 그리드 메뉴에 독립 설정 메뉴 추가
+
+```javascript
+// @id settings-only-plugin
+
+const pluginSettings = dmn.plugin.defineSettings({
+  settings: {
+    volume: { type: "number", default: 50, min: 0, max: 100, label: "볼륨" },
+  },
+});
+
+// 패널 없이 설정 메뉴만 추가
+dmn.ui.contextMenu.addGridMenuItem({
+  id: "my-plugin-settings",
+  label: "My Plugin 설정",
+  onClick: () => pluginSettings.open(),
+});
+```
+
+#### 4️⃣ 특정 기능 전용 설정 (알림 시스템 예시)
+
+```javascript
+// @id notification-plugin
+
+// 알림 기능 전용 설정 - 패널 없이 독립 사용
+const notificationSettings = dmn.plugin.defineSettings({
+  settings: {
+    enabled: {
+      type: "boolean",
+      default: true,
+      label: "알림 활성화",
+    },
+    sound: {
+      type: "select",
+      options: [
+        { value: "beep", label: "비프음" },
+        { value: "chime", label: "차임벨" },
+        { value: "none", label: "소리 없음" },
+      ],
+      default: "beep",
+      label: "알림 소리",
+    },
+    threshold: {
+      type: "number",
+      default: 100,
+      min: 10,
+      max: 500,
+      label: "알림 기준 (타수)",
+    },
+  },
+  onChange: (settings) => {
+    if (!settings.enabled) {
+      console.log("알림 비활성화됨");
+    }
+  },
+});
+
+// 키 이벤트 훅에서 설정 사용
+dmn.hook.on("key", ({ state }) => {
+  const config = notificationSettings.get();
+  if (state === "DOWN" && config.enabled) {
+    // 설정값 기반 알림 로직
+    if (config.sound !== "none") {
+      // 소리 재생
+    }
+  }
+});
+
+// 그리드 메뉴에서 설정 열기
+dmn.ui.contextMenu.addGridMenuItem({
+  id: "notification-settings",
+  label: "알림 설정",
+  onClick: () => notificationSettings.open(),
+});
+```
+
+**자동 처리되는 기능**:
+
+| 기능                  | 설명                                          |
+| --------------------- | --------------------------------------------- |
+| **UI 자동 생성**      | `settings` 스키마 기반 다이얼로그 자동 생성   |
+| **디자인 일관성**     | 기존 시스템과 동일한 스타일                   |
+| **Storage 자동 관리** | `plugin.storage`에 자동 저장/복원             |
+| **다국어 지원**       | `messages`와 연동                             |
+| **타입별 컴포넌트**   | boolean→체크박스, color→컬러피커 등 자동 매핑 |
+| **변경 감지**         | `onChange` 콜백으로 실시간 반응               |
+
+---
+
 ### 플러그인 ID (`@id`)
 
 각 플러그인은 고유한 ID를 가져야 데이터를 안정적으로 관리할 수 있습니다. 플러그인 파일의 상단에 `@id` 메타데이터를 추가하여 고유 ID를 지정할 수 있습니다.
