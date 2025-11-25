@@ -463,7 +463,14 @@ export const PluginElement: React.FC<PluginElementProps> = ({
     }
 
     return undefined;
-  }, [element.scoped, element.fullId, updateElement, windowType, shadowRoot]);
+  }, [
+    element.scoped,
+    element.fullId,
+    updateElement,
+    windowType,
+    shadowRoot,
+    renderedContent, // 컨텐츠 변경 시 크기 재측정
+  ]);
 
   // Overlay Logic (onMount)
   useEffect(() => {
