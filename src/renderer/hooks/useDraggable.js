@@ -6,8 +6,18 @@ const clampPosition = (value) => {
   return Math.min(Math.max(value, MIN_GRID_POSITION), MAX_GRID_POSITION);
 };
 
+// 줌 레벨에 따른 동적 그리드 스냅 크기 계산
+// 화면상 일정한 드래그 거리를 유지하면서 최소 1px 보장
+const BASE_GRID_SIZE = 5;
+const MIN_GRID_SIZE = 1;
+
+const calculateDynamicGridSize = (zoom) => {
+  const dynamicSize = Math.round(BASE_GRID_SIZE / zoom);
+  return Math.max(dynamicSize, MIN_GRID_SIZE);
+};
+
 export const useDraggable = ({
-  gridSize,
+  gridSize: _gridSize, // 기본 그리드 크기 (사용하지 않음, 동적 계산으로 대체)
   initialX = 0,
   initialY = 0,
   onPositionChange,
@@ -69,6 +79,9 @@ export const useDraggable = ({
       // 현재 줌/팬 값 캡처
       const currentZoom = zoomRef.current;
 
+      // 줌 레벨에 따른 동적 그리드 크기 계산
+      const dynamicGridSize = calculateDynamicGridSize(currentZoom);
+
       // 무한 캔버스에서는 경계 제한 없음
       // 시작 위치 계산 (줌 반영)
       const startPos = {
@@ -106,12 +119,12 @@ export const useDraggable = ({
           const newDx = (moveEvent.clientX - startPos.x) / currentZoom;
           const newDy = (moveEvent.clientY - startPos.y) / currentZoom;
 
-          // 그리드 스냅 및 범위 제한 적용
+          // 동적 그리드 스냅 및 범위 제한 적용
           const snappedX = clampPosition(
-            Math.round(newDx / gridSize) * gridSize
+            Math.round(newDx / dynamicGridSize) * dynamicGridSize
           );
           const snappedY = clampPosition(
-            Math.round(newDy / gridSize) * gridSize
+            Math.round(newDy / dynamicGridSize) * dynamicGridSize
           );
 
           if (
@@ -152,7 +165,7 @@ export const useDraggable = ({
       });
       document.addEventListener("mouseup", handleMouseUp, { once: true });
     },
-    [node, dx, dy, gridSize, onPositionChange]
+    [node, dx, dy, onPositionChange]
   );
 
   useEffect(() => {
