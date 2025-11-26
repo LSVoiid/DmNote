@@ -14,6 +14,14 @@ fn default_device_kind() -> InputDeviceKind {
     InputDeviceKind::Keyboard
 }
 
+/// Command messages from keyboard daemon (e.g., global hotkeys)
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum DaemonCommand {
+    /// Toggle overlay visibility (Ctrl+Shift+O)
+    ToggleOverlay,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct HookMessage {
     /// Primary device type for this input event.

@@ -403,6 +403,21 @@ impl AppState {
                                 continue;
                             }
 
+                            // First, try to parse as DaemonCommand (global hotkeys)
+                            if let Ok(command) = serde_json::from_str::<crate::ipc::DaemonCommand>(s) {
+                                match command {
+                                    crate::ipc::DaemonCommand::ToggleOverlay => {
+                                        log::info!("[AppState] received ToggleOverlay command from daemon");
+                                        let app_state = app_handle.state::<AppState>();
+                                        let is_visible = *app_state.overlay_visible.read();
+                                        if let Err(err) = app_state.set_overlay_visibility(&app_handle, !is_visible) {
+                                            log::error!("failed to toggle overlay visibility: {err}");
+                                        }
+                                    }
+                                }
+                                continue;
+                            }
+
                             // Preferred: JSON encoded HookMessage (with device).
                             let parsed: Option<crate::ipc::HookMessage> =
                                 serde_json::from_str(s).ok();
