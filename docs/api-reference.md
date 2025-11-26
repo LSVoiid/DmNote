@@ -2054,6 +2054,45 @@ interface PluginSettingsInstance {
 
 > **💡 자동 패널 연동**: `defineSettings`로 정의된 설정이 변경되면, 같은 플러그인의 모든 `defineElement` 패널이 자동으로 리렌더링됩니다. `template`에서 `globalSettings.get()`을 호출하면 최신 설정값이 반영됩니다.
 
+**`onChange` vs `subscribe()` - 언제 뭘 써야 할까?**
+
+두 방식 모두 설정 변경을 감지하지만, **사용 시점**과 **용도**가 다릅니다.
+
+|               | `onChange`                   | `subscribe()`             |
+| ------------- | ---------------------------- | ------------------------- |
+| **선언 위치** | `defineSettings()` 정의 내부 | 어디서든 (런타임)         |
+| **해제 가능** | ❌ 불가능                    | ✅ 가능 (`unsubscribe()`) |
+| **개수**      | 1개만                        | 여러 개 가능              |
+| **용도**      | 핵심/필수 로직               | 조건부/일시적 로직        |
+
+```javascript
+const settings = dmn.plugin.defineSettings({
+  settings: { apiKey: { type: "string", default: "" } },
+
+  // ✅ onChange: 설정 바뀌면 "무조건" 실행 (해제 불가)
+  onChange: (newSettings, oldSettings) => {
+    if (newSettings.apiKey !== oldSettings.apiKey) {
+      reconnectAPI(newSettings.apiKey); // 핵심 로직 - 항상 실행되어야 함
+    }
+  },
+});
+
+// ✅ subscribe: "지금부터" 감지, "나중에" 해제 가능
+function openPreviewPanel() {
+  const panel = createPanel();
+
+  // 프리뷰 패널이 열려있는 동안만 감지
+  const unsubscribe = settings.subscribe((newSettings) => {
+    panel.update(newSettings); // 일시적 로직
+  });
+
+  // 패널 닫을 때 구독 해제
+  panel.onClose = () => unsubscribe();
+}
+```
+
+> **요약**: `onChange`는 "항상 실행되어야 하는 핵심 로직", `subscribe()`는 "조건부/일시적으로 필요한 로직"에 사용합니다.
+
 **다양한 활용 예시**:
 
 #### 1️⃣ 기본 사용 - 독립 설정 (패널 없이 사용)
@@ -2288,6 +2327,98 @@ dmn.ui.contextMenu.addGridMenuItem({
   onClick: () => notificationSettings.open(),
 });
 ```
+
+#### 5️⃣ 설정 변경 감지 및 동적 반응 (V-ARCHIVE 스타일)
+
+`defineElement`의 `onSettingsChange`처럼, `defineSettings`에서도 설정 변경을 감지하고 동적으로 반응할 수 있습니다.
+
+```javascript
+// @id data-fetcher-plugin
+
+// 데이터 fetcher 전용 설정
+const fetcherSettings = dmn.plugin.defineSettings({
+  settings: {
+    apiEndpoint: {
+      type: "string",
+      default: "https://api.example.com",
+      label: "API 엔드포인트",
+    },
+    refreshInterval: {
+      type: "number",
+      default: 5000,
+      min: 1000,
+      max: 60000,
+      label: "갱신 주기 (ms)",
+    },
+    autoRefresh: {
+      type: "boolean",
+      default: true,
+      label: "자동 갱신",
+    },
+  },
+});
+
+// 인터벌 관리
+let fetchInterval = null;
+
+function startFetching() {
+  const { refreshInterval, autoRefresh, apiEndpoint } = fetcherSettings.get();
+
+  // 기존 인터벌 정리
+  if (fetchInterval) {
+    clearInterval(fetchInterval);
+    fetchInterval = null;
+  }
+
+  // 자동 갱신이 꺼져 있으면 중지
+  if (!autoRefresh) return;
+
+  // 새 인터벌 시작
+  fetchInterval = setInterval(async () => {
+    const response = await fetch(apiEndpoint);
+    const data = await response.json();
+    console.log("Data fetched:", data);
+    // 데이터 처리 로직...
+  }, refreshInterval);
+}
+
+// 🔑 핵심: subscribe()로 설정 변경 감지
+fetcherSettings.subscribe((newSettings, oldSettings) => {
+  // refreshInterval 또는 autoRefresh가 변경되면 인터벌 재시작
+  if (
+    newSettings.refreshInterval !== oldSettings.refreshInterval ||
+    newSettings.autoRefresh !== oldSettings.autoRefresh
+  ) {
+    console.log("설정 변경 감지, 인터벌 재시작");
+    startFetching();
+  }
+
+  // apiEndpoint가 변경되면 즉시 새 데이터 요청
+  if (newSettings.apiEndpoint !== oldSettings.apiEndpoint) {
+    console.log("API 엔드포인트 변경, 즉시 재요청");
+    fetch(newSettings.apiEndpoint).then(/* ... */);
+  }
+});
+
+// 초기 시작
+startFetching();
+
+// 그리드 메뉴
+dmn.ui.contextMenu.addGridMenuItem({
+  id: "fetcher-settings",
+  label: "데이터 설정",
+  onClick: () => fetcherSettings.open(),
+});
+```
+
+> **💡 `defineElement`의 `onSettingsChange`와 비교**
+>
+> | 기능           | `defineElement`              | `defineSettings`              |
+> | -------------- | ---------------------------- | ----------------------------- |
+> | 설정 변경 감지 | `onSettingsChange(callback)` | `onChange` + `subscribe()`    |
+> | 콜백 시그니처  | `(newSettings, oldSettings)` | `(newSettings, oldSettings)`  |
+> | 구독 해제      | 자동 (언마운트 시)           | `subscribe()` 반환값으로 수동 |
+> | 사용 위치      | `onMount` 내부만             | 어디서든                      |
 
 **자동 처리되는 기능**:
 
