@@ -1,0 +1,20 @@
+name: Trigger Docs Sync
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - "docs/plugin/**"
+
+jobs:
+  trigger-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger DmSite sync
+        run: |
+          curl -X POST \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: token ${{ secrets.DMSITE_TRIGGER_TOKEN }}" \
+            https://api.github.com/repos/DmNote-App/DmSite/dispatches \
+            -d '{"event_type":"docs-updated"}'
