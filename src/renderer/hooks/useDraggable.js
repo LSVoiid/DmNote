@@ -1,4 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { MIN_GRID_POSITION, MAX_GRID_POSITION } from "@stores/useGridViewStore";
+
+// 위치 클램핑 함수
+const clampPosition = (value) => {
+  return Math.min(Math.max(value, MIN_GRID_POSITION), MAX_GRID_POSITION);
+};
 
 export const useDraggable = ({
   gridSize,
@@ -100,9 +106,13 @@ export const useDraggable = ({
           const newDx = (moveEvent.clientX - startPos.x) / currentZoom;
           const newDy = (moveEvent.clientY - startPos.y) / currentZoom;
 
-          // 그리드 스냅 (경계 제한 없음 - 무한 캔버스)
-          const snappedX = Math.round(newDx / gridSize) * gridSize;
-          const snappedY = Math.round(newDy / gridSize) * gridSize;
+          // 그리드 스냅 및 범위 제한 적용
+          const snappedX = clampPosition(
+            Math.round(newDx / gridSize) * gridSize
+          );
+          const snappedY = clampPosition(
+            Math.round(newDy / gridSize) * gridSize
+          );
 
           if (
             snappedX !== initialPosition.dx ||

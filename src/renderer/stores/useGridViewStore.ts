@@ -34,13 +34,22 @@ const DEFAULT_VIEW_STATE: GridViewState = {
 };
 
 // 줌 제한값
-export const MIN_ZOOM = 0.25;
+export const MIN_ZOOM = 0.3;
 export const MAX_ZOOM = 4.0;
 export const ZOOM_STEP = 0.1;
+
+// 그리드 위치 제한값 (다중 모니터 환경 지원)
+export const MIN_GRID_POSITION = -8000;
+export const MAX_GRID_POSITION = 8000;
 
 // 줌 값 클램핑 유틸리티
 export const clampZoom = (zoom: number): number => {
   return Math.min(Math.max(zoom, MIN_ZOOM), MAX_ZOOM);
+};
+
+// 그리드 위치 클램핑 유틸리티
+export const clampGridPosition = (value: number): number => {
+  return Math.min(Math.max(value, MIN_GRID_POSITION), MAX_GRID_POSITION);
 };
 
 export const useGridViewStore = create<GridViewStore>()(
