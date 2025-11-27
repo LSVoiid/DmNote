@@ -1,6 +1,8 @@
 import { useState, useCallback } from "react";
 import { useKeyStore } from "@stores/useKeyStore";
 import { useHistoryStore } from "@stores/useHistoryStore";
+import { usePluginDisplayElementStore } from "@stores/usePluginDisplayElementStore";
+import { setUndoRedoInProgress } from "@api/pluginDisplayElements";
 import type {
   KeyMappings,
   KeyPositions,
@@ -44,10 +46,18 @@ export function useKeyManager() {
 
   const [selectedKey, setSelectedKey] = useState<SelectedKey>(null);
 
-  // 히스토리에 현재 상태 저장
+  // 플러그인 요소 스토어
+  const pluginElements = usePluginDisplayElementStore(
+    (state) => state.elements
+  );
+  const setPluginElements = usePluginDisplayElementStore(
+    (state) => state.setElements
+  );
+
+  // 히스토리에 현재 상태 저장 (플러그인 요소 포함)
   const saveToHistory = useCallback(() => {
-    pushState(keyMappings, positions);
-  }, [keyMappings, positions, pushState]);
+    pushState(keyMappings, positions, pluginElements);
+  }, [keyMappings, positions, pluginElements, pushState]);
 
   const handlePositionChange = (index: number, dx: number, dy: number) => {
     const current = positions[selectedKeyType] || [];
@@ -432,36 +442,172 @@ export function useKeyManager() {
   };
 
   const handleUndo = useCallback(() => {
-    const previousState = undo();
-    if (previousState) {
-      setKeyMappings(previousState.keyMappings);
-      setPositions(previousState.positions);
+    setUndoRedoInProgress(true);
+    try {
+      const previousState = undo();
+      if (previousState) {
+        setKeyMappings(previousState.keyMappings);
+        setPositions(previousState.positions);
 
-      // 백엔드에도 반영
-      Promise.all([
-        window.api.keys.update(previousState.keyMappings),
-        window.api.keys.updatePositions(previousState.positions),
-      ]).catch((error) => {
-        console.error("Failed to apply undo", error);
-      });
+        // 플러그인 요소 복원 (있는 경우)
+        if (previousState.pluginElements) {
+          // 현재 요소들의 핸들러 정보를 유지하면서 위치/설정만 복원
+          const currentElements =
+            usePluginDisplayElementStore.getState().elements;
+
+          // 요소 복원 함수 맵 가져오기
+          const elementRestorers = (window as any).__dmn_element_restorers as
+            | Map<string, (el: any) => any>
+            | undefined;
+
+          const restoredElements = previousState.pluginElements.map(
+            (savedEl) => {
+              // 같은 fullId를 가진 현재 요소 찾기
+              const currentEl = currentElements.find(
+                (el) => el.fullId === savedEl.fullId
+              );
+              if (currentEl) {
+                // 현재 요소의 핸들러 정보 유지, 저장된 위치/설정으로 복원
+                return {
+                  ...currentEl,
+                  position: savedEl.position,
+                  settings: savedEl.settings,
+                  state: savedEl.state,
+                  measuredSize: savedEl.measuredSize,
+                  resizeAnchor: savedEl.resizeAnchor,
+                  zIndex: savedEl.zIndex,
+                };
+              }
+
+              // 현재 없는 요소 (삭제된 요소 복구)
+              // definitionId가 있으면 해당 정의의 복원 함수 사용
+              if (
+                savedEl.definitionId &&
+                elementRestorers?.has(savedEl.definitionId)
+              ) {
+                const restorer = elementRestorers.get(savedEl.definitionId)!;
+                return restorer(savedEl);
+              }
+
+              // 복원 함수가 없으면 그대로 반환 (핸들러 없이)
+              return savedEl;
+            }
+          );
+
+          // 현재 있지만 저장된 상태에 없는 요소 제거 (추가된 요소 취소)
+          const savedFullIds = new Set(
+            previousState.pluginElements.map((el) => el.fullId)
+          );
+          const finalElements = restoredElements.filter(
+            (el) =>
+              savedFullIds.has(el.fullId) ||
+              currentElements.some((cur) => cur.fullId === el.fullId)
+          );
+
+          setPluginElements(finalElements as any);
+
+          // 오버레이로 동기화
+          if (window.api?.bridge) {
+            window.api.bridge.sendTo("overlay", "plugin:displayElements:sync", {
+              elements: finalElements,
+            });
+          }
+        }
+
+        // 백엔드에도 반영
+        Promise.all([
+          window.api.keys.update(previousState.keyMappings),
+          window.api.keys.updatePositions(previousState.positions),
+        ]).catch((error) => {
+          console.error("Failed to apply undo", error);
+        });
+      }
+    } finally {
+      setUndoRedoInProgress(false);
     }
-  }, [undo, setKeyMappings, setPositions]);
+  }, [undo, setKeyMappings, setPositions, setPluginElements]);
 
   const handleRedo = useCallback(() => {
-    const nextState = redo();
-    if (nextState) {
-      setKeyMappings(nextState.keyMappings);
-      setPositions(nextState.positions);
+    setUndoRedoInProgress(true);
+    try {
+      const nextState = redo();
+      if (nextState) {
+        setKeyMappings(nextState.keyMappings);
+        setPositions(nextState.positions);
 
-      // 백엔드에도 반영
-      Promise.all([
-        window.api.keys.update(nextState.keyMappings),
-        window.api.keys.updatePositions(nextState.positions),
-      ]).catch((error) => {
-        console.error("Failed to apply redo", error);
-      });
+        // 플러그인 요소 복원 (있는 경우)
+        if (nextState.pluginElements) {
+          // 현재 요소들의 핸들러 정보를 유지하면서 위치/설정만 복원
+          const currentElements =
+            usePluginDisplayElementStore.getState().elements;
+
+          // 요소 복원 함수 맵 가져오기
+          const elementRestorers = (window as any).__dmn_element_restorers as
+            | Map<string, (el: any) => any>
+            | undefined;
+
+          const restoredElements = nextState.pluginElements.map((savedEl) => {
+            // 같은 fullId를 가진 현재 요소 찾기
+            const currentEl = currentElements.find(
+              (el) => el.fullId === savedEl.fullId
+            );
+            if (currentEl) {
+              // 현재 요소의 핸들러 정보 유지, 저장된 위치/설정으로 복원
+              return {
+                ...currentEl,
+                position: savedEl.position,
+                settings: savedEl.settings,
+                state: savedEl.state,
+                measuredSize: savedEl.measuredSize,
+                resizeAnchor: savedEl.resizeAnchor,
+                zIndex: savedEl.zIndex,
+              };
+            }
+
+            // 현재 없는 요소 (삭제된 요소 복구 - redo에서는 드물지만 처리)
+            // definitionId가 있으면 해당 정의의 복원 함수 사용
+            if (
+              savedEl.definitionId &&
+              elementRestorers?.has(savedEl.definitionId)
+            ) {
+              const restorer = elementRestorers.get(savedEl.definitionId)!;
+              return restorer(savedEl);
+            }
+
+            // 복원 함수가 없으면 그대로 반환
+            return savedEl;
+          });
+
+          // 저장된 상태에 있는 요소만 유지
+          const savedFullIds = new Set(
+            nextState.pluginElements.map((el) => el.fullId)
+          );
+          const finalElements = restoredElements.filter((el) =>
+            savedFullIds.has(el.fullId)
+          );
+
+          setPluginElements(finalElements as any);
+
+          // 오버레이로 동기화
+          if (window.api?.bridge) {
+            window.api.bridge.sendTo("overlay", "plugin:displayElements:sync", {
+              elements: finalElements,
+            });
+          }
+        }
+
+        // 백엔드에도 반영
+        Promise.all([
+          window.api.keys.update(nextState.keyMappings),
+          window.api.keys.updatePositions(nextState.positions),
+        ]).catch((error) => {
+          console.error("Failed to apply redo", error);
+        });
+      }
+    } finally {
+      setUndoRedoInProgress(false);
     }
-  }, [redo, setKeyMappings, setPositions]);
+  }, [redo, setKeyMappings, setPositions, setPluginElements]);
 
   return {
     selectedKey,

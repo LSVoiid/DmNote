@@ -1,5 +1,6 @@
 import { usePluginDisplayElementStore } from "@stores/usePluginDisplayElementStore";
 import { useKeyStore } from "@stores/useKeyStore";
+import { useHistoryStore } from "@stores/useHistoryStore";
 import { DisplayElementInstance } from "@utils/displayElementInstance";
 import { html, styleMap, css } from "@utils/templateEngine";
 import { clearComponentHandlers } from "@utils/pluginUtils";
@@ -16,6 +17,24 @@ import type {
 } from "@src/types/api";
 
 type HandlerFunction = (...args: any[]) => void | Promise<void>;
+
+// 히스토리 저장 플래그 (undo/redo 중에는 저장하지 않음)
+let isUndoRedoInProgress = false;
+
+// 히스토리 저장을 위한 헬퍼 함수
+const saveToHistory = () => {
+  if (isUndoRedoInProgress) return;
+  if ((window as any).__dmn_window_type !== "main") return;
+
+  const { keyMappings, positions } = useKeyStore.getState();
+  const pluginElements = usePluginDisplayElementStore.getState().elements;
+  useHistoryStore.getState().pushState(keyMappings, positions, pluginElements);
+};
+
+// Undo/Redo 진행 상태 설정 함수 (외부에서 호출)
+export const setUndoRedoInProgress = (inProgress: boolean) => {
+  isUndoRedoInProgress = inProgress;
+};
 
 class PluginHandlerRegistry {
   private handlers: Map<string, HandlerFunction> = new Map();
@@ -226,6 +245,9 @@ const displayElementApi = {
       return createNoopDisplayElementInstance();
     }
 
+    // 히스토리 저장 (요소 추가 전)
+    saveToHistory();
+
     const id = `element-${Date.now()}-${Math.random()
       .toString(36)
       .substring(7)}`;
@@ -413,6 +435,10 @@ const displayElementApi = {
     }
     const fullId = resolveFullId(target);
     if (!fullId) return;
+
+    // 히스토리 저장 (요소 삭제 전)
+    saveToHistory();
+
     removeDisplayElementInternal(fullId);
   },
 

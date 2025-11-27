@@ -11,6 +11,8 @@ import {
   ElementResizeAnchor,
 } from "@src/types/api";
 import { useDraggable } from "@hooks/useDraggable";
+import { useHistoryStore } from "@stores/useHistoryStore";
+import { useKeyStore as useKeyStoreForHistory } from "@stores/useKeyStore";
 
 /**
  * 리사이즈 앵커에 따라 크기 변경 시 위치 보정값 계산
@@ -250,11 +252,23 @@ export const PluginElement: React.FC<PluginElementProps> = ({
     positionOffset,
   ]);
 
+  // 히스토리 저장 함수 (드래그 시작 시 호출)
+  const saveToHistory = useCallback(() => {
+    if (windowType !== "main") return;
+
+    const { keyMappings, positions } = useKeyStoreForHistory.getState();
+    const pluginElements = usePluginDisplayElementStore.getState().elements;
+    useHistoryStore
+      .getState()
+      .pushState(keyMappings, positions, pluginElements);
+  }, [windowType]);
+
   // 드래그 지원 (main 윈도우에서만)
   const draggable = useDraggable({
     gridSize: 5,
     initialX: calculatedPosition.x,
     initialY: calculatedPosition.y,
+    onDragStart: saveToHistory, // 드래그 시작 시 히스토리 저장
     onPositionChange: (newX, newY) => {
       if (windowType === "main" && element.draggable) {
         updateElement(element.fullId, {

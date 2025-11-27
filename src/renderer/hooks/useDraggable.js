@@ -21,6 +21,7 @@ export const useDraggable = ({
   initialX = 0,
   initialY = 0,
   onPositionChange,
+  onDragStart = undefined, // 드래그 시작 시 호출되는 콜백 (히스토리 저장용, 선택적)
   zoom = 1, // 줌 레벨 (기본값 1)
   panX = 0, // 팬 X 오프셋
   panY = 0, // 팬 Y 오프셋
@@ -107,6 +108,8 @@ export const useDraggable = ({
           // 실제 드래그가 시작될 때만 최적화 적용
           node.style.pointerEvents = "none";
           node.style.userSelect = "none";
+          // 드래그 시작 콜백 호출 (히스토리 저장용)
+          onDragStart?.();
         }
 
         if (!actuallyDragging) return;

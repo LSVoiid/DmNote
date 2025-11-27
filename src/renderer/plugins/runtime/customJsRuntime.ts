@@ -691,6 +691,52 @@ export function createCustomJsRuntime(): CustomJsRuntime {
               });
             }
 
+            // Undo/Redo를 위한 요소 복원 함수 등록
+            // 삭제된 요소를 복원할 때 핸들러를 다시 생성하기 위해 사용
+            const restoreElementForUndo = (savedElement: any) => {
+              // 플러그인 컨텍스트 설정
+              const previousPluginId = (window as any).__dmn_current_plugin_id;
+              (window as any).__dmn_current_plugin_id = pluginId;
+
+              try {
+                // onClick 핸들러 등록
+                const onClickId = handlerRegistry.register(
+                  pluginId,
+                  handleElementClick
+                );
+
+                // 복원된 요소에 핸들러 정보 추가
+                const restoredElement = {
+                  ...savedElement,
+                  onClick: onClickId,
+                  _onClickId: onClickId,
+                  contextMenu: {
+                    enableDelete: true,
+                    deleteLabel: definition.contextMenu?.delete || "삭제",
+                    customItems: buildCustomContextMenuItems(),
+                  },
+                };
+
+                return restoredElement;
+              } finally {
+                (window as any).__dmn_current_plugin_id = previousPluginId;
+              }
+            };
+
+            // 전역에 복원 함수 등록
+            if (!(window as any).__dmn_element_restorers) {
+              (window as any).__dmn_element_restorers = new Map();
+            }
+            (window as any).__dmn_element_restorers.set(
+              defId,
+              restoreElementForUndo
+            );
+
+            // 플러그인 클린업 시 복원 함수 제거
+            registerCleanup(pluginId, () => {
+              (window as any).__dmn_element_restorers?.delete(defId);
+            });
+
             setTimeout(async () => {
               try {
                 if ((window as any).__dmn_window_type === "main") {
