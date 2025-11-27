@@ -127,18 +127,33 @@ dmn.plugin.defineElement({
       if (!settings.showGraph) return "";
 
       if (settings.graphType === "bar") {
-        // 바 그래프
-        const bars = history.map((value, index) => {
-          const height = Math.min((value / safeMax) * 100, 100);
-          const opacity = 0.3 + (index / history.length) * 0.7;
-          return html`<div
-            style="flex: 1; border-radius: 2px 2px 0 0; min-height: 2px; transition: height 0.15s ease-out; background: ${graphColor}; height: ${height}%; opacity: ${opacity};"
-          ></div>`;
-        });
+        // 바 그래프 
+        const barCount = history.length;
+        const barWidth = barCount > 0 ? 100 / barCount : 1;
+        const gap = 0.5; // viewBox 단위의 간격
+
+        const bars = history
+          .map((value, index) => {
+            const height = Math.min((value / safeMax) * 100, 100);
+            const x = index * barWidth + gap / 2;
+            const width = Math.max(barWidth - gap, 0.5);
+            const y = 100 - height;
+            const opacity = 0.3 + (index / barCount) * 0.7;
+            return `<rect x="${x}" y="${y}" width="${width}" height="${height}" rx="1" fill="${graphColor}" opacity="${opacity}"/>`;
+          })
+          .join("");
+
         return html`<div
-          style="display: flex; align-items: flex-end; justify-content: space-between; height: 60px; margin-top: 8px; padding: 4px; background: rgba(0, 0, 0, 0.3); border-radius: 4px; gap: 1px; position: relative;"
+          style="display: flex; align-items: flex-end; justify-content: space-between; height: 60px; margin-top: 8px; padding: 4px; background: rgba(0, 0, 0, 0.3); border-radius: 4px; position: relative; overflow: hidden;"
         >
-          ${bars}
+          <svg
+            width="100%"
+            height="100%"
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+            style="position: absolute; top: 4px; left: 4px; right: 4px; bottom: 4px; width: calc(100% - 8px); height: calc(100% - 8px);"
+            dangerouslySetInnerHTML=${{ __html: bars }}
+          ></svg>
         </div>`;
       } else {
         // 선 그래프
