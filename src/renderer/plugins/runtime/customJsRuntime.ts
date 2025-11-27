@@ -93,7 +93,7 @@ export function createCustomJsRuntime(): CustomJsRuntime {
     if ((window as any).__dmn_window_type === "main") {
       try {
         usePluginMenuStore.getState().clearAll();
-        usePluginDisplayElementStore.getState().elements = [];
+        usePluginDisplayElementStore.getState().setElements([]);
         displayElementInstanceRegistry.clearAll();
 
         if (window.api?.bridge) {

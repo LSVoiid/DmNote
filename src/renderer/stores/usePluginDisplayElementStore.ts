@@ -126,9 +126,13 @@ export const usePluginDisplayElementStore = create<PluginDisplayElementStore>(
       }),
 
     setElements: (elements) =>
-      set(() => ({
-        elements,
-      })),
+      set(() => {
+        // 메인 윈도우에서만 오버레이로 동기화
+        if ((window as any).__dmn_window_type === "main") {
+          syncToOverlayThrottled(elements);
+        }
+        return { elements };
+      }),
 
     registerDefinition: (definition) =>
       set((state) => {
