@@ -1,9 +1,17 @@
 import { create } from "zustand";
 import type { KeyMappings, KeyPositions } from "@src/types/keys";
+import type { PluginDisplayElementInternal } from "@src/types/api";
+
+// 플러그인 요소의 히스토리 저장용 직렬화 타입 (함수 핸들러 제외)
+type SerializablePluginElement = Omit<
+  PluginDisplayElementInternal,
+  "onClick" | "onPositionChange" | "onDelete" | "contextMenu"
+>;
 
 interface HistoryState {
   keyMappings: KeyMappings;
   positions: KeyPositions;
+  pluginElements?: SerializablePluginElement[];
 }
 
 interface HistoryStore {
@@ -11,7 +19,11 @@ interface HistoryStore {
   future: HistoryState[];
   canUndo: () => boolean;
   canRedo: () => boolean;
-  pushState: (keyMappings: KeyMappings, positions: KeyPositions) => void;
+  pushState: (
+    keyMappings: KeyMappings,
+    positions: KeyPositions,
+    pluginElements?: PluginDisplayElementInternal[]
+  ) => void;
   undo: () => HistoryState | null;
   redo: () => HistoryState | null;
   clear: () => void;
@@ -20,6 +32,26 @@ interface HistoryStore {
 
 const MAX_HISTORY_SIZE = 50;
 
+// 플러그인 요소를 직렬화 가능한 형태로 변환 (함수 핸들러 제외)
+function serializePluginElements(
+  elements: PluginDisplayElementInternal[]
+): SerializablePluginElement[] {
+  return elements.map((el) => {
+    // 함수 핸들러와 contextMenu 제외한 순수 데이터만 복사
+    const {
+      onClick,
+      onPositionChange,
+      onDelete,
+      contextMenu,
+      _onClickId,
+      _onPositionChangeId,
+      _onDeleteId,
+      ...serializableData
+    } = el;
+    return JSON.parse(JSON.stringify(serializableData));
+  });
+}
+
 export const useHistoryStore = create<HistoryStore>((set, get) => ({
   past: [],
   future: [],
@@ -27,11 +59,18 @@ export const useHistoryStore = create<HistoryStore>((set, get) => ({
   canUndo: () => get().past.length > 0,
   canRedo: () => get().future.length > 0,
 
-  pushState: (keyMappings: KeyMappings, positions: KeyPositions) => {
+  pushState: (
+    keyMappings: KeyMappings,
+    positions: KeyPositions,
+    pluginElements?: PluginDisplayElementInternal[]
+  ) => {
     set((state) => {
       const newState: HistoryState = {
         keyMappings: JSON.parse(JSON.stringify(keyMappings)),
         positions: JSON.parse(JSON.stringify(positions)),
+        pluginElements: pluginElements
+          ? serializePluginElements(pluginElements)
+          : undefined,
       };
 
       const newPast = [...state.past, newState];
