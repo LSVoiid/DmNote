@@ -26,6 +26,7 @@
       "@stores/*": ["./src/renderer/stores/*"],
       "@constants/*": ["./src/renderer/constants/*"],
       "@contexts/*": ["./src/renderer/contexts/*"],
+      "@plugins/*": ["./src/renderer/plugins/*"],
       "@src/*": ["./src/*"]
     }
   },

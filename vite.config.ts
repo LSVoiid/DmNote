@@ -64,6 +64,7 @@ export default defineConfig(() => {
         "@stores": path.resolve(rendererRoot, "stores"),
         "@constants": path.resolve(rendererRoot, "constants"),
         "@contexts": path.resolve(rendererRoot, "contexts"),
+        "@plugins": path.resolve(rendererRoot, "plugins"),
         "@shared": path.resolve(projectRoot, "src/types"),
         "@src": path.resolve(projectRoot, "src/"),
       },
