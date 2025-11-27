@@ -51,6 +51,9 @@ export const PluginElementsRenderer: React.FC<PluginElementsRendererProps> = ({
   const setElements = usePluginDisplayElementStore(
     (state) => state.setElements
   );
+  const updateElement = usePluginDisplayElementStore(
+    (state) => state.updateElement
+  );
   const { selectedKeyType } = useKeyStore();
 
   // 현재 탭에 해당하는 요소만 필터링
@@ -132,6 +135,24 @@ export const PluginElementsRenderer: React.FC<PluginElementsRendererProps> = ({
       unsubscribe();
     };
   }, [windowType]);
+
+  // 메인 윈도우에서 오버레이의 앵커 업데이트 요청 처리
+  useEffect(() => {
+    if (windowType !== "main") return;
+
+    const unsubscribe = window.api.bridge.on<{
+      fullId: string;
+      resizeAnchor: string;
+    }>("plugin:displayElement:updateAnchor", (data) => {
+      if (data?.fullId && data?.resizeAnchor) {
+        updateElement(data.fullId, { resizeAnchor: data.resizeAnchor as any });
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [windowType, updateElement]);
 
   return (
     <>

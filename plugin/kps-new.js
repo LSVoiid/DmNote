@@ -2,7 +2,8 @@
 
 dmn.plugin.defineElement({
   name: "Simple KPS",
-  maxInstances: 1, // KPS 패널은 1개만 생성 가능
+  maxInstances: 1,
+  resizeAnchor: "bottom-left",
 
   contextMenu: {
     create: "menu.create",
@@ -28,6 +29,12 @@ dmn.plugin.defineElement({
       "settings.graphType.bar": "Bar Graph",
       "settings.graphSpeed": "Graph Speed (ms)",
       "settings.graphColor": "Graph Color",
+      "settings.resizeAnchor": "Resize Anchor",
+      "settings.anchor.top-left": "Top Left",
+      "settings.anchor.top-right": "Top Right",
+      "settings.anchor.center": "Center",
+      "settings.anchor.bottom-left": "Bottom Left",
+      "settings.anchor.bottom-right": "Bottom Right",
       "metrics.kps": "KPS",
       "metrics.avg": "AVG",
       "metrics.max": "MAX",
@@ -45,6 +52,12 @@ dmn.plugin.defineElement({
       "settings.graphType.bar": "바 그래프",
       "settings.graphSpeed": "그래프 속도 (ms)",
       "settings.graphColor": "그래프 색상",
+      "settings.resizeAnchor": "리사이즈 앵커",
+      "settings.anchor.top-left": "좌상단",
+      "settings.anchor.top-right": "우상단",
+      "settings.anchor.center": "중앙",
+      "settings.anchor.bottom-left": "좌하단",
+      "settings.anchor.bottom-right": "우하단",
       "metrics.kps": "KPS",
       "metrics.avg": "AVG",
       "metrics.max": "MAX",
@@ -82,6 +95,18 @@ dmn.plugin.defineElement({
       type: "color",
       default: "#86EFAC",
       label: "settings.graphColor",
+    },
+    resizeAnchor: {
+      type: "select",
+      options: [
+        { value: "top-left", label: "settings.anchor.top-left" },
+        { value: "top-right", label: "settings.anchor.top-right" },
+        { value: "center", label: "settings.anchor.center" },
+        { value: "bottom-left", label: "settings.anchor.bottom-left" },
+        { value: "bottom-right", label: "settings.anchor.bottom-right" },
+      ],
+      default: "bottom-left",
+      label: "settings.resizeAnchor",
     },
   },
 
@@ -280,7 +305,14 @@ dmn.plugin.defineElement({
     uid: "preview",
   },
 
-  onMount: ({ setState, onHook, getSettings, expose }) => {
+  onMount: ({
+    setState,
+    onHook,
+    getSettings,
+    expose,
+    setAnchor,
+    onSettingsChange,
+  }) => {
     const timestamps = [];
     let max = 0;
     let kpsSum = 0;
@@ -297,6 +329,18 @@ dmn.plugin.defineElement({
 
     const uid = Math.random().toString(36).substr(2, 9);
     setState({ uid, history: [...historyBuffer] });
+
+    // 초기 앵커 설정
+    if (initialSettings.resizeAnchor) {
+      setAnchor(initialSettings.resizeAnchor);
+    }
+
+    // 설정 변경 시 앵커 업데이트
+    onSettingsChange((newSettings, oldSettings) => {
+      if (newSettings.resizeAnchor !== oldSettings.resizeAnchor) {
+        setAnchor(newSettings.resizeAnchor);
+      }
+    });
 
     const resetStats = () => {
       const currentSettings = getSettings();

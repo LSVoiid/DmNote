@@ -148,6 +148,29 @@ export type PluginDisplayElementContextMenu = {
   customItems?: PluginMenuItem<PluginDisplayElementActionContext>[];
 };
 
+/**
+ * 요소 크기 변경 시 기준점 (앵커)
+ * - top-left: 좌상단 기준 (기본값)
+ * - top-center: 상단 중앙 기준
+ * - top-right: 우상단 기준
+ * - center-left: 좌측 중앙 기준
+ * - center: 정중앙 기준
+ * - center-right: 우측 중앙 기준
+ * - bottom-left: 좌하단 기준
+ * - bottom-center: 하단 중앙 기준
+ * - bottom-right: 우하단 기준
+ */
+export type ElementResizeAnchor =
+  | "top-left"
+  | "top-center"
+  | "top-right"
+  | "center-left"
+  | "center"
+  | "center-right"
+  | "bottom-left"
+  | "bottom-center"
+  | "bottom-right";
+
 export type PluginDisplayElement = {
   id: string;
   html: string;
@@ -159,6 +182,11 @@ export type PluginDisplayElement = {
     keyCode: string;
     offset?: { x: number; y: number };
   };
+  /**
+   * 요소 크기 변경 시 기준점
+   * @default "top-left"
+   */
+  resizeAnchor?: ElementResizeAnchor;
   draggable?: boolean;
   zIndex?: number;
   scoped?: boolean;
@@ -220,6 +248,23 @@ export interface PluginDefinitionHookContext {
   setState: (updates: Record<string, any>) => void;
   getSettings: () => Record<string, any>;
   /**
+   * Set the resize anchor for this element instance
+   * @param anchor - The anchor position for resize operations
+   *
+   * When the element's size changes, the position will be adjusted
+   * to keep the specified anchor point fixed.
+   *
+   * @example
+   * setAnchor("center"); // Keep center position fixed when resizing
+   * setAnchor("bottom-right"); // Keep bottom-right corner fixed
+   */
+  setAnchor: (anchor: ElementResizeAnchor) => void;
+  /**
+   * Get the current resize anchor for this element instance
+   * @returns The current anchor position
+   */
+  getAnchor: () => ElementResizeAnchor;
+  /**
    * Register event hooks
    * @param event - Event type: 'key' (mapped key events) or 'rawKey' (all raw input events)
    * @param callback - Event handler
@@ -262,6 +307,12 @@ export interface PluginDefinition {
    * - 양수: 해당 개수로 제한
    */
   maxInstances?: number;
+  /**
+   * 요소 크기 변경 시 기준점 (기본값)
+   * 인스턴스별로 setAnchor()를 통해 오버라이드 가능
+   * @default "top-left"
+   */
+  resizeAnchor?: ElementResizeAnchor;
   contextMenu?: {
     create?: string; // 그리드 메뉴 라벨 (예: "KPS 패널 생성")
     delete?: string; // 요소 메뉴 라벨 (예: "KPS 패널 삭제")

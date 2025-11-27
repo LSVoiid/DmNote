@@ -6,8 +6,50 @@ import React, {
   useCallback,
 } from "react";
 import { createPortal } from "react-dom";
-import { PluginDisplayElementInternal } from "@src/types/api";
+import {
+  PluginDisplayElementInternal,
+  ElementResizeAnchor,
+} from "@src/types/api";
 import { useDraggable } from "@hooks/useDraggable";
+
+/**
+ * 리사이즈 앵커에 따라 크기 변경 시 위치 보정값 계산
+ */
+function calculateAnchorOffset(
+  anchor: ElementResizeAnchor,
+  prevSize: { width: number; height: number },
+  newSize: { width: number; height: number }
+): { dx: number; dy: number } {
+  const dw = newSize.width - prevSize.width;
+  const dh = newSize.height - prevSize.height;
+
+  let dx = 0;
+  let dy = 0;
+
+  // X축 보정 (center, right 계열)
+  if (anchor.includes("center") && !anchor.startsWith("center")) {
+    // top-center, bottom-center
+    dx = -dw / 2;
+  } else if (anchor === "center") {
+    dx = -dw / 2;
+  } else if (anchor.includes("right")) {
+    dx = -dw;
+  } else if (anchor === "center-left") {
+    dx = 0;
+  } else if (anchor === "center-right") {
+    dx = -dw;
+  }
+
+  // Y축 보정 (center, bottom 계열)
+  if (anchor.startsWith("center")) {
+    // center-left, center, center-right
+    dy = -dh / 2;
+  } else if (anchor.startsWith("bottom")) {
+    dy = -dh;
+  }
+
+  return { dx, dy };
+}
 import { usePluginDisplayElementStore } from "@stores/usePluginDisplayElementStore";
 import { useKeyStore } from "@stores/useKeyStore";
 import { useTranslation } from "@contexts/I18nContext";
@@ -50,6 +92,31 @@ export const PluginElement: React.FC<PluginElementProps> = ({
   const { i18n } = useTranslation();
   const locale = i18n.language;
   const localeRef = useRef(locale);
+
+  // 이전 크기를 추적하여 리사이즈 앵커 기반 위치 보정에 사용
+  // 초기값으로 element.measuredSize를 사용하여 리로드 후에도 올바르게 동작
+  const prevMeasuredSizeRef = useRef<{ width: number; height: number } | null>(
+    element.measuredSize ? { ...element.measuredSize } : null
+  );
+
+  // 이전 앵커를 추적하여 앵커 변경 시 prevMeasuredSizeRef 리셋
+  const prevAnchorRef = useRef<string | undefined>(
+    element.resizeAnchor || definition?.resizeAnchor || "top-left"
+  );
+
+  // 앵커가 변경되면 prevMeasuredSizeRef를 현재 크기로 리셋
+  // 이렇게 하면 앵커 변경 직후의 크기 변화에서 불필요한 위치 보정이 발생하지 않음
+  useEffect(() => {
+    const currentAnchor =
+      element.resizeAnchor || definition?.resizeAnchor || "top-left";
+    if (prevAnchorRef.current !== currentAnchor) {
+      // 앵커가 변경됨 - 현재 측정된 크기로 리셋
+      if (element.measuredSize) {
+        prevMeasuredSizeRef.current = { ...element.measuredSize };
+      }
+      prevAnchorRef.current = currentAnchor;
+    }
+  }, [element.resizeAnchor, definition?.resizeAnchor, element.measuredSize]);
 
   useEffect(() => {
     localeRef.current = locale;
@@ -276,17 +343,53 @@ export const PluginElement: React.FC<PluginElementProps> = ({
       requestAnimationFrame(() => {
         if (containerRef.current) {
           const rect = containerRef.current.getBoundingClientRect();
-          const measuredWidth = Math.ceil(rect.width);
-          const measuredHeight = Math.ceil(rect.height);
+          const measuredWidth = Math.ceil(rect.width / zoom);
+          const measuredHeight = Math.ceil(rect.height / zoom);
+          const newSize = { width: measuredWidth, height: measuredHeight };
 
-          if (
+          // 현재 크기와 이전 크기 비교
+          const prevSize = prevMeasuredSizeRef.current;
+          const sizeChanged =
             !element.measuredSize ||
             element.measuredSize.width !== measuredWidth ||
-            element.measuredSize.height !== measuredHeight
-          ) {
-            updateElement(element.fullId, {
-              measuredSize: { width: measuredWidth, height: measuredHeight },
-            });
+            element.measuredSize.height !== measuredHeight;
+
+          if (sizeChanged) {
+            // 리사이즈 앵커 결정 (우선순위: element > definition > default)
+            const resizeAnchor: ElementResizeAnchor =
+              element.resizeAnchor || definition?.resizeAnchor || "top-left";
+
+            // 이전 크기가 있고 앵커가 top-left가 아니면 위치 보정
+            if (prevSize && resizeAnchor !== "top-left") {
+              const { dx, dy } = calculateAnchorOffset(
+                resizeAnchor,
+                prevSize,
+                newSize
+              );
+
+              if (dx !== 0 || dy !== 0) {
+                // 위치와 크기를 함께 업데이트
+                updateElement(element.fullId, {
+                  position: {
+                    x: element.position.x + dx,
+                    y: element.position.y + dy,
+                  },
+                  measuredSize: newSize,
+                });
+              } else {
+                updateElement(element.fullId, {
+                  measuredSize: newSize,
+                });
+              }
+            } else {
+              // 첫 측정이거나 top-left 앵커인 경우 크기만 업데이트
+              updateElement(element.fullId, {
+                measuredSize: newSize,
+              });
+            }
+
+            // 이전 크기 저장
+            prevMeasuredSizeRef.current = newSize;
           }
         }
       });
@@ -475,10 +578,14 @@ export const PluginElement: React.FC<PluginElementProps> = ({
   }, [
     element.scoped,
     element.fullId,
+    element.position,
+    element.resizeAnchor,
     updateElement,
     windowType,
     shadowRoot,
     renderedContent, // 컨텐츠 변경 시 크기 재측정
+    zoom,
+    definition?.resizeAnchor,
   ]);
 
   // Overlay Logic (onMount)
@@ -516,6 +623,29 @@ export const PluginElement: React.FC<PluginElementProps> = ({
           .getState()
           .elements.find((el) => el.fullId === element.fullId);
         return currentElement?.settings || {};
+      },
+      setAnchor: (anchor: ElementResizeAnchor) => {
+        // 오버레이 로컬 스토어 업데이트
+        updateElement(element.fullId, { resizeAnchor: anchor });
+        // 메인 윈도우로 동기화 (브릿지 통해)
+        if (window.api?.bridge) {
+          window.api.bridge.sendTo(
+            "main",
+            "plugin:displayElement:updateAnchor",
+            {
+              fullId: element.fullId,
+              resizeAnchor: anchor,
+            }
+          );
+        }
+      },
+      getAnchor: (): ElementResizeAnchor => {
+        const currentElement = usePluginDisplayElementStore
+          .getState()
+          .elements.find((el) => el.fullId === element.fullId);
+        return (
+          currentElement?.resizeAnchor || definition?.resizeAnchor || "top-left"
+        );
       },
       onHook: (event: string, callback: (...args: any[]) => void) => {
         // console.log(`[PluginElement] onHook registered for ${event}`);
