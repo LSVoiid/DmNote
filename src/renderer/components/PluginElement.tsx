@@ -83,6 +83,9 @@ export const PluginElement: React.FC<PluginElementProps> = ({
   const updateElement = usePluginDisplayElementStore(
     (state) => state.updateElement
   );
+  const updateElementBatched = usePluginDisplayElementStore(
+    (state) => state.updateElementBatched
+  );
   const definitions = usePluginDisplayElementStore(
     (state) => state.definitions
   );
@@ -608,12 +611,12 @@ export const PluginElement: React.FC<PluginElementProps> = ({
 
     const context = {
       setState: (updates: Record<string, any>) => {
-        // console.log(`[PluginElement] setState called for ${element.fullId}`, updates);
+        // rAF 기반 배치 업데이트 사용 (성능 최적화)
         const currentElement = usePluginDisplayElementStore
           .getState()
           .elements.find((el) => el.fullId === element.fullId);
         if (currentElement) {
-          updateElement(element.fullId, {
+          updateElementBatched(element.fullId, {
             state: { ...currentElement.state, ...updates },
           });
         }
@@ -726,7 +729,13 @@ export const PluginElement: React.FC<PluginElementProps> = ({
       exposedActionsRef.current = {};
       cleanups.forEach((fn) => fn());
     };
-  }, [windowType, definition?.id, element.fullId, pluginTranslateStable]);
+  }, [
+    windowType,
+    definition?.id,
+    element.fullId,
+    pluginTranslateStable,
+    updateElementBatched,
+  ]);
 
   const elementStyle: React.CSSProperties = useMemo(
     () => ({

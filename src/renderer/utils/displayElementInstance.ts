@@ -7,6 +7,37 @@ import type {
   PluginTranslateFn,
 } from "@src/types/api";
 
+/**
+ * 두 값이 동일한지 깊은 비교
+ * 배열과 객체를 재귀적으로 비교하여 불필요한 업데이트 방지
+ */
+function deepEqual(a: any, b: any): boolean {
+  if (a === b) return true;
+  if (a === null || b === null) return a === b;
+  if (typeof a !== typeof b) return false;
+
+  if (Array.isArray(a)) {
+    if (!Array.isArray(b) || a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+      if (!deepEqual(a[i], b[i])) return false;
+    }
+    return true;
+  }
+
+  if (typeof a === "object") {
+    const keysA = Object.keys(a);
+    const keysB = Object.keys(b);
+    if (keysA.length !== keysB.length) return false;
+    for (const key of keysA) {
+      if (!Object.prototype.hasOwnProperty.call(b, key)) return false;
+      if (!deepEqual(a[key], b[key])) return false;
+    }
+    return true;
+  }
+
+  return false;
+}
+
 interface DisplayElementInstanceOptions {
   fullId: string;
   pluginId: string;
@@ -67,10 +98,10 @@ export class DisplayElementInstance extends String {
 
     const nextState = this.ensureState();
 
-    // 얕은 비교: 실제로 변경된 값이 있는지 확인
+    // 깊은 비교: 배열/객체도 실제 값 변경 여부 확인
     let hasChanges = false;
     for (const key in updates) {
-      if (nextState[key] !== updates[key]) {
+      if (!deepEqual(nextState[key], updates[key])) {
         hasChanges = true;
         break;
       }
