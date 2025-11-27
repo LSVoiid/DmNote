@@ -21,9 +21,13 @@ type HandlerFunction = (...args: any[]) => void | Promise<void>;
 // 히스토리 저장 플래그 (undo/redo 중에는 저장하지 않음)
 let isUndoRedoInProgress = false;
 
+// 초기 로드 플래그 (플러그인 초기 로드 중에는 히스토리 저장하지 않음)
+let isInitialLoading = false;
+
 // 히스토리 저장을 위한 헬퍼 함수
 const saveToHistory = () => {
   if (isUndoRedoInProgress) return;
+  if (isInitialLoading) return;
   if ((window as any).__dmn_window_type !== "main") return;
 
   const { keyMappings, positions } = useKeyStore.getState();
@@ -34,6 +38,11 @@ const saveToHistory = () => {
 // Undo/Redo 진행 상태 설정 함수 (외부에서 호출)
 export const setUndoRedoInProgress = (inProgress: boolean) => {
   isUndoRedoInProgress = inProgress;
+};
+
+// 초기 로드 상태 설정 함수 (외부에서 호출)
+export const setInitialLoading = (loading: boolean) => {
+  isInitialLoading = loading;
 };
 
 class PluginHandlerRegistry {

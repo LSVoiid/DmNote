@@ -444,16 +444,20 @@ export function useKeyManager() {
   const handleUndo = useCallback(() => {
     setUndoRedoInProgress(true);
     try {
-      const previousState = undo();
+      // 현재 상태를 가져와서 undo 호출 시 전달
+      const currentPluginElements =
+        usePluginDisplayElementStore.getState().elements;
+      const previousState = undo(keyMappings, positions, currentPluginElements);
+
       if (previousState) {
         setKeyMappings(previousState.keyMappings);
         setPositions(previousState.positions);
 
-        // 플러그인 요소 복원 (있는 경우)
-        if (previousState.pluginElements) {
+        // 플러그인 요소 복원 (pluginElements가 존재하는 경우에만)
+        // undefined인 경우는 해당 히스토리 항목이 플러그인 요소 변경과 무관하므로 현재 상태 유지
+        if (previousState.pluginElements !== undefined) {
           // 현재 요소들의 핸들러 정보를 유지하면서 위치/설정만 복원
-          const currentElements =
-            usePluginDisplayElementStore.getState().elements;
+          const currentElements = currentPluginElements;
 
           // 요소 복원 함수 맵 가져오기
           const elementRestorers = (window as any).__dmn_element_restorers as
@@ -525,21 +529,32 @@ export function useKeyManager() {
     } finally {
       setUndoRedoInProgress(false);
     }
-  }, [undo, setKeyMappings, setPositions, setPluginElements]);
+  }, [
+    undo,
+    keyMappings,
+    positions,
+    setKeyMappings,
+    setPositions,
+    setPluginElements,
+  ]);
 
   const handleRedo = useCallback(() => {
     setUndoRedoInProgress(true);
     try {
-      const nextState = redo();
+      // 현재 상태를 가져와서 redo 호출 시 전달
+      const currentPluginElements =
+        usePluginDisplayElementStore.getState().elements;
+      const nextState = redo(keyMappings, positions, currentPluginElements);
+
       if (nextState) {
         setKeyMappings(nextState.keyMappings);
         setPositions(nextState.positions);
 
-        // 플러그인 요소 복원 (있는 경우)
-        if (nextState.pluginElements) {
+        // 플러그인 요소 복원 (pluginElements가 존재하는 경우에만)
+        // undefined인 경우는 해당 히스토리 항목이 플러그인 요소 변경과 무관하므로 현재 상태 유지
+        if (nextState.pluginElements !== undefined) {
           // 현재 요소들의 핸들러 정보를 유지하면서 위치/설정만 복원
-          const currentElements =
-            usePluginDisplayElementStore.getState().elements;
+          const currentElements = currentPluginElements;
 
           // 요소 복원 함수 맵 가져오기
           const elementRestorers = (window as any).__dmn_element_restorers as
@@ -607,7 +622,14 @@ export function useKeyManager() {
     } finally {
       setUndoRedoInProgress(false);
     }
-  }, [redo, setKeyMappings, setPositions, setPluginElements]);
+  }, [
+    redo,
+    keyMappings,
+    positions,
+    setKeyMappings,
+    setPositions,
+    setPluginElements,
+  ]);
 
   return {
     selectedKey,

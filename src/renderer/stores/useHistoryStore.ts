@@ -24,8 +24,16 @@ interface HistoryStore {
     positions: KeyPositions,
     pluginElements?: PluginDisplayElementInternal[]
   ) => void;
-  undo: () => HistoryState | null;
-  redo: () => HistoryState | null;
+  undo: (
+    currentKeyMappings: KeyMappings,
+    currentPositions: KeyPositions,
+    currentPluginElements?: PluginDisplayElementInternal[]
+  ) => HistoryState | null;
+  redo: (
+    currentKeyMappings: KeyMappings,
+    currentPositions: KeyPositions,
+    currentPluginElements?: PluginDisplayElementInternal[]
+  ) => HistoryState | null;
   clear: () => void;
   clearFuture: () => void;
 }
@@ -86,30 +94,56 @@ export const useHistoryStore = create<HistoryStore>((set, get) => ({
     });
   },
 
-  undo: () => {
+  undo: (
+    currentKeyMappings: KeyMappings,
+    currentPositions: KeyPositions,
+    currentPluginElements?: PluginDisplayElementInternal[]
+  ) => {
     const state = get();
     if (state.past.length === 0) return null;
 
     const previous = state.past[state.past.length - 1];
     const newPast = state.past.slice(0, -1);
 
+    // 현재 상태를 future에 저장
+    const currentState: HistoryState = {
+      keyMappings: JSON.parse(JSON.stringify(currentKeyMappings)),
+      positions: JSON.parse(JSON.stringify(currentPositions)),
+      pluginElements: currentPluginElements
+        ? serializePluginElements(currentPluginElements)
+        : undefined,
+    };
+
     set({
       past: newPast,
-      future: [...state.future, previous],
+      future: [...state.future, currentState],
     });
 
     return previous;
   },
 
-  redo: () => {
+  redo: (
+    currentKeyMappings: KeyMappings,
+    currentPositions: KeyPositions,
+    currentPluginElements?: PluginDisplayElementInternal[]
+  ) => {
     const state = get();
     if (state.future.length === 0) return null;
 
     const next = state.future[state.future.length - 1];
     const newFuture = state.future.slice(0, -1);
 
+    // 현재 상태를 past에 저장
+    const currentState: HistoryState = {
+      keyMappings: JSON.parse(JSON.stringify(currentKeyMappings)),
+      positions: JSON.parse(JSON.stringify(currentPositions)),
+      pluginElements: currentPluginElements
+        ? serializePluginElements(currentPluginElements)
+        : undefined,
+    };
+
     set({
-      past: [...state.past, next],
+      past: [...state.past, currentState],
       future: newFuture,
     });
 

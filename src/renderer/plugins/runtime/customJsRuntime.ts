@@ -5,6 +5,7 @@ import { extractPluginId } from "@utils/pluginUtils";
 import {
   handlerRegistry,
   displayElementInstanceRegistry,
+  setInitialLoading,
 } from "@api/pluginDisplayElements";
 import { translatePluginMessage } from "@utils/pluginI18n";
 import type {
@@ -426,6 +427,15 @@ export function createCustomJsRuntime(): CustomJsRuntime {
                 );
                 return;
               }
+
+              // 설정 변경 전 히스토리 저장
+              const { keyMappings, positions } = useKeyStore.getState();
+              const pluginElements =
+                usePluginDisplayElementStore.getState().elements;
+              const { pushState } = await import(
+                "@stores/useHistoryStore"
+              ).then((m) => m.useHistoryStore.getState());
+              pushState(keyMappings, positions, pluginElements);
 
               const currentSettings = {
                 ...defaultSettings,
@@ -1404,9 +1414,11 @@ export function createCustomJsRuntime(): CustomJsRuntime {
 
   const injectAll = () => {
     isReloading = true;
+    setInitialLoading(true);
     removeAll();
     if (!enabled) {
       isReloading = false;
+      setInitialLoading(false);
       return;
     }
 
@@ -1417,6 +1429,7 @@ export function createCustomJsRuntime(): CustomJsRuntime {
     // 모든 플러그인의 복원이 완료될 때까지 딜레이 후 리로드 플래그 해제
     setTimeout(() => {
       isReloading = false;
+      setInitialLoading(false);
     }, 100);
   };
 
