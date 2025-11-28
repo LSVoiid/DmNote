@@ -149,6 +149,10 @@ export default function Grid({
   const marqueeStart = useGridSelectionStore((state) => state.marqueeStart);
   const marqueeEnd = useGridSelectionStore((state) => state.marqueeEnd);
 
+  // 클립보드 상태
+  const clipboard = useGridSelectionStore((state) => state.clipboard);
+  const setClipboard = useGridSelectionStore((state) => state.setClipboard);
+
   // 플러그인 요소 가져오기
   const pluginElements = usePluginDisplayElementStore(
     (state) => state.elements
@@ -349,6 +353,154 @@ export default function Grid({
     }
   }, [selectedElements, selectedKeyType, clearSelection]);
 
+  // 선택된 요소들 복사
+  const copySelectedElements = useCallback(() => {
+    if (selectedElements.length === 0) return;
+
+    const clipboardItems = [];
+    const currentMappings = keyMappings[selectedKeyType] || [];
+    const currentPositions = positions[selectedKeyType] || [];
+    const currentPluginElements =
+      usePluginDisplayElementStore.getState().elements;
+
+    for (const element of selectedElements) {
+      if (element.type === "key" && element.index !== undefined) {
+        const keyCode = currentMappings[element.index];
+        const position = currentPositions[element.index];
+        if (keyCode && position) {
+          clipboardItems.push({
+            type: "key",
+            keyCode,
+            position: { ...position },
+          });
+        }
+      } else if (element.type === "plugin") {
+        const pluginElement = currentPluginElements.find(
+          (el) => el.fullId === element.id
+        );
+        if (pluginElement) {
+          // fullId를 제외한 나머지 데이터 복사
+          const { fullId, ...elementData } = pluginElement;
+          clipboardItems.push({
+            type: "plugin",
+            element: elementData,
+          });
+        }
+      }
+    }
+
+    if (clipboardItems.length > 0) {
+      setClipboard(clipboardItems);
+    }
+  }, [selectedElements, selectedKeyType, keyMappings, positions, setClipboard]);
+
+  // 클립보드에서 붙여넣기
+  const pasteElements = useCallback(async () => {
+    if (clipboard.length === 0) return;
+
+    const PASTE_OFFSET = 20; // 붙여넣기 시 오프셋
+
+    // 히스토리 저장
+    const historyStore = useHistoryStore.getState();
+    historyStore.pushState({ ...keyMappings }, { ...positions }, [
+      ...usePluginDisplayElementStore.getState().elements,
+    ]);
+
+    const keysToAdd = [];
+    const pluginsToAdd = [];
+
+    for (const item of clipboard) {
+      if (item.type === "key") {
+        keysToAdd.push({
+          keyCode: item.keyCode,
+          position: {
+            ...item.position,
+            left: (item.position.left || 0) + PASTE_OFFSET,
+            top: (item.position.top || 0) + PASTE_OFFSET,
+          },
+        });
+      } else if (item.type === "plugin") {
+        pluginsToAdd.push({
+          ...item.element,
+          left: (item.element.left || 0) + PASTE_OFFSET,
+          top: (item.element.top || 0) + PASTE_OFFSET,
+          tabId: selectedKeyType, // 현재 탭으로 업데이트
+        });
+      }
+    }
+
+    // 새로 추가된 요소들의 선택을 위한 인덱스 추적
+    const newSelectedElements = [];
+
+    // 키 추가
+    if (keysToAdd.length > 0) {
+      const km = useKeyStore.getState().keyMappings;
+      const pos = useKeyStore.getState().positions;
+      const mapping = [...(km[selectedKeyType] || [])];
+      const posArray = [...(pos[selectedKeyType] || [])];
+
+      const startIndex = mapping.length;
+
+      for (let i = 0; i < keysToAdd.length; i++) {
+        mapping.push(keysToAdd[i].keyCode);
+        posArray.push(keysToAdd[i].position);
+        newSelectedElements.push({
+          type: "key",
+          id: `key-${startIndex + i}`,
+          index: startIndex + i,
+        });
+      }
+
+      const updatedMappings = { ...km, [selectedKeyType]: mapping };
+      const updatedPositions = { ...pos, [selectedKeyType]: posArray };
+
+      // 로컬 업데이트 플래그 설정
+      useKeyStore.getState().setLocalUpdateInProgress(true);
+
+      useKeyStore
+        .getState()
+        .setKeyMappingsAndPositions(updatedMappings, updatedPositions);
+
+      try {
+        await window.api.keys.update(updatedMappings);
+        await window.api.keys.updatePositions(updatedPositions);
+      } catch (error) {
+        console.error("Failed to paste keys", error);
+      } finally {
+        useKeyStore.getState().setLocalUpdateInProgress(false);
+      }
+    }
+
+    // 플러그인 요소 추가
+    if (pluginsToAdd.length > 0) {
+      const currentElements = usePluginDisplayElementStore.getState().elements;
+      const newElements = [...currentElements];
+
+      for (const elementData of pluginsToAdd) {
+        // 새로운 고유 ID 생성
+        const newFullId = `${elementData.pluginId}:${
+          elementData.elementId
+        }:${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const newElement = {
+          ...elementData,
+          fullId: newFullId,
+        };
+        newElements.push(newElement);
+        newSelectedElements.push({
+          type: "plugin",
+          id: newFullId,
+        });
+      }
+
+      usePluginDisplayElementStore.getState().setElements(newElements);
+    }
+
+    // 붙여넣기된 요소들 선택
+    if (newSelectedElements.length > 0) {
+      setSelectedElements(newSelectedElements);
+    }
+  }, [clipboard, selectedKeyType, keyMappings, positions, setSelectedElements]);
+
   // 키보드 방향키로 선택 요소 이동 핸들러
   const lastArrowKeyTime = useRef(0);
 
@@ -361,6 +513,24 @@ export default function Grid({
         target.tagName === "TEXTAREA" ||
         target.isContentEditable
       ) {
+        return;
+      }
+
+      // Ctrl+C: 복사 (선택된 요소가 있을 때)
+      if ((e.ctrlKey || e.metaKey) && e.key === "c") {
+        if (selectedElements.length > 0) {
+          e.preventDefault();
+          copySelectedElements();
+        }
+        return;
+      }
+
+      // Ctrl+V: 붙여넣기 (클립보드에 항목이 있을 때)
+      if ((e.ctrlKey || e.metaKey) && e.key === "v") {
+        if (clipboard.length > 0) {
+          e.preventDefault();
+          pasteElements();
+        }
         return;
       }
 
@@ -420,6 +590,9 @@ export default function Grid({
     moveSelectedElements,
     deleteSelectedElements,
     clearSelection,
+    copySelectedElements,
+    pasteElements,
+    clipboard,
   ]);
 
   // 탭 변경 시 선택 해제
@@ -978,8 +1151,7 @@ export default function Grid({
               border: "2px solid rgba(59, 130, 246, 0.8)",
               borderRadius: "4px",
               pointerEvents: "none",
-              zIndex: 9997,
-              boxShadow: "0 0 8px rgba(59, 130, 246, 0.3)",
+              zIndex: 20,
             }}
           />
         );

@@ -1,4 +1,6 @@
 import { create } from "zustand";
+import type { KeyPosition } from "@src/types/keys";
+import type { PluginDisplayElementInternal } from "@src/types/api";
 
 export type SelectableElementType = "key" | "plugin";
 
@@ -8,9 +10,27 @@ export interface SelectedElement {
   index?: number; // key인 경우 인덱스
 }
 
+// 클립보드에 저장되는 키 데이터
+export interface ClipboardKeyData {
+  type: "key";
+  keyCode: string;
+  position: KeyPosition;
+}
+
+// 클립보드에 저장되는 플러그인 요소 데이터
+export interface ClipboardPluginData {
+  type: "plugin";
+  element: Omit<PluginDisplayElementInternal, "fullId">;
+}
+
+export type ClipboardItem = ClipboardKeyData | ClipboardPluginData;
+
 interface GridSelectionState {
   // 선택된 요소들
   selectedElements: SelectedElement[];
+
+  // 클립보드 (복사된 요소들)
+  clipboard: ClipboardItem[];
 
   // 마퀴 선택 상태
   isMarqueeSelecting: boolean;
@@ -28,6 +48,10 @@ interface GridSelectionState {
   setSelectedElements: (elements: SelectedElement[]) => void;
   isSelected: (id: string) => boolean;
 
+  // 클립보드 Actions
+  setClipboard: (items: ClipboardItem[]) => void;
+  clearClipboard: () => void;
+
   // 마퀴 선택 Actions
   startMarqueeSelection: (x: number, y: number) => void;
   updateMarqueeSelection: (x: number, y: number) => void;
@@ -42,6 +66,7 @@ interface GridSelectionState {
 
 export const useGridSelectionStore = create<GridSelectionState>((set, get) => ({
   selectedElements: [],
+  clipboard: [],
   isMarqueeSelecting: false,
   marqueeStart: null,
   marqueeEnd: null,
@@ -109,6 +134,14 @@ export const useGridSelectionStore = create<GridSelectionState>((set, get) => ({
 
   isSelected: (id) => {
     return get().selectedElements.some((el) => el.id === id);
+  },
+
+  setClipboard: (items) => {
+    set({ clipboard: items });
+  },
+
+  clearClipboard: () => {
+    set({ clipboard: [] });
   },
 
   startMarqueeSelection: (x, y) => {
