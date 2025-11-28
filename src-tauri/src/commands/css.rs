@@ -94,6 +94,16 @@ pub fn css_toggle(
         let css = state.store.snapshot().custom_css;
         app.emit("css:content", &css)
             .map_err(|err| err.to_string())?;
+        
+        // CSS 핫리로딩: 활성화 시 파일 워칭 시작
+        if let Some(path) = &css.path {
+            if let Err(err) = state.watch_global_css(path) {
+                log::warn!("[css_toggle] Failed to start watching: {}", err);
+            }
+        }
+    } else {
+        // CSS 핫리로딩: 비활성화 시 워칭 중지
+        state.unwatch_global_css();
     }
 
     Ok(CssToggleResponse { enabled })
@@ -101,6 +111,9 @@ pub fn css_toggle(
 
 #[tauri::command(permission = "dmnote-allow-all")]
 pub fn css_reset(state: State<'_, AppState>, app: AppHandle) -> Result<(), String> {
+    // CSS 핫리로딩: 전역 CSS 워칭 중지
+    state.unwatch_global_css();
+
     state
         .store
         .update(|store| {
@@ -157,6 +170,9 @@ pub fn css_load(state: State<'_, AppState>, app: AppHandle) -> Result<CssLoadRes
     let path_string = path.to_string_lossy().to_string();
     match fs::read_to_string(&path) {
         Ok(content) => {
+            // 이전 파일 워칭 중지
+            state.unwatch_global_css();
+
             let css = CustomCss {
                 path: Some(path_string.clone()),
                 content: content.clone(),
@@ -170,6 +186,13 @@ pub fn css_load(state: State<'_, AppState>, app: AppHandle) -> Result<CssLoadRes
 
             app.emit("css:content", &css)
                 .map_err(|err| err.to_string())?;
+
+            // CSS 핫리로딩: 새 파일 워칭 시작 (use_custom_css가 활성화된 경우에만)
+            if state.store.snapshot().use_custom_css {
+                if let Err(err) = state.watch_global_css(&path_string) {
+                    log::warn!("[css_load] Failed to start watching: {}", err);
+                }
+            }
 
             Ok(CssLoadResponse {
                 success: true,
@@ -224,6 +247,9 @@ pub fn css_tab_load(
     let path_string = path.to_string_lossy().to_string();
     match fs::read_to_string(&path) {
         Ok(content) => {
+            // 이전 탭 CSS 워칭 중지
+            state.unwatch_tab_css(&tab_id);
+
             let tab_css = TabCss {
                 path: Some(path_string.clone()),
                 content: content.clone(),
@@ -243,6 +269,11 @@ pub fn css_tab_load(
             };
             app.emit("tabCss:changed", &response)
                 .map_err(|err| err.to_string())?;
+
+            // CSS 핫리로딩: 새 탭 CSS 파일 워칭 시작
+            if let Err(err) = state.watch_tab_css(&path_string, &tab_id) {
+                log::warn!("[css_tab_load] Failed to start watching tab {}: {}", tab_id, err);
+            }
 
             Ok(TabCssLoadResponse {
                 success: true,
@@ -267,6 +298,9 @@ pub fn css_tab_clear(
     app: AppHandle,
     tab_id: String,
 ) -> Result<TabCssClearResponse, String> {
+    // CSS 핫리로딩: 탭 CSS 워칭 중지
+    state.unwatch_tab_css(&tab_id);
+
     state
         .store
         .update(|store| {
@@ -315,6 +349,19 @@ pub fn css_tab_toggle(
             }
         })
         .map_err(|err| err.to_string())?;
+
+    // CSS 핫리로딩: 활성화/비활성화에 따른 워칭 관리
+    if let Some(ref css) = updated_css {
+        if enabled {
+            if let Some(path) = &css.path {
+                if let Err(err) = state.watch_tab_css(path, &tab_id) {
+                    log::warn!("[css_tab_toggle] Failed to start watching tab {}: {}", tab_id, err);
+                }
+            }
+        } else {
+            state.unwatch_tab_css(&tab_id);
+        }
+    }
 
     let response = TabCssResponse {
         tab_id: tab_id.clone(),

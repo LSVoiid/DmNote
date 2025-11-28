@@ -27,7 +27,7 @@ use crate::{
         overlay_resize_anchor_from_str, BootstrapOverlayState, BootstrapPayload, KeyCounters,
         KeyMappings, OverlayBounds, OverlayResizeAnchor, SettingsDiff, SettingsState,
     },
-    services::settings::SettingsService,
+    services::{css_watcher::CssWatcher, settings::SettingsService},
     store::AppStore,
 };
 
@@ -48,6 +48,8 @@ pub struct AppState {
     active_keys: Arc<RwLock<HashSet<String>>>,
     /// Raw input stream subscriber count - emit only when > 0
     raw_input_subscribers: Arc<std::sync::atomic::AtomicU32>,
+    /// CSS 파일 핫리로딩 워처
+    css_watcher: RwLock<Option<CssWatcher>>,
 }
 
 impl AppState {
@@ -74,6 +76,7 @@ impl AppState {
             key_counter_enabled,
             active_keys,
             raw_input_subscribers: Arc::new(std::sync::atomic::AtomicU32::new(0)),
+            css_watcher: RwLock::new(None),
         })
     }
 
@@ -91,6 +94,8 @@ impl AppState {
             }
         }
         self.start_keyboard_hook(app.clone())?;
+        // CSS 핫리로딩 워처 초기화
+        self.initialize_css_watcher(app);
         Ok(())
     }
 
@@ -207,6 +212,10 @@ impl AppState {
         }
         if let Some(task) = self.keyboard_task.write().take() {
             drop(task);
+        }
+        // CSS 워처 정리
+        if let Some(watcher) = self.css_watcher.write().take() {
+            watcher.shutdown();
         }
     }
 
@@ -858,6 +867,15 @@ impl AppState {
         }
     }
 
+    pub fn reset_single_key_counter(&self, mode: &str, key: &str) {
+        let mut counters = self.key_counters.write();
+        if let Some(entry) = counters.get_mut(mode) {
+            if let Some(value) = entry.get_mut(key) {
+                *value = 0;
+            }
+        }
+    }
+
     pub fn register_key_down(&self, mode: &str, key: &str) -> bool {
         let mut guard = self.active_keys.write();
         guard.insert(Self::compose_active_key(mode, key))
@@ -918,6 +936,48 @@ impl AppState {
     /// Get current raw input subscriber count
     pub fn raw_input_subscriber_count(&self) -> u32 {
         self.raw_input_subscribers.load(Ordering::Relaxed)
+    }
+
+    // ========== CSS 핫리로딩 관련 메서드 ==========
+
+    /// CSS 워처 초기화
+    fn initialize_css_watcher(&self, app: &AppHandle) {
+        let watcher = CssWatcher::new(self.store.clone(), app.clone());
+        watcher.initialize_from_store();
+        *self.css_watcher.write() = Some(watcher);
+        log::info!("[AppState] CSS watcher initialized");
+    }
+
+    /// 전역 CSS 파일 워칭 시작
+    pub fn watch_global_css(&self, path: &str) -> Result<(), String> {
+        if let Some(watcher) = self.css_watcher.read().as_ref() {
+            watcher.watch_global(path)
+        } else {
+            Err("CSS watcher not initialized".to_string())
+        }
+    }
+
+    /// 전역 CSS 파일 워칭 중지
+    pub fn unwatch_global_css(&self) {
+        if let Some(watcher) = self.css_watcher.read().as_ref() {
+            watcher.unwatch_global();
+        }
+    }
+
+    /// 탭별 CSS 파일 워칭 시작
+    pub fn watch_tab_css(&self, path: &str, tab_id: &str) -> Result<(), String> {
+        if let Some(watcher) = self.css_watcher.read().as_ref() {
+            watcher.watch_tab(path, tab_id)
+        } else {
+            Err("CSS watcher not initialized".to_string())
+        }
+    }
+
+    /// 탭별 CSS 파일 워칭 중지
+    pub fn unwatch_tab_css(&self, tab_id: &str) {
+        if let Some(watcher) = self.css_watcher.read().as_ref() {
+            watcher.unwatch_tab(tab_id);
+        }
     }
 }
 
