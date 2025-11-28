@@ -405,6 +405,7 @@ export default function App() {
             color={color}
             activeTool={activeTool}
             showConfirm={showConfirm}
+            showAlert={showAlert}
             shouldSkipModalAnimation={skipModalAnimationOnReturn}
             onModalAnimationConsumed={() =>
               setSkipModalAnimationOnReturn(false)

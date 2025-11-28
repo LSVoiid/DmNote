@@ -183,7 +183,8 @@
     "deleteKey": "Delete Key",
     "counterSetting": "Counter Setting",
     "bringToFront": "Bring to Front",
-    "sendToBack": "Send to Back"
+    "sendToBack": "Send to Back",
+    "tabCssSetting": "Tab CSS Settings"
   },
   "counterSetting": {
     "placementArea": "Placement",
@@ -201,5 +202,15 @@
     "active": "Pressed",
     "apply": "Apply",
     "cancel": "Cancel"
+  },
+  "tabCss": {
+    "enableCss": "Active tab CSS",
+    "cssFile": "CSS File",
+    "noFile": "(No CSS file selected)",
+    "loadFile": "Import",
+    "remove": "Remove",
+    "loaded": "Tab CSS file loaded.",
+    "loadFailed": "CSS file load failed: ",
+    "cleared": "Tab CSS removed."
   }
 }

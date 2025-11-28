@@ -47,6 +47,27 @@ export type CssLoadResult = {
   path?: string;
 };
 
+// 탭별 CSS 타입
+export type TabCssResponse = {
+  tabId: string;
+  css: import("@src/types/css").TabCss | null;
+};
+export type TabCssLoadResult = {
+  success: boolean;
+  error?: string;
+  tabId: string;
+  css?: import("@src/types/css").TabCss;
+};
+export type TabCssClearResult = {
+  success: boolean;
+  tabId: string;
+};
+export type TabCssToggleResult = {
+  success: boolean;
+  tabId: string;
+  enabled: boolean;
+};
+
 export type JsTogglePayload = { enabled: boolean };
 export type JsSetContentResult = { success: boolean; error?: string };
 export type JsPluginError = { path: string; error: string };
@@ -568,6 +589,15 @@ export interface DMNoteAPI {
     reset(): Promise<void>;
     onUse(listener: (payload: CssTogglePayload) => void): Unsubscribe;
     onContent(listener: (payload: CustomCss) => void): Unsubscribe;
+    // 탭별 CSS API
+    tab: {
+      getAll(): Promise<import("@src/types/css").TabCssOverrides>;
+      get(tabId: string): Promise<TabCssResponse>;
+      load(tabId: string): Promise<TabCssLoadResult>;
+      clear(tabId: string): Promise<TabCssClearResult>;
+      toggle(tabId: string, enabled: boolean): Promise<TabCssToggleResult>;
+      onChanged(listener: (payload: TabCssResponse) => void): Unsubscribe;
+    };
   };
   js: {
     get(): Promise<CustomJs>;

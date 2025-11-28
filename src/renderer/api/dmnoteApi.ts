@@ -229,6 +229,35 @@ const api: DMNoteAPI = {
       subscribe<CssTogglePayload>("css:use", listener),
     onContent: (listener: (payload: CustomCss) => void) =>
       subscribe<CustomCss>("css:content", listener),
+    // 탭별 CSS API
+    tab: {
+      getAll: () =>
+        invoke<import("@src/types/css").TabCssOverrides>("css_tab_get_all"),
+      get: (tabId: string) =>
+        invoke<import("@src/types/api").TabCssResponse>("css_tab_get", {
+          tabId,
+        }),
+      load: (tabId: string) =>
+        invoke<import("@src/types/api").TabCssLoadResult>("css_tab_load", {
+          tabId,
+        }),
+      clear: (tabId: string) =>
+        invoke<import("@src/types/api").TabCssClearResult>("css_tab_clear", {
+          tabId,
+        }),
+      toggle: (tabId: string, enabled: boolean) =>
+        invoke<import("@src/types/api").TabCssToggleResult>("css_tab_toggle", {
+          tabId,
+          enabled,
+        }),
+      onChanged: (
+        listener: (payload: import("@src/types/api").TabCssResponse) => void
+      ) =>
+        subscribe<import("@src/types/api").TabCssResponse>(
+          "tabCss:changed",
+          listener
+        ),
+    },
   },
   js: {
     get: () => invoke<CustomJs>("js_get"),

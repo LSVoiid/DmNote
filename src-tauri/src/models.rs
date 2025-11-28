@@ -225,6 +225,34 @@ impl Default for CustomCss {
     }
 }
 
+/// 탭별 CSS 설정
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct TabCss {
+    pub path: Option<String>,
+    pub content: String,
+    /// 이 탭에서 CSS 사용 여부 (false면 전역/탭 CSS 모두 미적용)
+    #[serde(default = "default_tab_css_enabled")]
+    pub enabled: bool,
+}
+
+fn default_tab_css_enabled() -> bool {
+    true
+}
+
+impl Default for TabCss {
+    fn default() -> Self {
+        Self {
+            path: None,
+            content: String::new(),
+            enabled: true,
+        }
+    }
+}
+
+/// 탭별 CSS 오버라이드 맵 (키: 탭 ID, 값: TabCss)
+pub type TabCssOverrides = HashMap<String, TabCss>;
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct JsPlugin {
@@ -382,6 +410,9 @@ pub struct AppStoreData {
     pub use_custom_css: bool,
     #[serde(default)]
     pub custom_css: CustomCss,
+    /// 탭별 CSS 오버라이드 (전역 CSS 대신 사용)
+    #[serde(default)]
+    pub tab_css_overrides: TabCssOverrides,
     #[serde(default)]
     pub use_custom_js: bool,
     #[serde(default)]
@@ -418,6 +449,7 @@ impl Default for AppStoreData {
             background_color: "transparent".to_string(),
             use_custom_css: false,
             custom_css: CustomCss::default(),
+            tab_css_overrides: TabCssOverrides::new(),
             use_custom_js: false,
             custom_js: CustomJs::default(),
             overlay_resize_anchor: OverlayResizeAnchor::TopLeft,

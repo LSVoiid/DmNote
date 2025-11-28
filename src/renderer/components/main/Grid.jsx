@@ -10,6 +10,7 @@ import DraggableKey from "@components/Key";
 import { getKeyInfoByGlobalKey } from "@utils/KeyMaps";
 import KeySettingModal from "./Modal/content/KeySetting";
 import CounterSettingModal from "./Modal/content/CounterSetting";
+import TabCssModal from "./Modal/content/TabCssModal";
 import ListPopup from "./Modal/ListPopup";
 import { useKeyStore } from "@stores/useKeyStore";
 import { usePluginMenuStore } from "@stores/usePluginMenuStore";
@@ -32,6 +33,7 @@ const snapCursorToGrid = (x, y) => ({
 
 export default function Grid({
   showConfirm,
+  showAlert,
   selectedKey,
   setSelectedKey,
   keyMappings,
@@ -135,6 +137,9 @@ export default function Grid({
   const [counterOriginalSettings, setCounterOriginalSettings] = useState(null);
   const [counterApplied, setCounterApplied] = useState(false);
 
+  // 탭 CSS 모달 상태
+  const [isTabCssModalOpen, setIsTabCssModalOpen] = useState(false);
+
   // 키 메뉴 아이템 생성 (기본 + 플러그인)
   const getKeyMenuItems = () => {
     const baseItems = [
@@ -189,7 +194,10 @@ export default function Grid({
 
   // 그리드 메뉴 아이템 생성 (기본 + 플러그인)
   const getGridMenuItems = () => {
-    const baseItems = [{ id: "add", label: t("tooltip.addKey") }];
+    const baseItems = [
+      { id: "add", label: t("tooltip.addKey") },
+      { id: "tabCss", label: t("contextMenu.tabCssSetting") },
+    ];
 
     // 플러그인 메뉴 필터링
     const context = gridAddLocalPos
@@ -663,6 +671,8 @@ export default function Grid({
               typeof onAddKeyAt === "function"
             ) {
               onAddKeyAt(gridAddLocalPos.dx, gridAddLocalPos.dy);
+            } else if (id === "tabCss") {
+              setIsTabCssModalOpen(true);
             }
             setIsGridContextOpen(false);
             setGridContextClientPos(null);
@@ -747,6 +757,12 @@ export default function Grid({
       />
       {/* 줌 레벨 표시 */}
       <ZoomIndicator zoom={zoom} />
+      {/* 탭 CSS 설정 모달 */}
+      <TabCssModal
+        isOpen={isTabCssModalOpen}
+        onClose={() => setIsTabCssModalOpen(false)}
+        showAlert={showAlert}
+      />
     </div>
   );
 }

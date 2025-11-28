@@ -183,7 +183,8 @@
     "deleteKey": "키 삭제",
     "counterSetting": "카운터 설정",
     "bringToFront": "맨 위로",
-    "sendToBack": "맨 아래로"
+    "sendToBack": "맨 아래로",
+    "tabCssSetting": "현재 탭 CSS 설정"
   },
   "counterSetting": {
     "placementArea": "배치 영역",
@@ -201,5 +202,15 @@
     "active": "입력",
     "apply": "적용하기",
     "cancel": "취소"
+  },
+  "tabCss": {
+    "enableCss": "현재 탭 CSS 활성화",
+    "cssFile": "CSS 파일",
+    "noFile": "(선택된 CSS 파일 없음)",
+    "loadFile": "불러오기",
+    "remove": "삭제",
+    "loaded": "탭 CSS 파일이 로드되었습니다.",
+    "loadFailed": "CSS 파일 로드 실패: ",
+    "cleared": "탭 CSS가 제거되었습니다."
   }
 }
