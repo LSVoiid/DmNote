@@ -59,7 +59,7 @@ const ListPopup = ({
           }}
           className={`min-w-[108px] h-[24px] px-[24px] rounded-[7px] flex items-center justify-center ${
             it.disabled
-              ? "opacity-50"
+              ? "opacity-70"
               : "hover:bg-button-hover active:bg-button-active cursor-pointer"
           }`}
         >

@@ -30,6 +30,7 @@ interface GridMinimapProps {
   panY: number;
   containerRef: React.RefObject<HTMLDivElement>;
   mode: string;
+  visible?: boolean;
 }
 
 const MINIMAP_WIDTH = 120;
@@ -43,9 +44,11 @@ export default function GridMinimap({
   panY,
   containerRef,
   mode,
+  visible = false,
 }: GridMinimapProps) {
   const { setPan } = useGridViewStore();
   const [isDragging, setIsDragging] = useState(false);
+  const [isHovering, setIsHovering] = useState(false);
   const minimapRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({
     width: 400,
@@ -258,6 +261,9 @@ export default function GridMinimap({
     return null;
   }
 
+  // 미니맵이 보여야 하는 조건: 그리드 호버 중이거나, 미니맵 자체 호버 중이거나, 드래그 중
+  const shouldShow = visible || isHovering || isDragging;
+
   return (
     <div
       ref={minimapRef}
@@ -267,9 +273,15 @@ export default function GridMinimap({
         height: MINIMAP_HEIGHT,
         outline: "1px solid rgba(255, 255, 255, 0.2)",
         outlineOffset: "-1px",
+        opacity: shouldShow ? 1 : 0,
+        transform: shouldShow ? "translate(0, 0)" : "translate(8px, 8px)",
+        transition: "opacity 200ms ease-out, transform 200ms ease-out",
+        pointerEvents: shouldShow ? "auto" : "none",
       }}
       onClick={handleMinimapClick}
       onMouseDown={handleMouseDown}
+      onMouseEnter={() => setIsHovering(true)}
+      onMouseLeave={() => setIsHovering(false)}
     >
       {/* 키 및 플러그인 요소 표시 */}
       <svg

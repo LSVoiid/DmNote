@@ -140,6 +140,9 @@ export default function Grid({
   // 탭 CSS 모달 상태
   const [isTabCssModalOpen, setIsTabCssModalOpen] = useState(false);
 
+  // 그리드 호버 상태 (미니맵 표시용)
+  const [isGridHovered, setIsGridHovered] = useState(false);
+
   // 키 메뉴 아이템 생성 (기본 + 플러그인)
   const getKeyMenuItems = () => {
     const baseItems = [
@@ -194,8 +197,8 @@ export default function Grid({
 
   // 그리드 메뉴 아이템 생성 (기본 + 플러그인)
   const getGridMenuItems = () => {
-    const baseItems = [
-      { id: "add", label: t("tooltip.addKey") },
+    const topBaseItems = [{ id: "add", label: t("tooltip.addKey") }];
+    const bottomBaseItems = [
       { id: "tabCss", label: t("contextMenu.tabCssSetting") },
     ];
 
@@ -234,7 +237,12 @@ export default function Grid({
       pluginGridMenuItems.filter((i) => i.position !== "top")
     );
 
-    return [...topPluginItems, ...baseItems, ...bottomPluginItems];
+    return [
+      ...topPluginItems,
+      ...topBaseItems,
+      ...bottomPluginItems,
+      ...bottomBaseItems,
+    ];
   };
 
   // 그리드 컨텍스트 메뉴
@@ -447,7 +455,9 @@ export default function Grid({
           setDuplicateCursor(snapped);
         }
       }}
+      onMouseEnter={() => setIsGridHovered(true)}
       onMouseLeave={() => {
+        setIsGridHovered(false);
         if (duplicateState) setDuplicateCursor(null);
       }}
       onMouseDownCapture={(e) => {
@@ -754,6 +764,7 @@ export default function Grid({
         panY={panY}
         containerRef={gridContainerRef}
         mode={selectedKeyType}
+        visible={isGridHovered}
       />
       {/* 줌 레벨 표시 */}
       <ZoomIndicator zoom={zoom} />
