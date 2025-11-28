@@ -37,10 +37,18 @@ export default function LaboratoryModal({
   const [keyDelay, setKeyDelay] = useState(String(keyDisplayDelayMs ?? 0));
 
   // 자동 계산된 키 딜레이 값 (노트가 키에 도달하는 시간)
+  const parsedThreshold = useMemo(() => {
+    const value = Number(threshold);
+    if (!Number.isFinite(value) || value < 0) return 0;
+    return Math.min(value, 2000);
+  }, [threshold]);
+
   const calculatedDelay = useMemo(() => {
     if (!speed || speed <= 0) return 0;
-    return Math.round((trackHeight / speed) * 1000);
-  }, [trackHeight, speed]);
+    const travelDelay = Math.round((trackHeight / speed) * 1000);
+    const shortNoteDelay = enforceShort ? parsedThreshold : 0;
+    return travelDelay + shortNoteDelay;
+  }, [trackHeight, speed, enforceShort, parsedThreshold]);
 
   const handleAutoCalculate = () => {
     setKeyDelay(String(calculatedDelay));
