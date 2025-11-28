@@ -274,8 +274,7 @@ export default function GridMinimap({
         outline: "1px solid rgba(255, 255, 255, 0.2)",
         outlineOffset: "-1px",
         opacity: shouldShow ? 1 : 0,
-        transform: shouldShow ? "translate(0, 0)" : "translate(8px, 8px)",
-        transition: "opacity 200ms ease-out, transform 200ms ease-out",
+        transition: "opacity 200ms ease-out",
         pointerEvents: shouldShow ? "auto" : "none",
       }}
       onClick={handleMinimapClick}

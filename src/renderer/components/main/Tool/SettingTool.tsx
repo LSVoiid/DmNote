@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "@contexts/I18nContext";
+import { useUIStore } from "@stores/useUIStore";
 import FolderIcon from "@assets/svgs/folder.svg";
 import SettingIcon from "@assets/svgs/setting.svg";
 import CloseEyeIcon from "@assets/svgs/close_eye.svg";
@@ -31,10 +32,20 @@ const SettingTool = ({
   const { t } = useTranslation();
   const [isOverlayVisible, setIsOverlayVisible] = useState(true);
   const [isExportImportOpen, setIsExportImportOpen] = useState(false);
-  const [isExtrasOpen, setIsExtrasOpen] = useState(false);
+  const [isExtrasOpen, setIsExtrasOpenLocal] = useState(false);
   const exportImportRef = useRef<HTMLButtonElement | null>(null);
   const extrasRef = useRef<HTMLButtonElement | null>(null);
   const { noteEffect, laboratoryEnabled } = useSettingsStore();
+  const setExtrasPopupOpen = useUIStore((state) => state.setExtrasPopupOpen);
+
+  // isExtrasOpen 상태를 설정하면서 전역 스토어에도 동기화
+  const setIsExtrasOpen = (value: boolean | ((prev: boolean) => boolean)) => {
+    setIsExtrasOpenLocal((prev) => {
+      const newValue = typeof value === "function" ? value(prev) : value;
+      setExtrasPopupOpen(newValue);
+      return newValue;
+    });
+  };
 
   useEffect(() => {
     let unsubscribe: (() => void) | null = null;
