@@ -14,6 +14,22 @@ import { useDraggable } from "@hooks/useDraggable";
 import { useHistoryStore } from "@stores/useHistoryStore";
 import { useKeyStore as useKeyStoreForHistory } from "@stores/useKeyStore";
 import { useSmartGuidesElements } from "@hooks/useSmartGuidesElements";
+import { useSmartGuidesStore } from "@stores/useSmartGuidesStore";
+import { calculateBounds, calculateSnapPoints } from "@utils/smartGuides";
+import {
+  useGridSelectionStore,
+  SelectedElement,
+} from "@stores/useGridSelectionStore";
+import { usePluginDisplayElementStore } from "@stores/usePluginDisplayElementStore";
+import { useKeyStore } from "@stores/useKeyStore";
+import { useTranslation } from "@contexts/I18nContext";
+import ListPopup, { ListItem } from "./main/Modal/ListPopup";
+import { html, styleMap, css } from "@utils/templateEngine";
+import { translatePluginMessage } from "@utils/pluginI18n";
+import {
+  registerExposedActions,
+  clearExposedActions,
+} from "@utils/displayElementActions";
 
 /**
  * 리사이즈 앵커에 따라 크기 변경 시 위치 보정값 계산
@@ -53,16 +69,6 @@ function calculateAnchorOffset(
 
   return { dx, dy };
 }
-import { usePluginDisplayElementStore } from "@stores/usePluginDisplayElementStore";
-import { useKeyStore } from "@stores/useKeyStore";
-import { useTranslation } from "@contexts/I18nContext";
-import ListPopup, { ListItem } from "./main/Modal/ListPopup";
-import { html, styleMap, css } from "@utils/templateEngine";
-import { translatePluginMessage } from "@utils/pluginI18n";
-import {
-  registerExposedActions,
-  clearExposedActions,
-} from "@utils/displayElementActions";
 
 interface PluginElementProps {
   element: PluginDisplayElementInternal;
@@ -71,6 +77,11 @@ interface PluginElementProps {
   zoom?: number;
   panX?: number;
   panY?: number;
+  isSelected?: boolean;
+  selectedElements?: SelectedElement[];
+  onMultiDrag?: (deltaX: number, deltaY: number) => void;
+  onMultiDragStart?: () => void;
+  onMultiDragEnd?: () => void;
 }
 
 export const PluginElement: React.FC<PluginElementProps> = ({
@@ -80,6 +91,11 @@ export const PluginElement: React.FC<PluginElementProps> = ({
   zoom = 1,
   panX = 0,
   panY = 0,
+  isSelected = false,
+  selectedElements = [],
+  onMultiDrag,
+  onMultiDragStart,
+  onMultiDragEnd,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [shadowRoot, setShadowRoot] = useState<ShadowRoot | null>(null);
@@ -270,6 +286,24 @@ export const PluginElement: React.FC<PluginElementProps> = ({
   // 스마트 가이드를 위한 다른 요소들의 bounds 가져오기
   const { getOtherElements } = useSmartGuidesElements();
 
+  // 선택 드래그 상태
+  const multiDragRef = useRef<{
+    isDragging: boolean;
+    startX: number;
+    startY: number;
+    lastSnappedDeltaX: number;
+    lastSnappedDeltaY: number;
+  }>({
+    isDragging: false,
+    startX: 0,
+    startY: 0,
+    lastSnappedDeltaX: 0,
+    lastSnappedDeltaY: 0,
+  });
+
+  // 선택된 상태면 선택 모드 활성화
+  const isSelectionMode = isSelected;
+
   // 드래그 지원 (main 윈도우에서만)
   const draggable = useDraggable({
     gridSize: 5,
@@ -277,7 +311,8 @@ export const PluginElement: React.FC<PluginElementProps> = ({
     initialY: calculatedPosition.y,
     onDragStart: saveToHistory, // 드래그 시작 시 히스토리 저장
     onPositionChange: (newX, newY) => {
-      if (windowType === "main" && element.draggable) {
+      // 선택 모드가 아닐 때만 개별 이동
+      if (windowType === "main" && element.draggable && !isSelectionMode) {
         updateElement(element.fullId, {
           position: { x: newX, y: newY },
           anchor: undefined, // 드래그하면 앵커 제거
@@ -303,7 +338,164 @@ export const PluginElement: React.FC<PluginElementProps> = ({
     elementWidth: element.measuredSize?.width || 100,
     elementHeight: element.measuredSize?.height || 100,
     getOtherElements: windowType === "main" ? getOtherElements : null,
+    // 선택 모드에서는 개별 드래그 비활성화
+    disabled: isSelectionMode,
   });
+
+  // 선택 요소 드래그 핸들러 (스마트 가이드 포함)
+  const handleSelectionDragMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      if (!isSelectionMode || e.button !== 0) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      // 드래그 시작 시 히스토리 저장
+      onMultiDragStart?.();
+
+      // 현재 요소의 시작 위치 저장 (스냅 계산용)
+      const startX = element.position.x;
+      const startY = element.position.y;
+      const currentWidth =
+        element.measuredSize?.width ?? element.estimatedSize?.width ?? 200;
+      const currentHeight =
+        element.measuredSize?.height ?? element.estimatedSize?.height ?? 150;
+      const elementId = element.fullId;
+
+      multiDragRef.current = {
+        isDragging: true,
+        startX: e.clientX,
+        startY: e.clientY,
+        lastSnappedDeltaX: 0,
+        lastSnappedDeltaY: 0,
+      };
+
+      let rafId: number | null = null;
+      const smartGuidesStore = useSmartGuidesStore.getState();
+
+      const handleMouseMove = (moveEvent: MouseEvent) => {
+        if (!multiDragRef.current.isDragging) return;
+
+        if (rafId) return;
+        rafId = requestAnimationFrame(() => {
+          rafId = null;
+
+          const currentZoom = zoom;
+          // raw delta (스냅 전)
+          const rawDeltaX =
+            (moveEvent.clientX - multiDragRef.current.startX) / currentZoom;
+          const rawDeltaY =
+            (moveEvent.clientY - multiDragRef.current.startY) / currentZoom;
+
+          // 이동 후 예상 위치
+          const newX = startX + rawDeltaX;
+          const newY = startY + rawDeltaY;
+
+          // 스마트 가이드 계산 (현재 요소 기준으로 다른 비선택 요소들과 스냅)
+          const otherElements = getOtherElements(elementId);
+
+          // 선택된 다른 요소들도 제외 (자기 자신만 기준)
+          const nonSelectedElements = otherElements.filter(
+            (el) =>
+              !selectedElements.some(
+                (sel) =>
+                  sel.id === el.id ||
+                  (sel.type === "key" && el.id === `key-${sel.index}`)
+              )
+          );
+
+          const draggedBounds = calculateBounds(
+            newX,
+            newY,
+            currentWidth,
+            currentHeight,
+            elementId
+          );
+
+          const snapResult = calculateSnapPoints(
+            draggedBounds,
+            nonSelectedElements
+          );
+
+          let finalX = newX;
+          let finalY = newY;
+
+          // 스마트 가이드 스냅 적용
+          if (snapResult.didSnapX) {
+            finalX = snapResult.snappedX;
+          } else {
+            // 그리드 스냅 (5px)
+            finalX = Math.round(newX / 5) * 5;
+          }
+
+          if (snapResult.didSnapY) {
+            finalY = snapResult.snappedY;
+          } else {
+            // 그리드 스냅 (5px)
+            finalY = Math.round(newY / 5) * 5;
+          }
+
+          // 스냅된 delta 계산
+          const snappedDeltaX = Math.round(finalX - startX);
+          const snappedDeltaY = Math.round(finalY - startY);
+
+          // 가이드라인 업데이트
+          if (snapResult.didSnapX || snapResult.didSnapY) {
+            const snappedBounds = calculateBounds(
+              finalX,
+              finalY,
+              currentWidth,
+              currentHeight,
+              elementId
+            );
+            smartGuidesStore.setDraggedBounds(snappedBounds);
+            smartGuidesStore.setActiveGuides(snapResult.guides);
+          } else {
+            smartGuidesStore.clearGuides();
+          }
+
+          // 이전 delta와의 차이만큼 이동
+          const moveDeltaX =
+            snappedDeltaX - multiDragRef.current.lastSnappedDeltaX;
+          const moveDeltaY =
+            snappedDeltaY - multiDragRef.current.lastSnappedDeltaY;
+
+          if (moveDeltaX !== 0 || moveDeltaY !== 0) {
+            multiDragRef.current.lastSnappedDeltaX = snappedDeltaX;
+            multiDragRef.current.lastSnappedDeltaY = snappedDeltaY;
+            onMultiDrag?.(moveDeltaX, moveDeltaY);
+          }
+        });
+      };
+
+      const handleMouseUp = () => {
+        multiDragRef.current.isDragging = false;
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", handleMouseUp);
+        // 스마트 가이드 클리어
+        useSmartGuidesStore.getState().clearGuides();
+        // 드래그 종료 시 오버레이 동기화
+        onMultiDragEnd?.();
+      };
+
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+    },
+    [
+      isSelectionMode,
+      zoom,
+      onMultiDrag,
+      onMultiDragStart,
+      onMultiDragEnd,
+      element.position.x,
+      element.position.y,
+      element.measuredSize,
+      element.estimatedSize,
+      element.fullId,
+      getOtherElements,
+      selectedElements,
+    ]
+  );
 
   const { ref: draggableRef, dx: renderX, dy: renderY } = draggable;
 
@@ -803,12 +995,13 @@ export const PluginElement: React.FC<PluginElementProps> = ({
     (node: HTMLDivElement | null) => {
       if (node) {
         containerRef.current = node;
-        if (element.draggable && windowType === "main") {
+        // 선택 모드가 아닐 때만 드래그 ref 연결
+        if (element.draggable && windowType === "main" && !isSelectionMode) {
           draggableRef(node);
         }
       }
     },
-    [element.draggable, windowType, draggableRef]
+    [element.draggable, windowType, draggableRef, isSelectionMode]
   );
 
   // 컨텍스트 메뉴 핸들러
@@ -825,6 +1018,9 @@ export const PluginElement: React.FC<PluginElementProps> = ({
     // 메뉴 항목이 하나도 없으면 표시 안 함
     if (!enableDelete && customItems.length === 0) return;
 
+    // 선택된 상태에서는 컨텍스트 메뉴 무시
+    if (isSelectionMode) return;
+
     e.preventDefault();
     e.stopPropagation();
 
@@ -834,11 +1030,26 @@ export const PluginElement: React.FC<PluginElementProps> = ({
 
   // onClick 핸들러
   const handleClick = (e: React.MouseEvent) => {
-    // onClick 핸들러가 있고, 메인 윈도우에서만
-    if (!element.onClick || windowType !== "main") return;
-
     // 우클릭은 컨텍스트 메뉴용이므로 제외
     if (e.button !== 0) return;
+
+    // 선택된 상태에서는 클릭 이벤트 무시
+    if (isSelectionMode) {
+      e.stopPropagation();
+      return;
+    }
+
+    // Ctrl+클릭으로 선택 토글 (메인 윈도우에서만)
+    if (e.ctrlKey && windowType === "main") {
+      useGridSelectionStore.getState().toggleSelection({
+        type: "plugin",
+        id: element.fullId,
+      });
+      return;
+    }
+
+    // onClick 핸들러가 있고, 메인 윈도우에서만
+    if (!element.onClick || windowType !== "main") return;
 
     // onClick 핸들러 실행 (자동 래핑되어 있음)
     if (typeof element.onClick === "string") {
@@ -967,6 +1178,7 @@ export const PluginElement: React.FC<PluginElementProps> = ({
         data-plugin-element={element.fullId}
         data-plugin-id={element.pluginId}
         onClick={handleClick}
+        onMouseDown={isSelectionMode ? handleSelectionDragMouseDown : undefined}
         onContextMenu={handleContextMenu}
       >
         {element.scoped && shadowRoot

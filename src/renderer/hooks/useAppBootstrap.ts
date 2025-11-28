@@ -118,9 +118,13 @@ export function useAppBootstrap() {
         applyDiff(diff);
       }),
       window.api.keys.onChanged((keys) => {
+        // 로컬 업데이트 중에는 백엔드 이벤트 무시 (삭제 작업 등)
+        if (useKeyStore.getState().isLocalUpdateInProgress) return;
         useKeyStore.setState((state) => ({ ...state, keyMappings: keys }));
       }),
       window.api.keys.onPositionsChanged((positions) => {
+        // 로컬 업데이트 중에는 백엔드 이벤트 무시 (삭제 작업 등)
+        if (useKeyStore.getState().isLocalUpdateInProgress) return;
         useKeyStore.setState((state) => ({ ...state, positions }));
       }),
       window.api.keys.onModeChanged(({ mode }) => {

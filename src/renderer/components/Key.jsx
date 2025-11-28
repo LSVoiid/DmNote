@@ -1,4 +1,4 @@
-import React, { memo, useMemo } from "react";
+import React, { memo, useMemo, useCallback, useRef, useEffect } from "react";
 import { getKeySignal } from "@stores/keySignals";
 import { getKeyCounterSignal } from "@stores/keyCounterSignals";
 import { useSignals } from "@preact/signals-react/runtime";
@@ -10,6 +10,8 @@ import {
 } from "@src/types/keys";
 import { toCssRgba } from "@utils/colorUtils";
 import { useSmartGuidesElements } from "@hooks/useSmartGuidesElements";
+import { useSmartGuidesStore } from "@stores/useSmartGuidesStore";
+import { calculateBounds, calculateSnapPoints } from "@utils/smartGuides";
 
 export default function DraggableKey({
   index,
@@ -17,6 +19,12 @@ export default function DraggableKey({
   keyName,
   onPositionChange,
   onClick,
+  onCtrlClick,
+  isSelected = false,
+  selectedElements = [],
+  onMultiDrag,
+  onMultiDragStart,
+  onMultiDragEnd,
   activeTool,
   onEraserClick,
   onContextMenu,
@@ -39,11 +47,23 @@ export default function DraggableKey({
   // 스마트 가이드를 위한 다른 요소들의 bounds 가져오기
   const { getOtherElements } = useSmartGuidesElements();
 
+  // 다중 선택 드래그 상태
+  const multiDragRef = useRef({ isDragging: false, startX: 0, startY: 0 });
+  const nodeRef = useRef(null);
+
+  // 선택된 상태면 드래그 모드 활성화
+  const isSelectionMode = isSelected;
+
   const draggable = useDraggable({
     gridSize: 5,
     initialX: dx,
     initialY: dy,
-    onPositionChange: (newDx, newDy) => onPositionChange(index, newDx, newDy),
+    onPositionChange: (newDx, newDy) => {
+      // 선택 모드가 아닐 때만 개별 이동
+      if (!isSelectionMode) {
+        onPositionChange(index, newDx, newDy);
+      }
+    },
     zoom,
     panX,
     panY,
@@ -52,14 +72,188 @@ export default function DraggableKey({
     elementWidth: width || 60,
     elementHeight: height || 60,
     getOtherElements,
+    // 선택 모드에서는 개별 드래그 비활성화
+    disabled: isSelectionMode,
   });
 
+  // 선택 요소 드래그 핸들러 (스마트 가이드 포함)
+  const handleSelectionDragMouseDown = useCallback(
+    (e) => {
+      if (!isSelectionMode || e.button !== 0) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      // 드래그 시작 시 히스토리 저장
+      onMultiDragStart?.();
+
+      // 현재 키의 시작 위치 저장 (스냅 계산용)
+      const startDx = dx;
+      const startDy = dy;
+      const currentWidth = width || 60;
+      const currentHeight = height || 60;
+      const elementId = `key-${index}`;
+
+      multiDragRef.current = {
+        isDragging: true,
+        startX: e.clientX,
+        startY: e.clientY,
+        lastSnappedDeltaX: 0,
+        lastSnappedDeltaY: 0,
+      };
+
+      let rafId = null;
+      const smartGuidesStore = useSmartGuidesStore.getState();
+
+      const handleMouseMove = (moveEvent) => {
+        if (!multiDragRef.current.isDragging) return;
+
+        if (rafId) return;
+        rafId = requestAnimationFrame(() => {
+          rafId = null;
+
+          const currentZoom = zoom;
+          // raw delta (스냅 전)
+          const rawDeltaX =
+            (moveEvent.clientX - multiDragRef.current.startX) / currentZoom;
+          const rawDeltaY =
+            (moveEvent.clientY - multiDragRef.current.startY) / currentZoom;
+
+          // 이동 후 예상 위치
+          const newX = startDx + rawDeltaX;
+          const newY = startDy + rawDeltaY;
+
+          // 스마트 가이드 계산 (현재 키 기준으로 다른 비선택 요소들과 스냅)
+          const otherElements = getOtherElements(elementId);
+
+          // 선택된 다른 요소들도 제외 (자기 자신만 기준)
+          const nonSelectedElements = otherElements.filter(
+            (el) =>
+              !selectedElements.some(
+                (sel) =>
+                  sel.id === el.id ||
+                  (sel.type === "key" && el.id === `key-${sel.index}`)
+              )
+          );
+
+          const draggedBounds = calculateBounds(
+            newX,
+            newY,
+            currentWidth,
+            currentHeight,
+            elementId
+          );
+
+          const snapResult = calculateSnapPoints(
+            draggedBounds,
+            nonSelectedElements
+          );
+
+          let finalX = newX;
+          let finalY = newY;
+
+          // 스마트 가이드 스냅 적용
+          if (snapResult.didSnapX) {
+            finalX = snapResult.snappedX;
+          } else {
+            // 그리드 스냅 (5px)
+            finalX = Math.round(newX / 5) * 5;
+          }
+
+          if (snapResult.didSnapY) {
+            finalY = snapResult.snappedY;
+          } else {
+            // 그리드 스냅 (5px)
+            finalY = Math.round(newY / 5) * 5;
+          }
+
+          // 스냅된 delta 계산
+          const snappedDeltaX = Math.round(finalX - startDx);
+          const snappedDeltaY = Math.round(finalY - startDy);
+
+          // 가이드라인 업데이트
+          if (snapResult.didSnapX || snapResult.didSnapY) {
+            const snappedBounds = calculateBounds(
+              finalX,
+              finalY,
+              currentWidth,
+              currentHeight,
+              elementId
+            );
+            smartGuidesStore.setDraggedBounds(snappedBounds);
+            smartGuidesStore.setActiveGuides(snapResult.guides);
+          } else {
+            smartGuidesStore.clearGuides();
+          }
+
+          // 이전 delta와의 차이만큼 이동
+          const moveDeltaX =
+            snappedDeltaX - multiDragRef.current.lastSnappedDeltaX;
+          const moveDeltaY =
+            snappedDeltaY - multiDragRef.current.lastSnappedDeltaY;
+
+          if (moveDeltaX !== 0 || moveDeltaY !== 0) {
+            multiDragRef.current.lastSnappedDeltaX = snappedDeltaX;
+            multiDragRef.current.lastSnappedDeltaY = snappedDeltaY;
+            onMultiDrag?.(moveDeltaX, moveDeltaY);
+          }
+        });
+      };
+
+      const handleMouseUp = () => {
+        multiDragRef.current.isDragging = false;
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", handleMouseUp);
+        // 스마트 가이드 클리어
+        useSmartGuidesStore.getState().clearGuides();
+        // 드래그 종료 시 오버레이 동기화
+        onMultiDragEnd?.();
+      };
+
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+    },
+    [
+      isSelectionMode,
+      zoom,
+      onMultiDrag,
+      onMultiDragStart,
+      onMultiDragEnd,
+      dx,
+      dy,
+      width,
+      height,
+      index,
+      getOtherElements,
+      selectedElements,
+    ]
+  );
+
   const handleClick = (e) => {
+    // 선택된 상태에서는 클릭 이벤트 무시
+    if (isSelectionMode) {
+      e.stopPropagation();
+      return;
+    }
+
     if (activeTool === "eraser") {
       onEraserClick?.();
       return;
     }
+    // Ctrl+클릭으로 선택 토글
+    if (e.ctrlKey && onCtrlClick) {
+      onCtrlClick(e);
+      return;
+    }
     if (!draggable.wasMoved) onClick(e);
+  };
+
+  const handleContextMenu = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // 선택된 상태에서는 컨텍스트 메뉴 무시
+    if (isSelectionMode) return;
+    onContextMenu?.(e);
   };
 
   // 드래그 중에는 훅의 dx/dy 사용 (부모 리렌더 최소화)
@@ -112,8 +306,11 @@ export default function DraggableKey({
   );
 
   const attachRef = (node) => {
-    // 드래그 훅에 ref 연결
-    draggable.ref(node);
+    // 드래그 훅에 ref 연결 (선택 모드가 아닐 때만)
+    if (!isSelectionMode) {
+      draggable.ref(node);
+    }
+    nodeRef.current = node;
     // 팝업 위치 지정을 위해 부모에 노드 전달
     if (typeof setReferenceRef === "function") setReferenceRef(node);
   };
@@ -127,11 +324,8 @@ export default function DraggableKey({
       style={keyStyle}
       data-state="inactive"
       onClick={handleClick}
-      onContextMenu={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        onContextMenu?.(e);
-      }}
+      onMouseDown={isSelectionMode ? handleSelectionDragMouseDown : undefined}
+      onContextMenu={handleContextMenu}
       onDragStart={(e) => e.preventDefault()}
     >
       {inactiveImage ? (

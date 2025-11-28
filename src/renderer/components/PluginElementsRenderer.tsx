@@ -4,6 +4,10 @@ import { useKeyStore } from "@stores/useKeyStore";
 import { PluginElement } from "./PluginElement";
 import type { PluginDisplayElementInternal } from "@src/types/api";
 import { invokeExposedAction } from "@utils/displayElementActions";
+import {
+  useGridSelectionStore,
+  SelectedElement,
+} from "@stores/useGridSelectionStore";
 
 /**
  * Main에서 온 elements와 Overlay의 기존 elements를 병합
@@ -38,6 +42,9 @@ interface PluginElementsRendererProps {
   zoom?: number;
   panX?: number;
   panY?: number;
+  onMultiDrag?: (deltaX: number, deltaY: number) => void;
+  onMultiDragStart?: () => void;
+  onMultiDragEnd?: () => void;
 }
 
 export const PluginElementsRenderer: React.FC<PluginElementsRendererProps> = ({
@@ -46,6 +53,9 @@ export const PluginElementsRenderer: React.FC<PluginElementsRendererProps> = ({
   zoom = 1,
   panX = 0,
   panY = 0,
+  onMultiDrag,
+  onMultiDragStart,
+  onMultiDragEnd,
 }) => {
   const elements = usePluginDisplayElementStore((state) => state.elements);
   const setElements = usePluginDisplayElementStore(
@@ -55,6 +65,13 @@ export const PluginElementsRenderer: React.FC<PluginElementsRendererProps> = ({
     (state) => state.updateElement
   );
   const { selectedKeyType } = useKeyStore();
+
+  // 선택 상태 가져오기 (main 윈도우에서만 실제 값 사용)
+  const selectedElementsRaw = useGridSelectionStore(
+    (state) => state.selectedElements
+  );
+  const selectedElements: SelectedElement[] =
+    windowType === "main" ? selectedElementsRaw : [];
 
   // 현재 탭에 해당하는 요소만 필터링
   const filteredElements = elements.filter((el) => {
@@ -165,6 +182,13 @@ export const PluginElementsRenderer: React.FC<PluginElementsRendererProps> = ({
           zoom={zoom}
           panX={panX}
           panY={panY}
+          isSelected={selectedElements.some(
+            (sel) => sel.type === "plugin" && sel.id === element.fullId
+          )}
+          selectedElements={selectedElements}
+          onMultiDrag={onMultiDrag}
+          onMultiDragStart={onMultiDragStart}
+          onMultiDragEnd={onMultiDragEnd}
         />
       ))}
     </>

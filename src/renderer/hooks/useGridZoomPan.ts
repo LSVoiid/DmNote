@@ -6,6 +6,7 @@ import {
   ZOOM_STEP,
   clampZoom,
 } from "@stores/useGridViewStore";
+import { useGridSelectionStore } from "@stores/useGridSelectionStore";
 
 interface UseGridZoomPanOptions {
   mode: string;
@@ -193,6 +194,43 @@ export function useGridZoomPan({
     [resetZoom, zoomIn, zoomOut]
   );
 
+  /**
+   * 미들 버튼 드래그 핸들러
+   */
+  const handleMiddleMouseDown = useCallback(
+    (e: MouseEvent) => {
+      // 미들 버튼만 처리
+      if (e.button !== 1) return;
+
+      e.preventDefault();
+
+      const setMiddleButtonDragging =
+        useGridSelectionStore.getState().setMiddleButtonDragging;
+      setMiddleButtonDragging(true);
+
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const startPanX = panX;
+      const startPanY = panY;
+
+      const handleMouseMove = (moveEvent: MouseEvent) => {
+        const deltaX = moveEvent.clientX - startX;
+        const deltaY = moveEvent.clientY - startY;
+        setPan(mode, startPanX + deltaX, startPanY + deltaY);
+      };
+
+      const handleMouseUp = () => {
+        setMiddleButtonDragging(false);
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", handleMouseUp);
+      };
+
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+    },
+    [mode, panX, panY, setPan]
+  );
+
   // 휠 이벤트 등록
   useEffect(() => {
     const container = containerRef.current;
@@ -204,6 +242,18 @@ export function useGridZoomPan({
       container.removeEventListener("wheel", handleWheel);
     };
   }, [containerRef, handleWheel]);
+
+  // 미들 버튼 드래그 이벤트 등록
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    container.addEventListener("mousedown", handleMiddleMouseDown);
+
+    return () => {
+      container.removeEventListener("mousedown", handleMiddleMouseDown);
+    };
+  }, [containerRef, handleMiddleMouseDown]);
 
   // 키보드 이벤트 등록
   useEffect(() => {

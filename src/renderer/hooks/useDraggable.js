@@ -32,6 +32,7 @@ export const useDraggable = ({
   elementWidth = 60, // 요소 너비
   elementHeight = 60, // 요소 높이
   getOtherElements = null, // 다른 요소들의 bounds를 반환하는 함수
+  disabled = false, // 드래그 비활성화 옵션
 }) => {
   const [node, setNode] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -53,6 +54,7 @@ export const useDraggable = ({
   const elementWidthRef = useRef(elementWidth);
   const elementHeightRef = useRef(elementHeight);
   const getOtherElementsRef = useRef(getOtherElements);
+  const disabledRef = useRef(disabled);
 
   useEffect(() => {
     zoomRef.current = zoom;
@@ -65,7 +67,8 @@ export const useDraggable = ({
     elementWidthRef.current = elementWidth;
     elementHeightRef.current = elementHeight;
     getOtherElementsRef.current = getOtherElements;
-  }, [elementId, elementWidth, elementHeight, getOtherElements]);
+    disabledRef.current = disabled;
+  }, [elementId, elementWidth, elementHeight, getOtherElements, disabled]);
 
   // initialX, initialY 변경 시 동기화
   useEffect(() => {
@@ -88,6 +91,9 @@ export const useDraggable = ({
   const handleMouseDown = useCallback(
     (e) => {
       if (!node) return;
+
+      // disabled 상태면 드래그 무시
+      if (disabledRef.current) return;
 
       // 마우스 다운 시점의 위치 저장
       const startClientX = e.clientX;

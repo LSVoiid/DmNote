@@ -1,0 +1,180 @@
+import { create } from "zustand";
+
+export type SelectableElementType = "key" | "plugin";
+
+export interface SelectedElement {
+  type: SelectableElementType;
+  id: string; // key의 경우 "key-{index}", plugin의 경우 fullId
+  index?: number; // key인 경우 인덱스
+}
+
+interface GridSelectionState {
+  // 선택된 요소들
+  selectedElements: SelectedElement[];
+
+  // 마퀴 선택 상태
+  isMarqueeSelecting: boolean;
+  marqueeStart: { x: number; y: number } | null;
+  marqueeEnd: { x: number; y: number } | null;
+
+  // 미들 버튼 드래그 상태
+  isMiddleButtonDragging: boolean;
+
+  // Actions
+  selectElement: (element: SelectedElement, addToSelection?: boolean) => void;
+  toggleSelection: (element: SelectedElement) => void;
+  deselectElement: (id: string) => void;
+  clearSelection: () => void;
+  setSelectedElements: (elements: SelectedElement[]) => void;
+  isSelected: (id: string) => boolean;
+
+  // 마퀴 선택 Actions
+  startMarqueeSelection: (x: number, y: number) => void;
+  updateMarqueeSelection: (x: number, y: number) => void;
+  endMarqueeSelection: () => void;
+
+  // 미들 버튼 드래그 Actions
+  setMiddleButtonDragging: (isDragging: boolean) => void;
+
+  // 선택된 요소들 일괄 이동
+  moveSelectedElements: (deltaX: number, deltaY: number) => void;
+}
+
+export const useGridSelectionStore = create<GridSelectionState>((set, get) => ({
+  selectedElements: [],
+  isMarqueeSelecting: false,
+  marqueeStart: null,
+  marqueeEnd: null,
+  isMiddleButtonDragging: false,
+
+  selectElement: (element, addToSelection = false) => {
+    set((state) => {
+      if (addToSelection) {
+        // 이미 선택되어 있으면 토글 (선택 해제)
+        const existingIndex = state.selectedElements.findIndex(
+          (el) => el.id === element.id
+        );
+        if (existingIndex >= 0) {
+          return {
+            selectedElements: state.selectedElements.filter(
+              (el) => el.id !== element.id
+            ),
+          };
+        }
+        // 선택에 추가
+        return {
+          selectedElements: [...state.selectedElements, element],
+        };
+      }
+      // 단일 선택 (기존 선택 대체)
+      return {
+        selectedElements: [element],
+      };
+    });
+  },
+
+  toggleSelection: (element) => {
+    set((state) => {
+      const existingIndex = state.selectedElements.findIndex(
+        (el) => el.id === element.id
+      );
+      if (existingIndex >= 0) {
+        // 이미 선택되어 있으면 선택 해제
+        return {
+          selectedElements: state.selectedElements.filter(
+            (el) => el.id !== element.id
+          ),
+        };
+      }
+      // 선택에 추가
+      return {
+        selectedElements: [...state.selectedElements, element],
+      };
+    });
+  },
+
+  deselectElement: (id) => {
+    set((state) => ({
+      selectedElements: state.selectedElements.filter((el) => el.id !== id),
+    }));
+  },
+
+  clearSelection: () => {
+    set({ selectedElements: [] });
+  },
+
+  setSelectedElements: (elements) => {
+    set({ selectedElements: elements });
+  },
+
+  isSelected: (id) => {
+    return get().selectedElements.some((el) => el.id === id);
+  },
+
+  startMarqueeSelection: (x, y) => {
+    set({
+      isMarqueeSelecting: true,
+      marqueeStart: { x, y },
+      marqueeEnd: { x, y },
+    });
+  },
+
+  updateMarqueeSelection: (x, y) => {
+    set({ marqueeEnd: { x, y } });
+  },
+
+  endMarqueeSelection: () => {
+    set({
+      isMarqueeSelecting: false,
+      marqueeStart: null,
+      marqueeEnd: null,
+    });
+  },
+
+  setMiddleButtonDragging: (isDragging) => {
+    set({ isMiddleButtonDragging: isDragging });
+  },
+
+  moveSelectedElements: (_deltaX, _deltaY) => {
+    // 실제 이동 로직은 Grid 컴포넌트에서 처리
+    // 이 함수는 외부에서 호출될 콜백을 위한 placeholder
+  },
+}));
+
+/**
+ * 마퀴 영역 계산 헬퍼
+ */
+export function getMarqueeRect(
+  start: { x: number; y: number } | null,
+  end: { x: number; y: number } | null
+): { left: number; top: number; width: number; height: number } | null {
+  if (!start || !end) return null;
+
+  const left = Math.min(start.x, end.x);
+  const top = Math.min(start.y, end.y);
+  const width = Math.abs(end.x - start.x);
+  const height = Math.abs(end.y - start.y);
+
+  return { left, top, width, height };
+}
+
+/**
+ * 요소가 마퀴 영역 내에 있는지 확인
+ */
+export function isElementInMarquee(
+  elementBounds: { x: number; y: number; width: number; height: number },
+  marqueeRect: { left: number; top: number; width: number; height: number }
+): boolean {
+  const elementRight = elementBounds.x + elementBounds.width;
+  const elementBottom = elementBounds.y + elementBounds.height;
+  const marqueeRight = marqueeRect.left + marqueeRect.width;
+  const marqueeBottom = marqueeRect.top + marqueeRect.height;
+
+  // 교차 여부 확인
+  return !(
+    elementBounds.x > marqueeRight ||
+    elementRight < marqueeRect.left ||
+    elementBounds.y > marqueeBottom ||
+    elementBottom < marqueeRect.top
+  );
+}
