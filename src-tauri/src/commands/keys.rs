@@ -519,6 +519,23 @@ pub fn keys_reset_counters_mode(
     Ok(snapshot)
 }
 
+#[tauri::command(permission = "dmnote-allow-all")]
+pub fn keys_reset_single_counter(
+    state: State<'_, AppState>,
+    app: AppHandle,
+    mode: String,
+    key: String,
+) -> Result<KeyCounters, String> {
+    state.reset_single_key_counter(&mode, &key);
+    state
+        .persist_key_counters()
+        .map_err(|err| err.to_string())?;
+    let snapshot = state.snapshot_key_counters();
+    app.emit("keys:counters", &snapshot)
+        .map_err(|err| err.to_string())?;
+    Ok(snapshot)
+}
+
 fn generate_custom_tab_id() -> String {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)

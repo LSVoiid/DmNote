@@ -149,6 +149,7 @@ export default function Grid({
       { id: "delete", label: t("contextMenu.deleteKey") },
       { id: "duplicate", label: t("contextMenu.duplicateKey") },
       { id: "counter", label: t("contextMenu.counterSetting") },
+      { id: "counterReset", label: t("contextMenu.counterReset") },
       { id: "bringToFront", label: t("contextMenu.bringToFront") },
       { id: "sendToBack", label: t("contextMenu.sendToBack") },
     ];
@@ -601,6 +602,25 @@ export default function Grid({
               setCounterOriginalSettings(original || null);
               setCounterApplied(false);
               setCounterTargetIndex(contextIndex);
+            } else if (id === "counterReset") {
+              const globalKey =
+                keyMappings[selectedKeyType]?.[contextIndex] || "";
+              const displayName =
+                getKeyInfoByGlobalKey(globalKey)?.displayName || globalKey;
+              showConfirm(
+                t("confirm.resetKeyCounter", { name: displayName }),
+                async () => {
+                  try {
+                    await window.api.keys.resetSingleCounter(
+                      selectedKeyType,
+                      globalKey
+                    );
+                  } catch (error) {
+                    console.error("Failed to reset key counter", error);
+                  }
+                },
+                t("confirm.reset")
+              );
             } else if (id === "bringToFront") {
               if (typeof onMoveToFront === "function") {
                 onMoveToFront(contextIndex);

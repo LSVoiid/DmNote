@@ -548,6 +548,7 @@ export interface DMNoteAPI {
     onRawInput(listener: (payload: RawInputPayload) => void): Unsubscribe;
     resetCounters(): Promise<KeyCounters>;
     resetCountersMode(mode: string): Promise<KeyCounters>;
+    resetSingleCounter(mode: string, key: string): Promise<KeyCounters>;
     onCounterChanged(
       listener: (payload: KeyCounterUpdate) => void
     ): Unsubscribe;

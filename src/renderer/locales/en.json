@@ -144,6 +144,7 @@
   "confirm": {
     "resetCurrentTab": "Reset settings for this tab?",
     "resetCountersCurrentTab": "Reset counters for this tab?",
+    "resetKeyCounter": "Reset counter for [{{name}}] key?",
     "reset": "Reset",
     "removeKey": "Remove key [{{name}}]?",
     "remove": "Remove"
@@ -182,6 +183,7 @@
     "duplicateKey": "Duplicate Key",
     "deleteKey": "Delete Key",
     "counterSetting": "Counter Setting",
+    "counterReset": "Reset Counter",
     "bringToFront": "Bring to Front",
     "sendToBack": "Send to Back",
     "tabCssSetting": "Tab CSS Settings"

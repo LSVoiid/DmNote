@@ -144,6 +144,7 @@
   "confirm": {
     "resetCurrentTab": "현재 탭의 설정을 초기화하시겠습니까?",
     "resetCountersCurrentTab": "현재 탭의 카운터를 초기화하시겠습니까?",
+    "resetKeyCounter": "[{{name}}] 키의 카운터를 초기화하시겠습니까?",
     "reset": "초기화",
     "removeKey": "[{{name}}] 키를 제거하시겠습니까?",
     "remove": "제거하기"
@@ -182,6 +183,7 @@
     "duplicateKey": "키 복제",
     "deleteKey": "키 삭제",
     "counterSetting": "카운터 설정",
+    "counterReset": "카운터 초기화",
     "bringToFront": "맨 위로",
     "sendToBack": "맨 아래로",
     "tabCssSetting": "현재 탭 CSS 설정"
