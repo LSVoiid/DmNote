@@ -21,6 +21,7 @@ type FloatingPopupProps = {
   className?: string;
   children?: React.ReactNode;
   autoClose?: boolean;
+  closeOnScroll?: boolean; // 스크롤 시 닫을지 여부
 };
 
 const FloatingPopup = ({
@@ -37,6 +38,7 @@ const FloatingPopup = ({
   className = "",
   children,
   autoClose = true,
+  closeOnScroll = false,
 }: FloatingPopupProps) => {
   const { x, y, refs, strategy, update } = useFloating({
     placement,
@@ -86,6 +88,22 @@ const FloatingPopup = ({
   useEffect(() => {
     if (open) update?.();
   }, [open, update]);
+
+  // closeOnScroll: 스크롤 시 팝업 닫기
+  useEffect(() => {
+    if (!open || !closeOnScroll) return;
+
+    const handleScroll = () => {
+      onClose?.();
+    };
+
+    // 캡처 단계에서 모든 스크롤 이벤트 감지
+    document.addEventListener("scroll", handleScroll, true);
+
+    return () => {
+      document.removeEventListener("scroll", handleScroll, true);
+    };
+  }, [open, closeOnScroll, onClose]);
 
   // 고정 좌표 사용 시 메뉴 위치를 조정
   useEffect(() => {

@@ -436,6 +436,7 @@ export default function ColorPickerWrapper({
       interactiveRefs={interactiveRefs}
       onClose={handleClose}
       autoClose={false}
+      closeOnScroll={true}
     >
       <div className="flex flex-col p-[8px] gap-[8px] w-[146px] bg-[#1A191E] rounded-[13px] border-[1px] border-[#2A2A30]">
         {!solidOnly && <ModeSwitch mode={mode} onChange={handleModeSwitch} />}
