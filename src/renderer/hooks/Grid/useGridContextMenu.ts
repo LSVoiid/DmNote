@@ -92,8 +92,6 @@ export function useGridContextMenu({
       const baseItems: MenuItem[] = [
         { id: "delete", label: t("contextMenu.deleteKey") },
         { id: "duplicate", label: t("contextMenu.duplicateKey") },
-        { id: "noteColor", label: t("contextMenu.noteSetting") },
-        { id: "counter", label: t("contextMenu.counterSetting") },
         { id: "counterReset", label: t("contextMenu.counterReset") },
         { id: "bringToFront", label: t("contextMenu.bringToFront") },
         { id: "sendToBack", label: t("contextMenu.sendToBack") },

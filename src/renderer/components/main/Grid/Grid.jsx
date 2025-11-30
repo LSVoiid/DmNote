@@ -2,9 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useTranslation } from "@contexts/I18nContext";
 import DraggableKey from "@components/Key";
 import { getKeyInfoByGlobalKey } from "@utils/KeyMaps";
-import KeySettingModal from "../Modal/content/KeySetting";
-import CounterSettingModal from "../Modal/content/CounterSetting";
-import NoteColorSettingModal from "../Modal/content/NoteColorSetting";
+import UnifiedKeySetting from "../Modal/content/UnifiedKeySetting";
 import TabCssModal from "../Modal/content/TabCssModal";
 import ListPopup from "../Modal/ListPopup";
 import { useKeyStore } from "@stores/useKeyStore";
@@ -38,7 +36,9 @@ export default function Grid({
   positions,
   onPositionChange,
   onKeyUpdate,
+  onKeyPreview,
   onNoteColorUpdate,
+  onNoteColorPreview,
   onCounterUpdate,
   onCounterPreview,
   onKeyDelete,
@@ -169,12 +169,8 @@ export default function Grid({
     [clientToGridCoords]
   );
 
-  const [counterTargetIndex, setCounterTargetIndex] = useState(null);
-  const [counterOriginalSettings, setCounterOriginalSettings] = useState(null);
-  const [counterApplied, setCounterApplied] = useState(false);
-
-  // 노트 색상 설정 모달 상태
-  const [noteColorTargetIndex, setNoteColorTargetIndex] = useState(null);
+  // 원본 데이터 저장 (미리보기 롤백용)
+  const [originalKeyData, setOriginalKeyData] = useState(null);
 
   // 탭 CSS 모달 상태
   const [isTabCssModalOpen, setIsTabCssModalOpen] = useState(false);
@@ -623,16 +619,6 @@ export default function Grid({
                 });
                 setDuplicateCursor(initialCursor);
               }
-            } else if (id === "counter") {
-              // 스냅샷 저장 (모달 초기 상태 & 취소 시 복원용)
-              const original =
-                positions[selectedKeyType]?.[contextIndex]?.counter;
-              setCounterOriginalSettings(original || null);
-              setCounterApplied(false);
-              setCounterTargetIndex(contextIndex);
-            } else if (id === "noteColor") {
-              // 노트 색상 설정 모달 열기
-              setNoteColorTargetIndex(contextIndex);
             } else if (id === "counterReset") {
               const globalKey =
                 keyMappings[selectedKeyType]?.[contextIndex] || "";
@@ -742,7 +728,7 @@ export default function Grid({
         />
       </div>
       {selectedKey && (
-        <KeySettingModal
+        <UnifiedKeySetting
           keyData={{
             key: selectedKey.key,
             activeImage:
@@ -777,91 +763,121 @@ export default function Grid({
             className:
               positions[selectedKeyType][selectedKey.index].className || "",
           }}
-          onClose={() => setSelectedKey(null)}
-          onSave={onKeyUpdate}
-          skipAnimation={shouldSkipModalAnimation}
-        />
-      )}
-      {/* 카운터 세팅 모달 */}
-      {counterTargetIndex != null && (
-        <CounterSettingModal
+          initialCounterSettings={
+            positions[selectedKeyType][selectedKey.index].counter || null
+          }
           onClose={() => {
-            // 적용하지 않고 닫히는 경우, 원본으로 되돌리기 (미리보기 롤백)
-            if (!counterApplied && typeof onCounterPreview === "function") {
-              const original =
-                counterOriginalSettings ??
-                positions[selectedKeyType]?.[counterTargetIndex]?.counter;
-              if (original) {
-                onCounterPreview(counterTargetIndex, original);
+            // 미리보기 롤백
+            if (originalKeyData) {
+              // 키 롤백
+              if (
+                typeof onKeyPreview === "function" &&
+                originalKeyData.key
+              ) {
+                const origKey = originalKeyData.key;
+                onKeyPreview(selectedKey.index, {
+                  activeImage: origKey.activeImage,
+                  inactiveImage: origKey.inactiveImage,
+                  activeTransparent: origKey.activeTransparent,
+                  idleTransparent: origKey.idleTransparent,
+                  width: origKey.width,
+                  height: origKey.height,
+                  className: origKey.className,
+                });
+              }
+              // 카운터 롤백
+              if (typeof onCounterPreview === "function") {
+                onCounterPreview(selectedKey.index, originalKeyData.counter);
+              }
+              // 노트 롤백
+              if (
+                typeof onNoteColorPreview === "function" &&
+                originalKeyData.key
+              ) {
+                const origKey = originalKeyData.key;
+                onNoteColorPreview(
+                  selectedKey.index,
+                  origKey.noteColor,
+                  origKey.noteOpacity,
+                  origKey.noteGlowEnabled,
+                  origKey.noteGlowSize,
+                  origKey.noteGlowOpacity,
+                  origKey.noteGlowColor
+                );
               }
             }
-            setCounterTargetIndex(null);
+            setSelectedKey(null);
+            setOriginalKeyData(null);
           }}
-          onSave={(settings) => {
-            if (typeof onCounterUpdate === "function") {
-              onCounterUpdate(counterTargetIndex, settings);
+          onSave={(data) => {
+            // 키, 노트, 카운터 데이터를 모두 포함하여 저장
+            const { counter, ...keyAndNoteData } = data;
+            // 키 및 노트 데이터 업데이트
+            if (typeof onKeyUpdate === "function") {
+              onKeyUpdate(keyAndNoteData);
             }
-            // 저장되었음을 표시 (닫힐 때 롤백 방지)
-            setCounterApplied(true);
-            setCounterTargetIndex(null);
-          }}
-          onPreview={(settings) => {
-            if (typeof onCounterPreview === "function") {
-              onCounterPreview(counterTargetIndex, settings);
+            // 카운터 데이터 업데이트
+            if (counter && typeof onCounterUpdate === "function") {
+              onCounterUpdate(selectedKey.index, counter);
             }
+            setOriginalKeyData(null);
+            setSelectedKey(null);
           }}
-          keyName={(() => {
-            const keyCode =
-              keyMappings[selectedKeyType]?.[counterTargetIndex] || "";
-            return getKeyInfoByGlobalKey(keyCode)?.displayName || keyCode || "";
-          })()}
-          // 모달은 항상 최초 스냅샷으로 시작 (미리보기로 바뀐 값에 영향을 받지 않도록)
-          initialSettings={counterOriginalSettings}
-        />
-      )}
-      {/* 노트 색상 세팅 모달 */}
-      {noteColorTargetIndex != null && (
-        <NoteColorSettingModal
-          onClose={() => setNoteColorTargetIndex(null)}
-          onSave={(settings) => {
-            if (typeof onNoteColorUpdate === "function") {
-              onNoteColorUpdate(
-                noteColorTargetIndex,
-                settings.noteColor,
-                settings.noteOpacity,
-                settings.noteGlowEnabled,
-                settings.noteGlowSize,
-                settings.noteGlowOpacity,
-                settings.noteGlowColor
+          onPreview={(previewData) => {
+            // 원본 데이터 저장 (최초 미리보기 시)
+            if (!originalKeyData) {
+              setOriginalKeyData({
+                key: positions[selectedKeyType][selectedKey.index],
+                counter: positions[selectedKeyType][selectedKey.index].counter,
+              });
+            }
+
+            if (
+              previewData.type === "counter" &&
+              typeof onCounterPreview === "function"
+            ) {
+              onCounterPreview(selectedKey.index, previewData);
+            }
+
+            if (
+              previewData.type === "key" &&
+              typeof onKeyPreview === "function"
+            ) {
+              const { type, ...rest } = previewData;
+              onKeyPreview(selectedKey.index, rest);
+            }
+
+            // 노트 미리보기 처리
+            if (
+              previewData.type === "note" &&
+              typeof onNoteColorPreview === "function"
+            ) {
+              const currentKey = positions[selectedKeyType][selectedKey.index];
+              // 현재 값과 미리보기 값을 병합
+              const noteColor = previewData.noteColor ?? currentKey.noteColor;
+              const noteOpacity =
+                previewData.noteOpacity ?? currentKey.noteOpacity;
+              const noteGlowEnabled =
+                previewData.noteGlowEnabled ?? currentKey.noteGlowEnabled;
+              const noteGlowSize =
+                previewData.noteGlowSize ?? currentKey.noteGlowSize;
+              const noteGlowOpacity =
+                previewData.noteGlowOpacity ?? currentKey.noteGlowOpacity;
+              const noteGlowColor =
+                previewData.noteGlowColor ?? currentKey.noteGlowColor;
+
+              onNoteColorPreview(
+                selectedKey.index,
+                noteColor,
+                noteOpacity,
+                noteGlowEnabled,
+                noteGlowSize,
+                noteGlowOpacity,
+                noteGlowColor
               );
             }
-            setNoteColorTargetIndex(null);
           }}
-          initialNoteColor={
-            positions[selectedKeyType]?.[noteColorTargetIndex]?.noteColor ||
-            "#FFFFFF"
-          }
-          initialNoteOpacity={
-            positions[selectedKeyType]?.[noteColorTargetIndex]?.noteOpacity ||
-            80
-          }
-          initialNoteGlowEnabled={
-            positions[selectedKeyType]?.[noteColorTargetIndex]
-              ?.noteGlowEnabled ?? true
-          }
-          initialNoteGlowSize={
-            positions[selectedKeyType]?.[noteColorTargetIndex]?.noteGlowSize ??
-            20
-          }
-          initialNoteGlowOpacity={
-            positions[selectedKeyType]?.[noteColorTargetIndex]
-              ?.noteGlowOpacity ?? 70
-          }
-          initialNoteGlowColor={
-            positions[selectedKeyType]?.[noteColorTargetIndex]?.noteGlowColor ||
-            positions[selectedKeyType]?.[noteColorTargetIndex]?.noteColor ||
-            "#FFFFFF"
-          }
+          skipAnimation={shouldSkipModalAnimation}
         />
       )}
       {/* 미니맵 */}

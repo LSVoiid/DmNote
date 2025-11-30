@@ -68,10 +68,16 @@
     "counterResetFailed": "Failed to reset key counters."
   },
   "keySetting": {
+    "title": "Key Settings",
+    "tabKey": "Key",
+    "tabNote": "Note",
+    "tabCounter": "Counter",
     "keyMapping": "Key Binding",
+    "key": "Key",
     "pressAnyKey": "Press any key",
     "clickToSet": "Click to set key",
     "keySize": "Key Size",
+    "size": "Size",
     "noteColor": "Note Color",
     "noteOpacity": "Note Opacity",
     "noteGlowSize": "Glow Size",
@@ -81,7 +87,15 @@
     "activeState": "Pressed",
     "customImage": "Custom Image",
     "configure": "Configure",
-    "className": "Class Name",
+    "className": "Class",
+    "classPlaceholder": "e.g. my-custom-key",
+    "activeImage": "Active Image",
+    "idleImage": "Idle Image",
+    "imagePlaceholder": "Enter image URL",
+    "browse": "Browse",
+    "transparent": "Transparent",
+    "idle": "Idle",
+    "active": "Active",
     "save": "Apply",
     "cancel": "Cancel",
     "noteGlowColor": "Glow Color"
@@ -107,7 +121,8 @@
   "common": {
     "confirm": "Confirm",
     "cancel": "Cancel",
-    "ok": "OK"
+    "ok": "OK",
+    "save": "Save"
   },
   "tooltip": {
     "github": "GitHub",
@@ -196,18 +211,43 @@
     "sendToBack": "Send to Back",
     "tabCssSetting": "Tab CSS Settings"
   },
+  "noteColor": {
+    "color": "Color",
+    "solid": "Solid",
+    "gradient": "Gradient",
+    "gradientBottom": "Gradient Bottom Color",
+    "opacity": "Opacity",
+    "glow": "Glow Effect",
+    "glowSize": "Size",
+    "glowOpacity": "Opacity",
+    "glowColor": "Color"
+  },
   "counterSetting": {
+    "placement": "Placement",
     "placementArea": "Placement",
     "placementInside": "Inside",
     "placementOutside": "Outside",
     "alignDirection": "Alignment",
+    "align": "Align",
     "alignTop": "Top",
     "alignBottom": "Bottom",
     "alignLeft": "Left",
     "alignRight": "Right",
+    "top": "Top",
+    "bottom": "Bottom",
+    "left": "Left",
+    "right": "Right",
+    "start": "Start",
+    "center": "Center",
+    "end": "End",
     "gap": "Gap",
+    "colors": "Colors",
     "fill": "Fill",
     "stroke": "Stroke",
+    "fillIdle": "Fill (Idle)",
+    "fillActive": "Fill (Active)",
+    "strokeIdle": "Stroke (Idle)",
+    "strokeActive": "Stroke (Active)",
     "idle": "Idle",
     "active": "Pressed",
     "apply": "Apply",
@@ -222,5 +262,10 @@
     "loaded": "Tab CSS file loaded.",
     "loadFailed": "CSS file load failed: ",
     "cleared": "Tab CSS removed."
+  },
+  "unifiedSetting": {
+    "tabKey": "Key",
+    "tabNote": "Note",
+    "tabCounter": "Counter"
   }
 }

@@ -122,11 +122,8 @@ export function useKeyManager() {
                 noteColor: keyData.noteColor ?? value.noteColor ?? "#FFFFFF",
                 noteOpacity: keyData.noteOpacity ?? value.noteOpacity ?? 80,
                 noteGlowEnabled:
-                  keyData.noteGlowEnabled ??
-                  value.noteGlowEnabled ??
-                  true,
-                noteGlowSize:
-                  keyData.noteGlowSize ?? value.noteGlowSize ?? 20,
+                  keyData.noteGlowEnabled ?? value.noteGlowEnabled ?? true,
+                noteGlowSize: keyData.noteGlowSize ?? value.noteGlowSize ?? 20,
                 noteGlowOpacity:
                   keyData.noteGlowOpacity ?? value.noteGlowOpacity ?? 70,
                 noteGlowColor: keyData.noteGlowColor ?? value.noteGlowColor,
@@ -282,8 +279,7 @@ export function useKeyManager() {
       dy: snappedDy,
       counter: clonedCounter,
       noteColor: clonedNoteColor,
-      noteGlowEnabled:
-        sourcePosition.noteGlowEnabled ?? true,
+      noteGlowEnabled: sourcePosition.noteGlowEnabled ?? true,
       noteGlowSize: sourcePosition.noteGlowSize ?? 20,
       noteGlowOpacity: sourcePosition.noteGlowOpacity ?? 70,
       noteGlowColor: clonedNoteColor,
@@ -322,12 +318,15 @@ export function useKeyManager() {
     // 노트 색상 설정 모달에서 적용하기 클릭 시 호출됨
     saveToHistory();
 
-    const current = positions[selectedKeyType] || [];
+    const state = useKeyStore.getState();
+    const mode = state.selectedKeyType || selectedKeyType;
+    const currentPositions = state.positions;
+    const current = currentPositions[mode] || [];
     if (!current[index]) return;
 
     const updatedPositions: KeyPositions = {
-      ...positions,
-      [selectedKeyType]: current.map((pos, i) =>
+      ...currentPositions,
+      [mode]: current.map((pos, i) =>
         i === index
           ? {
               ...pos,
@@ -348,6 +347,115 @@ export function useKeyManager() {
     });
   };
 
+  // 미리보기 전용: 오버레이 실시간 업데이트를 위해 로컬 스토어만 갱신, 영구 저장은 하지 않음
+  const handleNoteColorPreview = (
+    index: number,
+    noteColor: NoteColor,
+    noteOpacity: number,
+    noteGlowEnabled: boolean,
+    noteGlowSize: number,
+    noteGlowOpacity: number,
+    noteGlowColor: NoteColor | undefined
+  ) => {
+    const state = useKeyStore.getState();
+    const mode = state.selectedKeyType || selectedKeyType;
+    const currentPositions = state.positions;
+    const current = currentPositions[mode] || [];
+    if (!current[index]) return;
+
+    const updatedPositions: KeyPositions = {
+      ...currentPositions,
+      [mode]: current.map((pos, i) =>
+        i === index
+          ? {
+              ...pos,
+              noteColor,
+              noteOpacity,
+              noteGlowEnabled,
+              noteGlowSize,
+              noteGlowOpacity,
+              noteGlowColor: noteGlowColor ?? noteColor,
+            }
+          : pos
+      ),
+    };
+
+    setPositions(updatedPositions);
+    // 미리보기라도 오버레이에 반영되도록 이벤트 브로드캐스트
+    window.api.keys.updatePositions(updatedPositions).catch((error) => {
+      console.error("Failed to preview note color settings", error);
+    });
+  };
+
+  // Ű ���� �̸����� (�̹���/ȸ��/ũ��/Ÿ����)
+  const handleKeyPreview = (
+    index: number,
+    updates: Partial<
+      Pick<
+        KeyUpdatePayload,
+        | "activeImage"
+        | "inactiveImage"
+        | "activeTransparent"
+        | "idleTransparent"
+        | "width"
+        | "height"
+        | "className"
+      >
+    >
+  ) => {
+    const state = useKeyStore.getState();
+    const mode = state.selectedKeyType || selectedKeyType;
+    const currentPositions = state.positions;
+    const current = currentPositions[mode] || [];
+    if (!current[index]) return;
+
+    const updatedPositions: KeyPositions = {
+      ...currentPositions,
+      [mode]: current.map((pos, i) =>
+        i === index
+          ? {
+              ...pos,
+              activeImage:
+                updates.activeImage !== undefined
+                  ? updates.activeImage
+                  : pos.activeImage,
+              inactiveImage:
+                updates.inactiveImage !== undefined
+                  ? updates.inactiveImage
+                  : pos.inactiveImage,
+              activeTransparent:
+                updates.activeTransparent !== undefined
+                  ? updates.activeTransparent
+                  : pos.activeTransparent ?? false,
+              idleTransparent:
+                updates.idleTransparent !== undefined
+                  ? updates.idleTransparent
+                  : pos.idleTransparent ?? false,
+              width:
+                typeof updates.width === "number" &&
+                !Number.isNaN(updates.width)
+                  ? updates.width
+                  : pos.width,
+              height:
+                typeof updates.height === "number" &&
+                !Number.isNaN(updates.height)
+                  ? updates.height
+                  : pos.height,
+              className:
+                updates.className !== undefined
+                  ? updates.className
+                  : pos.className ?? "",
+            }
+          : pos
+      ),
+    };
+
+    setPositions(updatedPositions);
+    window.api.keys.updatePositions(updatedPositions).catch((error) => {
+      console.error("Failed to preview key settings", error);
+    });
+  };
+
   const handleCounterSettingsUpdate = (
     index: number,
     payload: CounterUpdatePayload
@@ -355,13 +463,16 @@ export function useKeyManager() {
     // 카운터 설정 모달에서 적용하기 클릭 시 호출됨
     saveToHistory();
 
-    const current = positions[selectedKeyType] || [];
+    const state = useKeyStore.getState();
+    const mode = state.selectedKeyType || selectedKeyType;
+    const currentPositions = state.positions;
+    const current = currentPositions[mode] || [];
     if (!current[index]) return;
 
     const normalized = normalizeCounterSettings(payload);
     const updatedPositions: KeyPositions = {
-      ...positions,
-      [selectedKeyType]: current.map((pos, i) =>
+      ...currentPositions,
+      [mode]: current.map((pos, i) =>
         i === index
           ? {
               ...pos,
@@ -382,13 +493,16 @@ export function useKeyManager() {
     index: number,
     payload: CounterUpdatePayload
   ) => {
-    const current = positions[selectedKeyType] || [];
+    const state = useKeyStore.getState();
+    const mode = state.selectedKeyType || selectedKeyType;
+    const currentPositions = state.positions;
+    const current = currentPositions[mode] || [];
     if (!current[index]) return;
 
     const normalized = normalizeCounterSettings(payload);
     const updatedPositions: KeyPositions = {
-      ...positions,
-      [selectedKeyType]: current.map((pos, i) =>
+      ...currentPositions,
+      [mode]: current.map((pos, i) =>
         i === index
           ? {
               ...pos,
@@ -702,7 +816,9 @@ export function useKeyManager() {
     positions,
     handlePositionChange,
     handleKeyUpdate,
+    handleKeyPreview,
     handleNoteColorUpdate,
+    handleNoteColorPreview,
     handleCounterSettingsUpdate,
     handleCounterSettingsPreview,
     handleAddKey,

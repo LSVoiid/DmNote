@@ -49,7 +49,9 @@ export default function App() {
     positions,
     handlePositionChange,
     handleKeyUpdate,
+    handleKeyPreview,
     handleNoteColorUpdate,
+    handleNoteColorPreview,
     handleCounterSettingsUpdate,
     handleCounterSettingsPreview,
     handleAddKey,
@@ -396,7 +398,9 @@ export default function App() {
             positions={positions}
             onPositionChange={handlePositionChange}
             onKeyUpdate={handleKeyUpdate}
+            onKeyPreview={handleKeyPreview}
             onNoteColorUpdate={handleNoteColorUpdate}
+            onNoteColorPreview={handleNoteColorPreview}
             onCounterUpdate={handleCounterSettingsUpdate}
             onCounterPreview={handleCounterSettingsPreview}
             onKeyDelete={handleDeleteKey}

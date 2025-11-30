@@ -2,8 +2,8 @@ import React, { useEffect, useState, useRef } from "react";
 import { useTranslation } from "@contexts/I18nContext";
 import { getKeyInfoByGlobalKey } from "@utils/KeyMaps";
 import { useSettingsStore } from "@stores/useSettingsStore";
-import ImagePicker from "./ImagePicker";
-import Modal from "../Modal";
+import ImagePicker from "../ImagePicker";
+import Modal from "../../Modal";
 
 export default function KeySetting({
   keyData,
