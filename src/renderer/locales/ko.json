@@ -32,9 +32,9 @@
     "resetAllConfirm": "모든 설정을 초기화하시겠습니까?",
     "initialize": "초기화",
     "cssLoaded": "CSS 파일이 로드되었습니다.",
-    "cssLoadFailed": "CSS 파일 로드 실패: ",
+    "cssLoadFailed": "CSS 파일 로드 실패",
     "jsLoaded": "JS 플러그인이 로드되었습니다.",
-    "jsLoadFailed": "JS 플러그인 로드 실패: ",
+    "jsLoadFailed": "JS 플러그인 로드 실패",
     "jsReloadNoPlugins": "리로드할 플러그인이 없습니다.",
     "jsReloadSuccess": "플러그인 {{count}}개를 다시 불러왔습니다.",
     "jsReloadPartial": "플러그인 {{count}}개를 리로드했지만 일부 실패했습니다:",
@@ -260,7 +260,7 @@
     "loadFile": "불러오기",
     "remove": "삭제",
     "loaded": "탭 CSS 파일이 로드되었습니다.",
-    "loadFailed": "CSS 파일 로드 실패: ",
+    "loadFailed": "CSS 파일 로드 실패",
     "cleared": "탭 CSS가 제거되었습니다."
   },
   "unifiedSetting": {

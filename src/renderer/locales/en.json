@@ -32,9 +32,9 @@
     "resetAllConfirm": "Are you sure you want to reset all settings?",
     "initialize": "Initialize",
     "cssLoaded": "CSS file loaded.",
-    "cssLoadFailed": "CSS file load failed: ",
+    "cssLoadFailed": "CSS file load failed",
     "jsLoaded": "JS plugin loaded.",
-    "jsLoadFailed": "JS plugin load failed: ",
+    "jsLoadFailed": "JS plugin load failed",
     "jsReloadNoPlugins": "There are no plugins to reload.",
     "jsReloadSuccess": "Reloaded {{count}} plugin(s).",
     "jsReloadPartial": "Reloaded {{count}} plugin(s), but some failed:",
@@ -260,7 +260,7 @@
     "loadFile": "Import",
     "remove": "Remove",
     "loaded": "Tab CSS file loaded.",
-    "loadFailed": "CSS file load failed: ",
+    "loadFailed": "CSS file load failed",
     "cleared": "Tab CSS removed."
   },
   "unifiedSetting": {
