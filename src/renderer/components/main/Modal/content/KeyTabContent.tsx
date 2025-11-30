@@ -30,6 +30,42 @@ const KeyTabContent: React.FC<KeyTabContentProps> = ({
   const { t } = useTranslation();
   const { useCustomCSS } = useSettingsStore();
   const imageButtonRef = useRef<HTMLButtonElement>(null);
+  const justAssignedRef = useRef<boolean>(false);
+
+  // 키 리스닝 중 브라우저 기본 동작 차단
+  useEffect(() => {
+    if (!state.isListening) return undefined;
+
+    const blockKeyboardEvents = (e: KeyboardEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    const blockMouseEvents = (e: MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    const blockContextMenu = (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    // 캡처 단계에서 모든 키보드/마우스 이벤트 차단
+    window.addEventListener("keydown", blockKeyboardEvents, true);
+    window.addEventListener("keyup", blockKeyboardEvents, true);
+    window.addEventListener("keypress", blockKeyboardEvents, true);
+    window.addEventListener("mousedown", blockMouseEvents, true);
+    window.addEventListener("contextmenu", blockContextMenu, true);
+
+    return () => {
+      window.removeEventListener("keydown", blockKeyboardEvents, true);
+      window.removeEventListener("keyup", blockKeyboardEvents, true);
+      window.removeEventListener("keypress", blockKeyboardEvents, true);
+      window.removeEventListener("mousedown", blockMouseEvents, true);
+      window.removeEventListener("contextmenu", blockContextMenu, true);
+    };
+  }, [state.isListening]);
 
   // 키 리스닝 effect
   useEffect(() => {
@@ -46,6 +82,13 @@ const KeyTabContent: React.FC<KeyTabContentProps> = ({
       if (!targetLabel) return;
 
       const info = getKeyInfoByGlobalKey(targetLabel);
+
+      // 마우스 클릭으로 할당 시 버튼 재클릭 방지를 위한 플래그
+      justAssignedRef.current = true;
+      setTimeout(() => {
+        justAssignedRef.current = false;
+      }, 100);
+
       setState((prev) => ({
         ...prev,
         key: info.globalKey,
@@ -65,6 +108,8 @@ const KeyTabContent: React.FC<KeyTabContentProps> = ({
 
   // 키 리스닝 핸들러
   const handleKeyListen = React.useCallback(() => {
+    // 방금 키가 할당된 직후라면 무시 (마우스 클릭 할당 시 버튼 재클릭 방지)
+    if (justAssignedRef.current) return;
     setState((prev) => ({ ...prev, isListening: true }));
   }, [setState]);
 
