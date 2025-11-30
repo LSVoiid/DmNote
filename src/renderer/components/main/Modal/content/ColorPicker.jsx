@@ -11,6 +11,7 @@ import {
   parseHexColor,
   toColorObject,
 } from "@utils/colorUtils";
+import { loadPalette, addToPalette } from "@utils/colorPaletteStorage";
 
 // RGBA 문자열 또는 Hex에서 alpha 추출
 const extractAlphaFromColor = (colorValue) => {
@@ -74,6 +75,117 @@ export default function ColorPickerWrapper({
   const [gradientSelected, setGradientSelected] = useState(() =>
     isGradientColor(color) ? "top" : "top"
   );
+
+  // 팔레트 상태
+  const [solidPalette, setSolidPalette] = useState(() => loadPalette("solid"));
+  const [gradientPalette, setGradientPalette] = useState(() =>
+    loadPalette("gradient")
+  );
+
+  // 현재 색상을 팔레트에 저장하는 함수
+  const saveCurrentColorToPalette = useCallback(() => {
+    if (solidOnly || mode === MODES.solid) {
+      // 솔리드 모드
+      let colorToSave;
+      if (solidOnly) {
+        // solidOnly 모드: RGBA 형식으로 저장
+        colorToSave = `rgba(${parseInt(
+          selectedColor.hex.slice(1, 3),
+          16
+        )}, ${parseInt(selectedColor.hex.slice(3, 5), 16)}, ${parseInt(
+          selectedColor.hex.slice(5, 7),
+          16
+        )}, ${alpha})`;
+      } else {
+        // 일반 솔리드 모드: hex 형식으로 저장
+        colorToSave = selectedColor.hex;
+      }
+      addToPalette("solid", colorToSave);
+      setSolidPalette(loadPalette("solid"));
+    } else {
+      // 그라디언트 모드
+      const gradient = buildGradient(`#${gradientTop}`, `#${gradientBottom}`);
+      addToPalette("gradient", gradient);
+      setGradientPalette(loadPalette("gradient"));
+    }
+  }, [solidOnly, mode, selectedColor.hex, alpha, gradientTop, gradientBottom]);
+
+  // 팔레트 클릭 핸들러
+  const handlePaletteClick = useCallback(
+    (paletteColor, type) => {
+      if (type === "solid") {
+        const parsed = parseHexColor(normalizeColorInput(paletteColor));
+        if (parsed) {
+          setSelectedColor(parsed);
+          // RGBA인지 확인
+          const newAlpha = extractAlphaFromColor(paletteColor);
+          setAlpha(newAlpha);
+
+          if (solidOnly) {
+            const rgbaValue = `rgba(${parseInt(
+              parsed.hex.slice(1, 3),
+              16
+            )}, ${parseInt(parsed.hex.slice(3, 5), 16)}, ${parseInt(
+              parsed.hex.slice(5, 7),
+              16
+            )}, ${newAlpha})`;
+            onColorChange?.(rgbaValue);
+            onColorChangeComplete?.(rgbaValue);
+          } else if (mode === MODES.gradient) {
+            // 그라디언트 모드에서 솔리드 팔레트 클릭 시, 선택된 stop에 적용
+            const newHex = parsed.hex.replace("#", "").toUpperCase();
+            suppressGradientBroadcastRef.current = true;
+            if (gradientSelected === "top") {
+              setGradientTop(newHex);
+              const gradient = buildGradient(parsed.hex, `#${gradientBottom}`);
+              onColorChange?.(gradient);
+              onColorChangeComplete?.(gradient);
+            } else {
+              setGradientBottom(newHex);
+              const gradient = buildGradient(`#${gradientTop}`, parsed.hex);
+              onColorChange?.(gradient);
+              onColorChangeComplete?.(gradient);
+            }
+          } else {
+            onColorChange?.(parsed.hex);
+            onColorChangeComplete?.(parsed.hex);
+          }
+        }
+      } else if (type === "gradient") {
+        // 그라디언트 팔레트 클릭
+        if (
+          paletteColor &&
+          typeof paletteColor === "object" &&
+          paletteColor.type === "gradient"
+        ) {
+          suppressGradientBroadcastRef.current = true;
+          setGradientTop(paletteColor.top.replace("#", "").toUpperCase());
+          setGradientBottom(paletteColor.bottom.replace("#", "").toUpperCase());
+          setMode(MODES.gradient);
+          const parsedTop = parseHexColor(paletteColor.top);
+          if (parsedTop) setSelectedColor(parsedTop);
+          setGradientSelected("top");
+          onColorChange?.(paletteColor);
+          onColorChangeComplete?.(paletteColor);
+        }
+      }
+    },
+    [
+      solidOnly,
+      mode,
+      gradientSelected,
+      gradientTop,
+      gradientBottom,
+      onColorChange,
+      onColorChangeComplete,
+    ]
+  );
+
+  // onClose를 래핑하여 팔레트 저장 후 호출
+  const handleClose = useCallback(() => {
+    saveCurrentColorToPalette();
+    onClose?.();
+  }, [saveCurrentColorToPalette, onClose]);
 
   useEffect(() => {
     const wasGradient = isGradientColor(prevColorRef.current);
@@ -322,7 +434,7 @@ export default function ColorPickerWrapper({
       offsetY={offsetY}
       className="z-50"
       interactiveRefs={interactiveRefs}
-      onClose={onClose}
+      onClose={handleClose}
       autoClose={false}
     >
       <div className="flex flex-col p-[8px] gap-[8px] w-[146px] bg-[#1A191E] rounded-[13px] border-[1px] border-[#2A2A30]">
@@ -398,8 +510,152 @@ export default function ColorPickerWrapper({
             onSelect={(s) => selectGradient(s)}
           />
         )}
+
+        {/* 팔레트 섹션 */}
+        <ColorPalette
+          solidPalette={solidPalette}
+          gradientPalette={gradientPalette}
+          onPaletteClick={handlePaletteClick}
+          showGradient={!solidOnly}
+          solidOnly={solidOnly}
+        />
       </div>
     </FloatingPopup>
+  );
+}
+
+// ============================================================================
+// 팔레트 컴포넌트
+// ============================================================================
+
+function ColorPalette({
+  solidPalette,
+  gradientPalette,
+  onPaletteClick,
+  showGradient,
+  solidOnly,
+}) {
+  const PALETTE_SIZE = 5;
+
+  // 빈 슬롯 채우기
+  const filledSolid = [...solidPalette];
+  while (filledSolid.length < PALETTE_SIZE) {
+    filledSolid.push(null);
+  }
+
+  const filledGradient = [...gradientPalette];
+  while (filledGradient.length < PALETTE_SIZE) {
+    filledGradient.push(null);
+  }
+
+  return (
+    <div className="flex flex-col gap-[6px] pt-[8px] border-t border-[#2A2A30]">
+      {/* 솔리드 팔레트 */}
+      <div className="flex gap-[4px] justify-between">
+        {filledSolid.map((color, index) => (
+          <PaletteSlot
+            key={`solid-${index}`}
+            color={color}
+            type="solid"
+            onClick={() => color && onPaletteClick(color, "solid")}
+            solidOnly={solidOnly}
+          />
+        ))}
+      </div>
+
+      {/* 그라디언트 팔레트 (solidOnly가 아닐 때만 표시) */}
+      {showGradient && (
+        <div className="flex gap-[4px] justify-between">
+          {filledGradient.map((color, index) => (
+            <PaletteSlot
+              key={`gradient-${index}`}
+              color={color}
+              type="gradient"
+              onClick={() => color && onPaletteClick(color, "gradient")}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PaletteSlot({ color, type, onClick, solidOnly }) {
+  const isEmpty = !color;
+
+  // 배경 스타일 계산
+  const getBackgroundStyle = () => {
+    if (isEmpty) {
+      return { backgroundColor: "#2A2A30" };
+    }
+
+    if (type === "gradient" && color?.type === "gradient") {
+      return {
+        background: `linear-gradient(to bottom, ${color.top}, ${color.bottom})`,
+      };
+    }
+
+    // 솔리드 색상
+    if (typeof color === "string") {
+      // RGBA 형식인 경우
+      if (color.startsWith("rgba(")) {
+        return { backgroundColor: color };
+      }
+      // Hex 형식
+      return { backgroundColor: color.startsWith("#") ? color : `#${color}` };
+    }
+
+    return { backgroundColor: "#2A2A30" };
+  };
+
+  // 툴팁 텍스트 생성
+  const getTitle = () => {
+    if (isEmpty) return "";
+    if (type === "gradient" && color?.type === "gradient") {
+      const topHex = color.top.replace("#", "").toUpperCase();
+      const bottomHex = color.bottom.replace("#", "").toUpperCase();
+      return `${topHex}\n${bottomHex}`;
+    }
+    // 솔리드 색상 툴팁 - 통일된 형식으로 표시
+    if (typeof color === "string") {
+      // RGBA 형식인 경우 hex로 변환
+      if (color.startsWith("rgba(")) {
+        const match = color.match(
+          /rgba\((\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)/
+        );
+        if (match) {
+          const [, r, g, b, a] = match;
+          const hexColor = `${parseInt(r)
+            .toString(16)
+            .padStart(2, "0")}${parseInt(g)
+            .toString(16)
+            .padStart(2, "0")}${parseInt(b)
+            .toString(16)
+            .padStart(2, "0")}${Math.round(parseFloat(a) * 255)
+            .toString(16)
+            .padStart(2, "0")}`.toUpperCase();
+          return hexColor;
+        }
+      }
+      // Hex 형식 - # 제거하고 대문자로
+      return color.replace("#", "").toUpperCase();
+    }
+    return "";
+  };
+
+  return (
+    <button
+      type="button"
+      className={`w-[22px] h-[22px] rounded-[7px] border transition-colors ${
+        isEmpty
+          ? "border-[#3A3943] cursor-default"
+          : "border-[#3A3943] cursor-pointer"
+      }`}
+      style={getBackgroundStyle()}
+      onClick={isEmpty ? undefined : onClick}
+      disabled={isEmpty}
+      title={getTitle()}
+    />
   );
 }
 
