@@ -209,6 +209,8 @@
     "counterReset": "카운터 초기화",
     "bringToFront": "맨 위로",
     "sendToBack": "맨 아래로",
+    "bringForward": "앞으로",
+    "sendBackward": "뒤로",
     "tabCssSetting": "현재 탭 CSS 설정"
   },
   "noteColor": {

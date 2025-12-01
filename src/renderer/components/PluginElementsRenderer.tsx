@@ -64,7 +64,10 @@ export const PluginElementsRenderer: React.FC<PluginElementsRendererProps> = ({
   const updateElement = usePluginDisplayElementStore(
     (state) => state.updateElement
   );
-  const { selectedKeyType } = useKeyStore();
+  const { selectedKeyType, positions } = useKeyStore();
+
+  // 현재 탭의 키 개수
+  const keyCount = positions[selectedKeyType]?.length ?? 0;
 
   // 선택 상태 가져오기 (main 윈도우에서만 실제 값 사용)
   const selectedElementsRaw = useGridSelectionStore(
@@ -173,7 +176,7 @@ export const PluginElementsRenderer: React.FC<PluginElementsRendererProps> = ({
 
   return (
     <>
-      {filteredElements.map((element) => (
+      {filteredElements.map((element, index) => (
         <PluginElement
           key={element.fullId}
           element={element}
@@ -182,6 +185,8 @@ export const PluginElementsRenderer: React.FC<PluginElementsRendererProps> = ({
           zoom={zoom}
           panX={panX}
           panY={panY}
+          arrayIndex={index}
+          keyCount={keyCount}
           isSelected={selectedElements.some(
             (sel) => sel.type === "plugin" && sel.id === element.fullId
           )}

@@ -16,6 +16,25 @@ import {
 
 type SelectedKey = { key: string; index: number } | null;
 
+type BoundingBox = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+/**
+ * 두 바운딩 박스가 겹치는지 확인
+ */
+function boxesOverlap(a: BoundingBox, b: BoundingBox): boolean {
+  return (
+    a.x < b.x + b.width &&
+    a.x + a.width > b.x &&
+    a.y < b.y + b.height &&
+    a.y + a.height > b.y
+  );
+}
+
 type KeyUpdatePayload = {
   key: string;
   activeImage?: string;
@@ -41,6 +60,9 @@ export function useKeyManager() {
   const positions = useKeyStore((state) => state.positions);
   const setKeyMappings = useKeyStore((state) => state.setKeyMappings);
   const setPositions = useKeyStore((state) => state.setPositions);
+  const setLocalUpdateInProgress = useKeyStore(
+    (state) => state.setLocalUpdateInProgress
+  );
 
   const pushState = useHistoryStore((state) => state.pushState);
   const canUndo = useHistoryStore((state) => state.canUndo);
@@ -548,66 +570,226 @@ export function useKeyManager() {
     setSelectedKey(null);
   };
 
-  const handleMoveToFront = (index: number) => {
+  const handleMoveToFront = async (index: number) => {
     saveToHistory();
 
-    const mapping = keyMappings[selectedKeyType] || [];
     const pos = positions[selectedKeyType] || [];
+    const pluginElements = usePluginDisplayElementStore.getState().elements;
 
-    // 배열의 마지막으로 이동 (렌더링 순서상 맨 앞에 표시됨)
-    const keyToMove = mapping[index];
-    const posToMove = pos[index];
+    // 키와 플러그인 요소 중 가장 높은 zIndex 찾기
+    const keyZIndexes = pos.map((p, i) => p.zIndex ?? i);
+    const pluginZIndexes = pluginElements.map((el) => el.zIndex ?? 0);
+    const maxZIndex = Math.max(0, ...keyZIndexes, ...pluginZIndexes);
 
-    const updatedMappings: KeyMappings = {
-      ...keyMappings,
-      [selectedKeyType]: [...mapping.filter((_, i) => i !== index), keyToMove],
-    };
-
+    // 대상 키의 zIndex를 가장 높은 값 + 1로 설정
     const updatedPositions: KeyPositions = {
       ...positions,
-      [selectedKeyType]: [...pos.filter((_, i) => i !== index), posToMove],
+      [selectedKeyType]: pos.map((p, i) =>
+        i === index ? { ...p, zIndex: maxZIndex + 1 } : p
+      ),
     };
 
-    setKeyMappings(updatedMappings);
+    // 로컬 업데이트 플래그 설정 (백엔드 이벤트 무시)
+    setLocalUpdateInProgress(true);
     setPositions(updatedPositions);
 
-    Promise.all([
-      window.api.keys.update(updatedMappings),
-      window.api.keys.updatePositions(updatedPositions),
-    ]).catch((error) => {
+    try {
+      await window.api.keys.updatePositions(updatedPositions);
+    } catch (error) {
       console.error("Failed to move key to front", error);
-    });
+    } finally {
+      setLocalUpdateInProgress(false);
+    }
   };
 
-  const handleMoveToBack = (index: number) => {
+  const handleMoveToBack = async (index: number) => {
     saveToHistory();
 
-    const mapping = keyMappings[selectedKeyType] || [];
     const pos = positions[selectedKeyType] || [];
+    const pluginElements = usePluginDisplayElementStore.getState().elements;
 
-    // 배열의 맨 처음으로 이동 (렌더링 순서상 맨 뒤에 표시됨)
-    const keyToMove = mapping[index];
-    const posToMove = pos[index];
+    // 키와 플러그인 요소 중 가장 낮은 zIndex 찾기 (음수 가능)
+    const keyZIndexes = pos.map((p, i) => p.zIndex ?? i);
+    const pluginZIndexes = pluginElements.map((el) => el.zIndex ?? 0);
+    const minZIndex = Math.min(0, ...keyZIndexes, ...pluginZIndexes);
 
-    const updatedMappings: KeyMappings = {
-      ...keyMappings,
-      [selectedKeyType]: [keyToMove, ...mapping.filter((_, i) => i !== index)],
+    // 대상 키의 zIndex를 가장 낮은 값 - 1로 설정
+    const updatedPositions: KeyPositions = {
+      ...positions,
+      [selectedKeyType]: pos.map((p, i) =>
+        i === index ? { ...p, zIndex: minZIndex - 1 } : p
+      ),
     };
+
+    // 로컬 업데이트 플래그 설정 (백엔드 이벤트 무시)
+    setLocalUpdateInProgress(true);
+    setPositions(updatedPositions);
+
+    try {
+      await window.api.keys.updatePositions(updatedPositions);
+    } catch (error) {
+      console.error("Failed to move key to back", error);
+    } finally {
+      setLocalUpdateInProgress(false);
+    }
+  };
+
+  const handleMoveForward = async (index: number) => {
+    saveToHistory();
+
+    const pos = positions[selectedKeyType] || [];
+    const targetKey = pos[index];
+    if (!targetKey) return;
+
+    const currentZIndex = targetKey.zIndex ?? index;
+    const pluginElements = usePluginDisplayElementStore.getState().elements;
+
+    // 대상 키의 바운딩 박스
+    const targetBox = {
+      x: targetKey.dx,
+      y: targetKey.dy,
+      width: targetKey.width,
+      height: targetKey.height,
+    };
+
+    // 겹치는 요소들의 zIndex 수집 (현재 요소보다 위에 있는 것만)
+    const overlappingZIndexes: number[] = [];
+
+    // 다른 키들 중 겹치는 것
+    pos.forEach((p, i) => {
+      if (i === index) return;
+      const keyZ = p.zIndex ?? i;
+      if (keyZ <= currentZIndex) return; // 현재보다 아래면 무시
+
+      const keyBox = { x: p.dx, y: p.dy, width: p.width, height: p.height };
+      if (boxesOverlap(targetBox, keyBox)) {
+        overlappingZIndexes.push(keyZ);
+      }
+    });
+
+    // 플러그인 요소들 중 겹치는 것
+    pluginElements.forEach((el) => {
+      const elZ = el.zIndex ?? 0;
+      if (elZ <= currentZIndex) return; // 현재보다 아래면 무시
+
+      const elBox = {
+        x: el.position.x,
+        y: el.position.y,
+        width: el.measuredSize?.width ?? el.estimatedSize?.width ?? 100,
+        height: el.measuredSize?.height ?? el.estimatedSize?.height ?? 100,
+      };
+      if (boxesOverlap(targetBox, elBox)) {
+        overlappingZIndexes.push(elZ);
+      }
+    });
+
+    // 겹치는 요소가 없으면 단순히 +1
+    // 겹치는 요소가 있으면 바로 위 요소의 zIndex보다 1 크게 설정
+    let newZIndex: number;
+    if (overlappingZIndexes.length === 0) {
+      newZIndex = currentZIndex + 1;
+    } else {
+      const minOverlappingZ = Math.min(...overlappingZIndexes);
+      newZIndex = minOverlappingZ + 1;
+    }
 
     const updatedPositions: KeyPositions = {
       ...positions,
-      [selectedKeyType]: [posToMove, ...pos.filter((_, i) => i !== index)],
+      [selectedKeyType]: pos.map((p, i) =>
+        i === index ? { ...p, zIndex: newZIndex } : p
+      ),
     };
 
-    setKeyMappings(updatedMappings);
+    // 로컬 업데이트 플래그 설정 (백엔드 이벤트 무시)
+    setLocalUpdateInProgress(true);
     setPositions(updatedPositions);
 
-    Promise.all([
-      window.api.keys.update(updatedMappings),
-      window.api.keys.updatePositions(updatedPositions),
-    ]).catch((error) => {
-      console.error("Failed to move key to back", error);
+    try {
+      await window.api.keys.updatePositions(updatedPositions);
+    } catch (error) {
+      console.error("Failed to move key forward", error);
+    } finally {
+      setLocalUpdateInProgress(false);
+    }
+  };
+
+  const handleMoveBackward = async (index: number) => {
+    saveToHistory();
+
+    const pos = positions[selectedKeyType] || [];
+    const targetKey = pos[index];
+    if (!targetKey) return;
+
+    const currentZIndex = targetKey.zIndex ?? index;
+    const pluginElements = usePluginDisplayElementStore.getState().elements;
+
+    // 대상 키의 바운딩 박스
+    const targetBox = {
+      x: targetKey.dx,
+      y: targetKey.dy,
+      width: targetKey.width,
+      height: targetKey.height,
+    };
+
+    // 겹치는 요소들의 zIndex 수집 (현재 요소보다 아래에 있는 것만)
+    const overlappingZIndexes: number[] = [];
+
+    // 다른 키들 중 겹치는 것
+    pos.forEach((p, i) => {
+      if (i === index) return;
+      const keyZ = p.zIndex ?? i;
+      if (keyZ >= currentZIndex) return; // 현재보다 위면 무시
+
+      const keyBox = { x: p.dx, y: p.dy, width: p.width, height: p.height };
+      if (boxesOverlap(targetBox, keyBox)) {
+        overlappingZIndexes.push(keyZ);
+      }
     });
+
+    // 플러그인 요소들 중 겹치는 것
+    pluginElements.forEach((el) => {
+      const elZ = el.zIndex ?? 0;
+      if (elZ >= currentZIndex) return; // 현재보다 위면 무시
+
+      const elBox = {
+        x: el.position.x,
+        y: el.position.y,
+        width: el.measuredSize?.width ?? el.estimatedSize?.width ?? 100,
+        height: el.measuredSize?.height ?? el.estimatedSize?.height ?? 100,
+      };
+      if (boxesOverlap(targetBox, elBox)) {
+        overlappingZIndexes.push(elZ);
+      }
+    });
+
+    // 겹치는 요소가 없으면 단순히 -1
+    // 겹치는 요소가 있으면 바로 아래 요소의 zIndex보다 1 작게 설정
+    let newZIndex: number;
+    if (overlappingZIndexes.length === 0) {
+      newZIndex = currentZIndex - 1;
+    } else {
+      const maxOverlappingZ = Math.max(...overlappingZIndexes);
+      newZIndex = maxOverlappingZ - 1;
+    }
+
+    const updatedPositions: KeyPositions = {
+      ...positions,
+      [selectedKeyType]: pos.map((p, i) =>
+        i === index ? { ...p, zIndex: newZIndex } : p
+      ),
+    };
+
+    // 로컬 업데이트 플래그 설정 (백엔드 이벤트 무시)
+    setLocalUpdateInProgress(true);
+    setPositions(updatedPositions);
+
+    try {
+      await window.api.keys.updatePositions(updatedPositions);
+    } catch (error) {
+      console.error("Failed to move key backward", error);
+    } finally {
+      setLocalUpdateInProgress(false);
+    }
   };
 
   const handleResetCurrentMode = async () => {
@@ -827,6 +1009,8 @@ export function useKeyManager() {
     handleDeleteKey,
     handleMoveToFront,
     handleMoveToBack,
+    handleMoveForward,
+    handleMoveBackward,
     handleResetCurrentMode,
     handleUndo,
     handleRedo,

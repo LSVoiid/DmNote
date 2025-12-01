@@ -60,6 +60,8 @@ export default function App() {
     handleDeleteKey,
     handleMoveToFront,
     handleMoveToBack,
+    handleMoveForward,
+    handleMoveBackward,
     handleResetCurrentMode,
     handleUndo,
     handleRedo,
@@ -408,6 +410,8 @@ export default function App() {
             onKeyDuplicate={handleDuplicateKey}
             onMoveToFront={handleMoveToFront}
             onMoveToBack={handleMoveToBack}
+            onMoveForward={handleMoveForward}
+            onMoveBackward={handleMoveBackward}
             color={color}
             activeTool={activeTool}
             showConfirm={showConfirm}

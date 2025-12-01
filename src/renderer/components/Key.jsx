@@ -32,6 +32,7 @@ export default function DraggableKey({
   zoom = 1,
   panX = 0,
   panY = 0,
+  zIndex = 0,
 }) {
   const { displayName } = getKeyInfoByGlobalKey(keyName);
   const {
@@ -302,8 +303,9 @@ export default function DraggableKey({
       imageRendering: "auto",
       isolation: "isolate",
       boxSizing: "border-box",
+      zIndex: position.zIndex ?? zIndex,
     }),
-    [renderDx, renderDy, width, height, inactiveImage]
+    [renderDx, renderDy, width, height, inactiveImage, zIndex, position.zIndex]
   );
 
   const imageStyle = useMemo(

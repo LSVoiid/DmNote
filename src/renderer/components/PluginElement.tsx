@@ -77,6 +77,8 @@ interface PluginElementProps {
   zoom?: number;
   panX?: number;
   panY?: number;
+  arrayIndex?: number;
+  keyCount?: number;
   isSelected?: boolean;
   selectedElements?: SelectedElement[];
   onMultiDrag?: (deltaX: number, deltaY: number) => void;
@@ -91,6 +93,8 @@ export const PluginElement: React.FC<PluginElementProps> = ({
   zoom = 1,
   panX = 0,
   panY = 0,
+  arrayIndex = 0,
+  keyCount = 0,
   isSelected = false,
   selectedElements = [],
   onMultiDrag,
@@ -111,7 +115,7 @@ export const PluginElement: React.FC<PluginElementProps> = ({
   const definition = element.definitionId
     ? definitions.get(element.definitionId)
     : undefined;
-  const { i18n } = useTranslation();
+  const { i18n, t } = useTranslation();
   const locale = i18n.language;
   const localeRef = useRef(locale);
 
@@ -988,7 +992,9 @@ export const PluginElement: React.FC<PluginElementProps> = ({
       left: 0,
       top: 0,
       transform: `translate3d(${renderX}px, ${renderY}px, 0)`,
-      zIndex: element.zIndex ?? 50, // 기본값: 키(0-1)보다 위, 컨텍스트 메뉴(1000)보다 아래
+      // 명시적인 zIndex가 있으면 사용, 없으면 키 개수 + 배열 인덱스로 계산
+      // 키들 뒤에 순서대로 배치되어 통합 z-order 동작
+      zIndex: element.zIndex ?? keyCount + arrayIndex,
       cursor:
         element.draggable && windowType === "main"
           ? "move"
@@ -1007,6 +1013,8 @@ export const PluginElement: React.FC<PluginElementProps> = ({
       element.onClick,
       element.style,
       windowType,
+      arrayIndex,
+      keyCount,
     ]
   );
 
@@ -1106,8 +1114,16 @@ export const PluginElement: React.FC<PluginElementProps> = ({
       });
     });
 
+    // z-order 항목 추가
+    items.push(
+      { id: "bringToFront", label: t("contextMenu.bringToFront") },
+      { id: "bringForward", label: t("contextMenu.bringForward") },
+      { id: "sendBackward", label: t("contextMenu.sendBackward") },
+      { id: "sendToBack", label: t("contextMenu.sendToBack") }
+    );
+
     return items;
-  }, [element.contextMenu, pluginTranslate]);
+  }, [element.contextMenu, pluginTranslate, t]);
 
   const createActionsProxy = useCallback(
     (elementId: string) =>
@@ -1156,6 +1172,14 @@ export const PluginElement: React.FC<PluginElementProps> = ({
       } else {
         usePluginDisplayElementStore.getState().removeElement(element.fullId);
       }
+    } else if (itemId === "bringToFront") {
+      usePluginDisplayElementStore.getState().bringToFront(element.fullId);
+    } else if (itemId === "bringForward") {
+      usePluginDisplayElementStore.getState().bringForward(element.fullId);
+    } else if (itemId === "sendBackward") {
+      usePluginDisplayElementStore.getState().sendBackward(element.fullId);
+    } else if (itemId === "sendToBack") {
+      usePluginDisplayElementStore.getState().sendToBack(element.fullId);
     } else if (itemId.startsWith("custom-")) {
       const index = parseInt(itemId.replace("custom-", ""), 10);
       const customItem = element.contextMenu?.customItems?.[index];

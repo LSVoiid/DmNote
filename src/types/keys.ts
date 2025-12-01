@@ -132,6 +132,7 @@ export const keyPositionSchema = z.object({
   noteGlowOpacity: z.number().int().min(0).max(100).optional().default(70),
   noteGlowColor: noteColorSchema.optional(),
   className: z.string().optional().or(z.literal("")),
+  zIndex: z.number().optional(),
   counter: z
     .any()
     .transform((value) => normalizeCounterSettings(value))

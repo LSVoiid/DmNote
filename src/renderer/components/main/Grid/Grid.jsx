@@ -46,6 +46,8 @@ export default function Grid({
   onKeyDuplicate,
   onMoveToFront,
   onMoveToBack,
+  onMoveForward,
+  onMoveBackward,
   color,
   activeTool,
   shouldSkipModalAnimation,
@@ -220,6 +222,7 @@ export default function Grid({
         position={position}
         keyName={keyMappings[selectedKeyType]?.[index] || ""}
         onPositionChange={onPositionChange}
+        zIndex={index}
         onClick={() => {
           if (isContextOpen) {
             setIsContextOpen(false);
@@ -645,6 +648,14 @@ export default function Grid({
             } else if (id === "bringToFront") {
               if (typeof onMoveToFront === "function") {
                 onMoveToFront(contextIndex);
+              }
+            } else if (id === "bringForward") {
+              if (typeof onMoveForward === "function") {
+                onMoveForward(contextIndex);
+              }
+            } else if (id === "sendBackward") {
+              if (typeof onMoveBackward === "function") {
+                onMoveBackward(contextIndex);
               }
             } else if (id === "sendToBack") {
               if (typeof onMoveToBack === "function") {

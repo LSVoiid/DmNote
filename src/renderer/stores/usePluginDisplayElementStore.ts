@@ -3,6 +3,7 @@ import {
   PluginDisplayElementInternal,
   PluginDefinitionInternal,
 } from "@src/types/api";
+import { useKeyStore } from "./useKeyStore";
 
 // syncToOverlay 쓰로틀링을 위한 변수
 let syncScheduled = false;
@@ -15,6 +16,25 @@ let pendingStateUpdates: Map<
   string,
   Partial<PluginDisplayElementInternal>
 > = new Map();
+
+type BoundingBox = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+/**
+ * 두 바운딩 박스가 겹치는지 확인
+ */
+function boxesOverlap(a: BoundingBox, b: BoundingBox): boolean {
+  return (
+    a.x < b.x + b.width &&
+    a.x + a.width > b.x &&
+    a.y < b.y + b.height &&
+    a.y + a.height > b.y
+  );
+}
 
 interface PluginDisplayElementStore {
   elements: PluginDisplayElementInternal[];
@@ -32,6 +52,11 @@ interface PluginDisplayElementStore {
   clearByPluginId: (pluginId: string) => void;
   setElements: (elements: PluginDisplayElementInternal[]) => void;
   registerDefinition: (definition: PluginDefinitionInternal) => void;
+  // z-order 관련 함수들
+  bringToFront: (fullId: string) => void;
+  sendToBack: (fullId: string) => void;
+  bringForward: (fullId: string) => void;
+  sendBackward: (fullId: string) => void;
 }
 
 export const usePluginDisplayElementStore = create<PluginDisplayElementStore>(
@@ -139,6 +164,196 @@ export const usePluginDisplayElementStore = create<PluginDisplayElementStore>(
         const newDefinitions = new Map(state.definitions);
         newDefinitions.set(definition.id, definition);
         return { definitions: newDefinitions };
+      }),
+
+    // z-order: 맨 앞으로 (가장 높은 zIndex로 설정)
+    bringToFront: (fullId) =>
+      set((state) => {
+        const element = state.elements.find((el) => el.fullId === fullId);
+        if (!element) return state;
+
+        // 현재 탭의 키들과 플러그인 요소들의 zIndex 수집
+        const { selectedKeyType, positions } = useKeyStore.getState();
+        const keyPositions = positions[selectedKeyType] || [];
+        const keyZIndexes = keyPositions.map((p, i) => p.zIndex ?? i);
+        const pluginZIndexes = state.elements.map((el) => el.zIndex ?? 0);
+        const maxZIndex = Math.max(0, ...keyZIndexes, ...pluginZIndexes);
+
+        const newElements = state.elements.map((el) =>
+          el.fullId === fullId ? { ...el, zIndex: maxZIndex + 1 } : el
+        );
+
+        if ((window as any).__dmn_window_type === "main") {
+          syncToOverlayThrottled(newElements);
+        }
+        return { elements: newElements };
+      }),
+
+    // z-order: 맨 뒤로 (가장 낮은 zIndex로 설정)
+    sendToBack: (fullId) =>
+      set((state) => {
+        const element = state.elements.find((el) => el.fullId === fullId);
+        if (!element) return state;
+
+        // 현재 탭의 키들과 플러그인 요소들의 zIndex 수집
+        const { selectedKeyType, positions } = useKeyStore.getState();
+        const keyPositions = positions[selectedKeyType] || [];
+        const keyZIndexes = keyPositions.map((p, i) => p.zIndex ?? i);
+        const pluginZIndexes = state.elements.map((el) => el.zIndex ?? 0);
+        const minZIndex = Math.min(0, ...keyZIndexes, ...pluginZIndexes);
+
+        const newElements = state.elements.map((el) =>
+          el.fullId === fullId ? { ...el, zIndex: minZIndex - 1 } : el
+        );
+
+        if ((window as any).__dmn_window_type === "main") {
+          syncToOverlayThrottled(newElements);
+        }
+        return { elements: newElements };
+      }),
+
+    // z-order: 앞으로 (겹치는 요소들 중 바로 위 요소와 순서 교환)
+    bringForward: (fullId) =>
+      set((state) => {
+        const element = state.elements.find((el) => el.fullId === fullId);
+        if (!element) return state;
+
+        const currentZIndex = element.zIndex ?? 0;
+        const { selectedKeyType, positions } = useKeyStore.getState();
+        const keyPositions = positions[selectedKeyType] || [];
+
+        // 대상 요소의 바운딩 박스
+        const targetBox = {
+          x: element.position.x,
+          y: element.position.y,
+          width:
+            element.measuredSize?.width ?? element.estimatedSize?.width ?? 100,
+          height:
+            element.measuredSize?.height ??
+            element.estimatedSize?.height ??
+            100,
+        };
+
+        // 겹치는 요소들의 zIndex 수집 (현재 요소보다 위에 있는 것만)
+        const overlappingZIndexes: number[] = [];
+
+        // 키들 중 겹치는 것
+        keyPositions.forEach((p, i) => {
+          const keyZ = p.zIndex ?? i;
+          if (keyZ <= currentZIndex) return;
+
+          const keyBox = { x: p.dx, y: p.dy, width: p.width, height: p.height };
+          if (boxesOverlap(targetBox, keyBox)) {
+            overlappingZIndexes.push(keyZ);
+          }
+        });
+
+        // 다른 플러그인 요소들 중 겹치는 것
+        state.elements.forEach((el) => {
+          if (el.fullId === fullId) return;
+          const elZ = el.zIndex ?? 0;
+          if (elZ <= currentZIndex) return;
+
+          const elBox = {
+            x: el.position.x,
+            y: el.position.y,
+            width: el.measuredSize?.width ?? el.estimatedSize?.width ?? 100,
+            height: el.measuredSize?.height ?? el.estimatedSize?.height ?? 100,
+          };
+          if (boxesOverlap(targetBox, elBox)) {
+            overlappingZIndexes.push(elZ);
+          }
+        });
+
+        // 겹치는 요소가 없으면 단순히 +1, 있으면 바로 위 요소보다 1 크게
+        let newZIndex: number;
+        if (overlappingZIndexes.length === 0) {
+          newZIndex = currentZIndex + 1;
+        } else {
+          const minOverlappingZ = Math.min(...overlappingZIndexes);
+          newZIndex = minOverlappingZ + 1;
+        }
+
+        const newElements = state.elements.map((el) =>
+          el.fullId === fullId ? { ...el, zIndex: newZIndex } : el
+        );
+
+        if ((window as any).__dmn_window_type === "main") {
+          syncToOverlayThrottled(newElements);
+        }
+        return { elements: newElements };
+      }),
+
+    // z-order: 뒤로 (겹치는 요소들 중 바로 아래 요소와 순서 교환)
+    sendBackward: (fullId) =>
+      set((state) => {
+        const element = state.elements.find((el) => el.fullId === fullId);
+        if (!element) return state;
+
+        const currentZIndex = element.zIndex ?? 0;
+        const { selectedKeyType, positions } = useKeyStore.getState();
+        const keyPositions = positions[selectedKeyType] || [];
+
+        // 대상 요소의 바운딩 박스
+        const targetBox = {
+          x: element.position.x,
+          y: element.position.y,
+          width:
+            element.measuredSize?.width ?? element.estimatedSize?.width ?? 100,
+          height:
+            element.measuredSize?.height ??
+            element.estimatedSize?.height ??
+            100,
+        };
+
+        // 겹치는 요소들의 zIndex 수집 (현재 요소보다 아래에 있는 것만)
+        const overlappingZIndexes: number[] = [];
+
+        // 키들 중 겹치는 것
+        keyPositions.forEach((p, i) => {
+          const keyZ = p.zIndex ?? i;
+          if (keyZ >= currentZIndex) return;
+
+          const keyBox = { x: p.dx, y: p.dy, width: p.width, height: p.height };
+          if (boxesOverlap(targetBox, keyBox)) {
+            overlappingZIndexes.push(keyZ);
+          }
+        });
+
+        // 다른 플러그인 요소들 중 겹치는 것
+        state.elements.forEach((el) => {
+          if (el.fullId === fullId) return;
+          const elZ = el.zIndex ?? 0;
+          if (elZ >= currentZIndex) return;
+
+          const elBox = {
+            x: el.position.x,
+            y: el.position.y,
+            width: el.measuredSize?.width ?? el.estimatedSize?.width ?? 100,
+            height: el.measuredSize?.height ?? el.estimatedSize?.height ?? 100,
+          };
+          if (boxesOverlap(targetBox, elBox)) {
+            overlappingZIndexes.push(elZ);
+          }
+        });
+
+        // 겹치는 요소가 없으면 단순히 -1, 있으면 바로 아래 요소보다 1 작게
+        let newZIndex: number;
+        if (overlappingZIndexes.length === 0) {
+          newZIndex = currentZIndex - 1;
+        } else {
+          const maxOverlappingZ = Math.max(...overlappingZIndexes);
+          newZIndex = maxOverlappingZ - 1;
+        }
+
+        const newElements = state.elements.map((el) =>
+          el.fullId === fullId ? { ...el, zIndex: newZIndex } : el
+        );
+
+        if ((window as any).__dmn_window_type === "main") {
+          syncToOverlayThrottled(newElements);
+        }
+        return { elements: newElements };
       }),
   })
 );

@@ -209,6 +209,8 @@
     "counterReset": "Reset Counter",
     "bringToFront": "Bring to Front",
     "sendToBack": "Send to Back",
+    "bringForward": "Bring Forward",
+    "sendBackward": "Send Backward",
     "tabCssSetting": "Tab CSS Settings"
   },
   "noteColor": {
