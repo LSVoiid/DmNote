@@ -136,6 +136,27 @@ export default function Grid({
     clientToGridCoords,
   });
 
+  // 선택된 요소의 z-order 조작 핸들러
+  const handleSelectedMoveForward = useCallback(() => {
+    if (selectedElements.length !== 1) return;
+    const selected = selectedElements[0];
+    if (selected.type === "key") {
+      onMoveForward(selected.index);
+    } else if (selected.type === "plugin") {
+      usePluginDisplayElementStore.getState().bringForward(selected.id);
+    }
+  }, [selectedElements, onMoveForward]);
+
+  const handleSelectedMoveBackward = useCallback(() => {
+    if (selectedElements.length !== 1) return;
+    const selected = selectedElements[0];
+    if (selected.type === "key") {
+      onMoveBackward(selected.index);
+    } else if (selected.type === "plugin") {
+      usePluginDisplayElementStore.getState().sendBackward(selected.id);
+    }
+  }, [selectedElements, onMoveBackward]);
+
   // 키보드 단축키 훅 사용
   useGridKeyboard({
     selectedElements,
@@ -148,6 +169,8 @@ export default function Grid({
     canRedo,
     onUndo,
     onRedo,
+    onMoveForward: handleSelectedMoveForward,
+    onMoveBackward: handleSelectedMoveBackward,
   });
 
   // 키 컨텍스트 메뉴

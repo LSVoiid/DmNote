@@ -94,8 +94,8 @@ export function useGridContextMenu({
         { id: "duplicate", label: t("contextMenu.duplicateKey") },
         { id: "counterReset", label: t("contextMenu.counterReset") },
         { id: "bringToFront", label: t("contextMenu.bringToFront") },
-        { id: "bringForward", label: t("contextMenu.bringForward") },
-        { id: "sendBackward", label: t("contextMenu.sendBackward") },
+        // { id: "bringForward", label: t("contextMenu.bringForward") },
+        // { id: "sendBackward", label: t("contextMenu.sendBackward") },
         { id: "sendToBack", label: t("contextMenu.sendToBack") },
       ];
 

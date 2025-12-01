@@ -29,6 +29,8 @@ interface UseGridKeyboardParams {
   canRedo: boolean;
   onUndo?: () => void;
   onRedo?: () => void;
+  onMoveForward?: () => void;
+  onMoveBackward?: () => void;
 }
 
 /**
@@ -45,6 +47,8 @@ export function useGridKeyboard({
   canRedo,
   onUndo,
   onRedo,
+  onMoveForward,
+  onMoveBackward,
 }: UseGridKeyboardParams): void {
   const lastArrowKeyTime = useRef(0);
 
@@ -128,6 +132,20 @@ export function useGridKeyboard({
         clearSelection();
         return;
       }
+
+      // ] 키로 앞으로 (bring forward)
+      if (e.key === "]" && typeof onMoveForward === "function") {
+        e.preventDefault();
+        onMoveForward();
+        return;
+      }
+
+      // [ 키로 뒤로 (send backward)
+      if (e.key === "[" && typeof onMoveBackward === "function") {
+        e.preventDefault();
+        onMoveBackward();
+        return;
+      }
     };
 
     window.addEventListener("keydown", handleKeyDown);
@@ -139,6 +157,8 @@ export function useGridKeyboard({
     clearSelection,
     copySelectedElements,
     pasteElements,
+    onMoveForward,
+    onMoveBackward,
   ]);
 
   // Undo/Redo 단축키 핸들러

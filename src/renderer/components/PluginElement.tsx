@@ -1117,8 +1117,8 @@ export const PluginElement: React.FC<PluginElementProps> = ({
     // z-order 항목 추가
     items.push(
       { id: "bringToFront", label: t("contextMenu.bringToFront") },
-      { id: "bringForward", label: t("contextMenu.bringForward") },
-      { id: "sendBackward", label: t("contextMenu.sendBackward") },
+      // { id: "bringForward", label: t("contextMenu.bringForward") },
+      // { id: "sendBackward", label: t("contextMenu.sendBackward") },
       { id: "sendToBack", label: t("contextMenu.sendToBack") }
     );
 
