@@ -44,6 +44,7 @@ const FALLBACK_POSITION: KeyPosition = {
   noteGlowSize: 20,
   noteGlowOpacity: 70,
   noteGlowColor: "#FFFFFF",
+  noteAutoYCorrection: true,
   className: "",
   counter: createDefaultCounterSettings(),
 };
@@ -163,8 +164,8 @@ export default function App() {
       }
 
       if (delayMs <= 0) {
-        // 딜레이가 0일 경우 즉시 업데이트 
-        // 기존 타이머 모두 취소 
+        // 딜레이가 0일 경우 즉시 업데이트
+        // 기존 타이머 모두 취소
         timerEntry.timers.forEach((timer) => clearTimeout(timer));
         timerEntry.timers.clear();
         setKeyActiveSignal(key, isDown);
@@ -339,7 +340,9 @@ export default function App() {
       currentKeys.map((key, index) => {
         const originalPosition = currentPositions[index] ?? FALLBACK_POSITION;
         const position = displayPositions[index] ?? originalPosition;
-        const trackStartY = topMostY;
+        // noteAutoYCorrection이 false면 원래 위치 사용, 아니면 topMostY로 보정
+        const useAutoCorrection = position.noteAutoYCorrection !== false;
+        const trackStartY = useAutoCorrection ? topMostY : position.dy;
 
         return {
           trackKey: key,

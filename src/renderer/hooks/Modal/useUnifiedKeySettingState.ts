@@ -53,6 +53,7 @@ export interface KeyData {
   noteGlowSize?: number;
   noteGlowOpacity?: number;
   noteGlowColor?: NoteColor;
+  noteAutoYCorrection?: boolean;
   className?: string;
 }
 
@@ -93,6 +94,7 @@ export interface NoteTabState {
   glowOpacityFocused: boolean;
   displayGlowSize: string;
   displayGlowOpacity: string;
+  autoYCorrection: boolean;
 }
 
 // 카운터 탭 상태 타입
@@ -130,6 +132,7 @@ export interface NotePreviewData {
   noteGlowSize?: number;
   noteGlowOpacity?: number;
   noteGlowColor?: NoteColor;
+  noteAutoYCorrection?: boolean;
 }
 
 export interface CounterPreviewData {
@@ -169,6 +172,7 @@ export interface SaveData {
   noteGlowSize: number;
   noteGlowOpacity: number;
   noteGlowColor: NoteColor;
+  noteAutoYCorrection: boolean;
   counter: KeyCounterSettings;
 }
 
@@ -240,6 +244,7 @@ export function createInitialNoteState(keyData: KeyData): NoteTabState {
       typeof keyData.noteGlowOpacity === "number"
         ? `${keyData.noteGlowOpacity}%`
         : "70%",
+    autoYCorrection: keyData.noteAutoYCorrection !== false,
   };
 }
 
@@ -385,6 +390,7 @@ export function useUnifiedKeySettingState({
       noteGlowSize: noteState.glowSize,
       noteGlowOpacity: noteState.glowOpacity,
       noteGlowColor: glowColorValue,
+      noteAutoYCorrection: noteState.autoYCorrection,
       // 카운터 데이터
       counter: normalizeCounterSettings({
         placement: counterState.placement,

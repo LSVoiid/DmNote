@@ -98,7 +98,8 @@
     "save": "저장",
     "cancel": "취소",
     "noteGlow": "글로우 효과",
-    "noteGlowColor": "글로우 색상"
+    "noteGlowColor": "글로우 색상",
+    "noteAutoYCorrection": "Y축 자동 보정"
   },
   "imagePicker": {
     "idle": "대기",

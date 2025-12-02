@@ -98,7 +98,8 @@
     "active": "Active",
     "save": "Apply",
     "cancel": "Cancel",
-    "noteGlowColor": "Glow Color"
+    "noteGlowColor": "Glow Color",
+    "noteAutoYCorrection": "Auto Y Correction"
   },
   "imagePicker": {
     "idle": "Idle",

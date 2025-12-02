@@ -95,6 +95,8 @@ pub struct KeyPosition {
     pub note_glow_opacity: u32,
     #[serde(default)]
     pub note_glow_color: Option<NoteColor>,
+    #[serde(default = "default_note_auto_y_correction")]
+    pub note_auto_y_correction: bool,
     #[serde(default)]
     pub class_name: Option<String>,
     #[serde(default)]
@@ -184,6 +186,7 @@ fn default_gap() -> u32 { 6 }
 fn default_note_glow_enabled() -> bool { false }
 fn default_note_glow_size() -> u32 { 20 }
 fn default_note_glow_opacity() -> u32 { 70 }
+fn default_note_auto_y_correction() -> bool { true }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]

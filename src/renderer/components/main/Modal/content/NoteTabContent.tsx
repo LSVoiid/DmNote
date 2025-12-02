@@ -372,6 +372,23 @@ const NoteTabContent: React.FC<NoteTabContentProps> = ({
         </div>
       </div>
 
+      <div className="h-px w-full bg-[#2A2A30]" />
+
+      {/* Y축 자동 보정 */}
+      <div className="flex justify-between w-full items-center">
+        <p className="text-white text-style-2">
+          {t("keySetting.noteAutoYCorrection")}
+        </p>
+        <Checkbox
+          checked={state.autoYCorrection}
+          onChange={() => {
+            const newValue = !state.autoYCorrection;
+            setState((prev) => ({ ...prev, autoYCorrection: newValue }));
+            onPreview({ noteAutoYCorrection: newValue });
+          }}
+        />
+      </div>
+
       {/* 컬러 피커 */}
       {state.showPicker && (
         <ColorPicker

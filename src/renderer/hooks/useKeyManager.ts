@@ -49,6 +49,7 @@ type KeyUpdatePayload = {
   noteGlowOpacity?: number;
   noteGlowEnabled?: boolean;
   noteGlowColor?: NoteColor;
+  noteAutoYCorrection?: boolean;
   className?: string;
 };
 
@@ -149,6 +150,10 @@ export function useKeyManager() {
                 noteGlowOpacity:
                   keyData.noteGlowOpacity ?? value.noteGlowOpacity ?? 70,
                 noteGlowColor: keyData.noteGlowColor ?? value.noteGlowColor,
+                noteAutoYCorrection:
+                  keyData.noteAutoYCorrection ??
+                  value.noteAutoYCorrection ??
+                  true,
                 className: keyData.className ?? value.className ?? "",
               }
             : value
@@ -200,6 +205,7 @@ export function useKeyManager() {
           noteGlowSize: 20,
           noteGlowOpacity: 70,
           noteGlowColor: "#FFFFFF",
+          noteAutoYCorrection: true,
           className: "",
           counter: createDefaultCounterSettings(),
         },
@@ -248,6 +254,7 @@ export function useKeyManager() {
           noteGlowSize: 20,
           noteGlowOpacity: 70,
           noteGlowColor: "#FFFFFF",
+          noteAutoYCorrection: true,
           className: "",
           counter: createDefaultCounterSettings(),
         },
@@ -305,6 +312,7 @@ export function useKeyManager() {
       noteGlowSize: sourcePosition.noteGlowSize ?? 20,
       noteGlowOpacity: sourcePosition.noteGlowOpacity ?? 70,
       noteGlowColor: clonedNoteColor,
+      noteAutoYCorrection: sourcePosition.noteAutoYCorrection ?? true,
     };
 
     const updatedMappings: KeyMappings = {
