@@ -30,6 +30,7 @@ import {
   registerExposedActions,
   clearExposedActions,
 } from "@utils/displayElementActions";
+import { setupPluginDropdownInteractions } from "@utils/pluginDropdownManager";
 
 /**
  * 리사이즈 앵커에 따라 크기 변경 시 위치 보정값 계산
@@ -723,59 +724,6 @@ export const PluginElement: React.FC<PluginElementProps> = ({
         }
       };
 
-      // 드롭다운 토글 기능
-      const handleDropdownToggle = (e: Event) => {
-        const targetEl = e.target as HTMLElement;
-        const toggleBtn = targetEl.closest("[data-dropdown-toggle]");
-        const dropdownItem = targetEl.closest(
-          "[data-dropdown-menu] button"
-        ) as HTMLElement;
-
-        if (toggleBtn) {
-          const dropdown = toggleBtn.closest(".plugin-dropdown");
-          const menu = dropdown?.querySelector("[data-dropdown-menu]");
-          const arrow = toggleBtn.querySelector("svg");
-
-          if (menu && arrow) {
-            const isHidden = menu.classList.contains("hidden");
-            if (isHidden) {
-              menu.classList.remove("hidden");
-              menu.classList.add("flex");
-              arrow.style.transform = "rotate(180deg)";
-            } else {
-              menu.classList.add("hidden");
-              menu.classList.remove("flex");
-              arrow.style.transform = "rotate(0deg)";
-            }
-          }
-          e.stopPropagation();
-        } else if (dropdownItem) {
-          const dropdown = dropdownItem.closest(".plugin-dropdown");
-          const menu = dropdown?.querySelector("[data-dropdown-menu]");
-          const arrow = dropdown?.querySelector("svg");
-          const display = dropdown?.querySelector(
-            "[data-dropdown-toggle] span"
-          );
-          const value = dropdownItem.getAttribute("data-value");
-
-          if (dropdown && menu && arrow && display && value) {
-            // 선택 값 업데이트
-            dropdown.setAttribute("data-selected", value);
-            display.textContent = dropdownItem.textContent?.trim() || value;
-
-            // 메뉴 닫기
-            menu.classList.add("hidden");
-            menu.classList.remove("flex");
-            arrow.style.transform = "rotate(0deg)";
-
-            // change 이벤트 발생
-            const changeEvent = new Event("change", { bubbles: true });
-            dropdown.dispatchEvent(changeEvent);
-          }
-          e.stopPropagation();
-        }
-      };
-
       const handleEvent = (e: Event) => {
         const targetEl = e.target as HTMLElement;
         const handlerAttr =
@@ -808,8 +756,9 @@ export const PluginElement: React.FC<PluginElementProps> = ({
         }
       };
 
+      const detachDropdowns = setupPluginDropdownInteractions(target);
+
       target.addEventListener("click", handleCheckboxToggle);
-      target.addEventListener("click", handleDropdownToggle);
       target.addEventListener("click", handleEvent);
       target.addEventListener("change", handleEvent);
       target.addEventListener("input", handleEvent);
@@ -818,11 +767,11 @@ export const PluginElement: React.FC<PluginElementProps> = ({
       // cleanup
       return () => {
         target.removeEventListener("click", handleCheckboxToggle);
-        target.removeEventListener("click", handleDropdownToggle);
         target.removeEventListener("click", handleEvent);
         target.removeEventListener("change", handleEvent);
         target.removeEventListener("input", handleEvent);
         target.removeEventListener("blur", handleInputBlur, true);
+        detachDropdowns();
       };
     }
 

@@ -9,6 +9,7 @@ import {
   createPanel,
   createFormRow,
 } from "@utils/pluginComponents";
+import { setupPluginDropdownInteractions } from "@utils/pluginDropdownManager";
 import { displayElementApi } from "./pluginDisplayElements";
 import { rawKeyEventBus } from "@utils/rawKeyEventBus";
 
@@ -639,59 +640,7 @@ const api: DMNoteAPI = {
               }
             });
 
-            // 드롭다운 토글 기능
-            dialogContent.addEventListener("click", (e: Event) => {
-              const target = e.target as HTMLElement;
-              const toggleBtn = target.closest("[data-dropdown-toggle]");
-              const dropdownItem = target.closest(
-                "[data-dropdown-menu] button"
-              ) as HTMLElement;
-
-              if (toggleBtn) {
-                const dropdown = toggleBtn.closest(".plugin-dropdown");
-                const menu = dropdown?.querySelector("[data-dropdown-menu]");
-                const arrow = toggleBtn.querySelector("svg");
-
-                if (menu && arrow) {
-                  const isHidden = menu.classList.contains("hidden");
-                  if (isHidden) {
-                    menu.classList.remove("hidden");
-                    menu.classList.add("flex");
-                    arrow.style.transform = "rotate(180deg)";
-                  } else {
-                    menu.classList.add("hidden");
-                    menu.classList.remove("flex");
-                    arrow.style.transform = "rotate(0deg)";
-                  }
-                }
-                e.stopPropagation();
-              } else if (dropdownItem) {
-                const dropdown = dropdownItem.closest(".plugin-dropdown");
-                const menu = dropdown?.querySelector("[data-dropdown-menu]");
-                const arrow = dropdown?.querySelector("svg");
-                const display = dropdown?.querySelector(
-                  "[data-dropdown-toggle] span"
-                );
-                const value = dropdownItem.getAttribute("data-value");
-
-                if (dropdown && menu && arrow && display && value) {
-                  // 선택 값 업데이트
-                  dropdown.setAttribute("data-selected", value);
-                  display.textContent =
-                    dropdownItem.textContent?.trim() || value;
-
-                  // 메뉴 닫기
-                  menu.classList.add("hidden");
-                  menu.classList.remove("flex");
-                  arrow.style.transform = "rotate(0deg)";
-
-                  // change 이벤트 발생
-                  const changeEvent = new Event("change", { bubbles: true });
-                  dropdown.dispatchEvent(changeEvent);
-                }
-                e.stopPropagation();
-              }
-            });
+            setupPluginDropdownInteractions(dialogContent as HTMLElement);
 
             // Input blur 핸들러: min/max 자동 정규화
             const handleInputBlur = (e: Event) => {
