@@ -2,17 +2,9 @@ import { create } from "zustand";
 
 const GITHUB_REPO = "lee-sihun/DmNote";
 const STORAGE_KEY = "dmnote:skipped-version";
-const COOLDOWN_KEY = "dmnote:update-check-cooldown";
-const COOLDOWN_MS = 5 * 60 * 1000; // 5분
+const CACHE_KEY = "dmnote:update-check-cache";
+const CACHE_MS = 5 * 60 * 1000; // 5분 캐시
 const CURRENT_VERSION = __APP_VERSION__;
-
-// TODO: UI 테스트용 - 쿨다운 비활성화 (나중에 false로 변경)
-const DISABLE_COOLDOWN = false;
-
-// TODO: UI 테스트용 - 모달 강제 표시 (나중에 "none"으로 변경)
-// "none" = 정상 동작, "update" = 업데이트 있음 모달, "latest" = 최신 버전 모달
-type ForceShowModalType = "none" | "update" | "latest";
-const FORCE_SHOW_MODAL = "none" as ForceShowModalType;
 
 interface GithubRelease {
   tag_name: string;
@@ -38,11 +30,11 @@ interface UpdateState {
   isChecking: boolean;
   error: string | null;
   dismissed: boolean;
-  cooldownUntil: number | null;
+  cacheUntil: number | null;
+  lastCheckHadUpdate: boolean; // 마지막 체크 결과 (캐시용)
   checkForUpdates: (manual?: boolean) => Promise<void>;
   dismissUpdate: () => void;
   skipVersion: () => void;
-  isOnCooldown: () => boolean;
 }
 
 function compareVersions(current: string, latest: string): number {
@@ -83,15 +75,15 @@ function clearSkippedVersion(): void {
   }
 }
 
-function getCooldownUntil(): number | null {
+function getCacheUntil(): number | null {
   try {
-    const stored = localStorage.getItem(COOLDOWN_KEY);
+    const stored = localStorage.getItem(CACHE_KEY);
     if (stored) {
       const time = parseInt(stored, 10);
       if (time > Date.now()) {
         return time;
       }
-      localStorage.removeItem(COOLDOWN_KEY);
+      localStorage.removeItem(CACHE_KEY);
     }
   } catch {
     // ignore
@@ -99,9 +91,9 @@ function getCooldownUntil(): number | null {
   return null;
 }
 
-function setCooldownUntil(time: number): void {
+function setCacheUntil(time: number): void {
   try {
-    localStorage.setItem(COOLDOWN_KEY, String(time));
+    localStorage.setItem(CACHE_KEY, String(time));
   } catch {
     // ignore
   }
@@ -114,19 +106,47 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
   isChecking: false,
   error: null,
   dismissed: false,
-  cooldownUntil: getCooldownUntil(),
-
-  isOnCooldown: () => {
-    if (DISABLE_COOLDOWN) return false;
-    const { cooldownUntil } = get();
-    return cooldownUntil !== null && cooldownUntil > Date.now();
-  },
+  cacheUntil: getCacheUntil(),
+  lastCheckHadUpdate: false,
 
   checkForUpdates: async (manual = false) => {
     const state = get();
 
     // 이미 체크 중이면 무시
     if (state.isChecking) return;
+
+    // 캐시가 유효하고 캐시된 결과가 있으면 API 호출 없이 캐시 사용
+    const now = Date.now();
+    if (state.cacheUntil && state.cacheUntil > now && state.updateInfo) {
+      // 캐시된 결과로 모달 표시 (수동 체크일 때만)
+      if (manual) {
+        const skippedVersion = getSkippedVersion();
+        const hasUpdate = state.lastCheckHadUpdate;
+
+        // 스킵한 버전이 아니거나 업데이트가 없으면 모달 표시
+        if (hasUpdate && skippedVersion !== state.updateInfo.latestVersion) {
+          set({
+            updateAvailable: true,
+            isLatestVersion: false,
+            dismissed: false,
+          });
+        } else if (hasUpdate) {
+          // 스킵한 버전이지만 수동 체크이므로 모달 표시
+          set({
+            updateAvailable: true,
+            isLatestVersion: false,
+            dismissed: false,
+          });
+        } else {
+          set({
+            updateAvailable: false,
+            isLatestVersion: true,
+            dismissed: false,
+          });
+        }
+      }
+      return;
+    }
 
     set({
       isChecking: true,
@@ -153,54 +173,52 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
       const latestVersion = release.tag_name;
       const skippedVersion = getSkippedVersion();
 
-      // 쿨다운 설정 (성공적으로 체크 완료 시)
-      const cooldownTime = Date.now() + COOLDOWN_MS;
-      setCooldownUntil(cooldownTime);
-      set({ cooldownUntil: cooldownTime });
-
-      // 건너뛴 버전이면 무시 (자동 체크일 때만)
-      if (!manual && skippedVersion === latestVersion) {
-        set({ updateAvailable: false, updateInfo: null, isChecking: false });
-        return;
-      }
+      // 캐시 설정 (성공적으로 체크 완료 시)
+      const cacheTime = now + CACHE_MS;
+      setCacheUntil(cacheTime);
 
       // 버전 비교
       const hasUpdate = compareVersions(CURRENT_VERSION, latestVersion) < 0;
 
-      // 테스트용 강제 모달 표시
-      const forceUpdate = FORCE_SHOW_MODAL === "update";
-      const forceLatest = FORCE_SHOW_MODAL === "latest";
-      const showAsUpdate = forceUpdate || (!forceLatest && hasUpdate);
-      const showAsLatest = forceLatest || (!forceUpdate && !hasUpdate);
+      const updateInfo: UpdateInfo = {
+        currentVersion: CURRENT_VERSION,
+        latestVersion,
+        releaseUrl: release.html_url,
+        releaseName: release.name || latestVersion,
+        releaseNotes: release.body || "",
+        publishedAt: release.published_at,
+      };
 
-      if (showAsUpdate) {
+      // 건너뛴 버전이면 무시 (자동 체크일 때만, 실제 업데이트가 있을 때만)
+      if (!manual && hasUpdate && skippedVersion === latestVersion) {
         set({
-          updateInfo: {
-            currentVersion: CURRENT_VERSION,
-            latestVersion,
-            releaseUrl: release.html_url,
-            releaseName: release.name || latestVersion,
-            releaseNotes: release.body || "",
-            publishedAt: release.published_at,
-          },
+          updateAvailable: false,
+          updateInfo,
+          isChecking: false,
+          cacheUntil: cacheTime,
+          lastCheckHadUpdate: hasUpdate,
+        });
+        return;
+      }
+
+      if (hasUpdate) {
+        set({
+          updateInfo,
           updateAvailable: true,
           isLatestVersion: false,
           isChecking: false,
+          cacheUntil: cacheTime,
+          lastCheckHadUpdate: true,
         });
-      } else if (showAsLatest) {
+      } else {
         // 최신 버전 모달은 수동 체크일 때만 표시
         set({
           updateAvailable: false,
           isLatestVersion: manual, // 수동 체크일 때만 true
-          updateInfo: {
-            currentVersion: CURRENT_VERSION,
-            latestVersion,
-            releaseUrl: release.html_url,
-            releaseName: release.name || latestVersion,
-            releaseNotes: release.body || "",
-            publishedAt: release.published_at,
-          },
+          updateInfo,
           isChecking: false,
+          cacheUntil: cacheTime,
+          lastCheckHadUpdate: false,
         });
         // 현재 버전이 최신이거나 더 높으면 건너뛰기 정보 초기화
         clearSkippedVersion();
@@ -238,7 +256,5 @@ export function useUpdateCheck() {
     dismissUpdate: store.dismissUpdate,
     skipVersion: store.skipVersion,
     checkForUpdates: store.checkForUpdates,
-    isOnCooldown: store.isOnCooldown,
-    cooldownUntil: store.cooldownUntil,
   };
 }

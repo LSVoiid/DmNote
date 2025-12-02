@@ -45,7 +45,7 @@ export default function Settings({ showAlert, showConfirm }) {
     setKeyCounterEnabled,
   } = useSettingsStore();
 
-  const { checkForUpdates, isChecking, isOnCooldown } = useUpdateCheck();
+  const { checkForUpdates, isChecking } = useUpdateCheck();
 
   const [hoveredKey, setHoveredKey] = useState(null);
   const [isPluginModalOpen, setPluginModalOpen] = useState(false);
@@ -729,7 +729,7 @@ export default function Settings({ showAlert, showConfirm }) {
                   <button
                     className="bg-[#2A2A30] hover:bg-[#303036] active:bg-[#393941] rounded-[7px] py-[4px] px-[9px] text-style-2 text-[#DCDEE7] disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={() => checkForUpdates(true)}
-                    disabled={isChecking || isOnCooldown()}
+                    disabled={isChecking}
                   >
                     {isChecking
                       ? t("update.checking")

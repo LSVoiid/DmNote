@@ -29,6 +29,13 @@ export default function UpdateModal({
   const { t } = useTranslation();
   const [skipChecked, setSkipChecked] = useState(false);
 
+  // 모달 열릴 때 체크박스 상태 리셋
+  React.useEffect(() => {
+    if (isOpen) {
+      setSkipChecked(false);
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const handleGoToRelease = async () => {
