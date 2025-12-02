@@ -5,6 +5,7 @@ import path from "path";
 import { visualizer } from "rollup-plugin-visualizer";
 import analyzer from "rollup-plugin-analyzer";
 import removeConsole from "./vite-plugin-remove-console.js";
+import pkg from "./package.json";
 
 export default defineConfig(() => {
   const projectRoot = __dirname;
@@ -79,6 +80,9 @@ export default defineConfig(() => {
           overlay: path.resolve(windowsRoot, "overlay/index.html"),
         },
       },
+    },
+    define: {
+      __APP_VERSION__: JSON.stringify(pkg.version),
     },
   };
 });

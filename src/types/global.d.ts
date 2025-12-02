@@ -1,4 +1,5 @@
 declare module "@styles/global.css";
 declare module "rollup-plugin-analyzer";
 
-export {};
+// Vite define 변수
+declare const __APP_VERSION__: string;

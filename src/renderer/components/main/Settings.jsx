@@ -9,6 +9,7 @@ import { PluginManagerModal } from "@components/main/Modal/content/PluginManager
 import { PluginDataDeleteModal } from "@components/main/Modal/content/PluginDataDeleteModal";
 import { applyCounterSnapshot } from "@stores/keyCounterSignals";
 import { extractPluginId } from "@utils/pluginUtils";
+import { useUpdateCheck } from "@hooks/useUpdateCheck";
 
 export default function Settings({ showAlert, showConfirm }) {
   const { t, i18n } = useTranslation();
@@ -43,6 +44,8 @@ export default function Settings({ showAlert, showConfirm }) {
     keyCounterEnabled,
     setKeyCounterEnabled,
   } = useSettingsStore();
+
+  const { checkForUpdates, isChecking, isOnCooldown } = useUpdateCheck();
 
   const [hoveredKey, setHoveredKey] = useState(null);
   const [isPluginModalOpen, setPluginModalOpen] = useState(false);
@@ -722,12 +725,23 @@ export default function Settings({ showAlert, showConfirm }) {
               {/* 버전 및 설정 초기화 */}
               <div className="flex justify-between items-center py-[14px] px-[12px] bg-[#101013] rounded-[7px]">
                 <p className="text-style-3 text-[#FFFFFF]">Ver 1.3.0</p>
-                <button
-                  className="bg-[#401C1D] rounded-[7px] py-[4px] px-[9px] text-style-2 text-[#E8DBDB]"
-                  onClick={handleResetAll}
-                >
-                  {t("settings.resetData")}
-                </button>
+                <div className="flex gap-[8px]">
+                  <button
+                    className="bg-[#2A2A30] hover:bg-[#303036] active:bg-[#393941] rounded-[7px] py-[4px] px-[9px] text-style-2 text-[#DCDEE7] disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={() => checkForUpdates(true)}
+                    disabled={isChecking || isOnCooldown()}
+                  >
+                    {isChecking
+                      ? t("update.checking")
+                      : t("update.checkUpdate")}
+                  </button>
+                  <button
+                    className="bg-[#401C1D] rounded-[7px] py-[4px] px-[9px] text-style-2 text-[#E8DBDB]"
+                    onClick={handleResetAll}
+                  >
+                    {t("settings.resetData")}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

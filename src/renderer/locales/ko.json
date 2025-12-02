@@ -269,5 +269,17 @@
     "tabKey": "키",
     "tabNote": "노트",
     "tabCounter": "카운터"
+  },
+  "update": {
+    "title": "새 버전이 있습니다",
+    "currentVersion": "현재 버전",
+    "latestVersion": "최신 버전",
+    "releaseNotes": "릴리즈 노트",
+    "skipVersion": "이 버전 건너뛰기",
+    "goToRelease": "릴리즈 페이지로 이동",
+    "later": "나중에",
+    "checkUpdate": "업데이트 확인",
+    "checking": "확인 중...",
+    "latestAlready": "최신 버전입니다."
   }
 }

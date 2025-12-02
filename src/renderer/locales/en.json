@@ -269,5 +269,17 @@
     "tabKey": "Key",
     "tabNote": "Note",
     "tabCounter": "Counter"
+  },
+  "update": {
+    "title": "Update Available",
+    "currentVersion": "Current Version",
+    "latestVersion": "Latest Version",
+    "releaseNotes": "Release Notes",
+    "skipVersion": "Skip this version",
+    "goToRelease": "Go to Release",
+    "later": "Later",
+    "checkUpdate": "Check for Updates",
+    "checking": "Checking...",
+    "latestAlready": "You're up to date."
   }
 }

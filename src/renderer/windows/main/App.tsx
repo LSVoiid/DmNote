@@ -11,18 +11,35 @@ import { usePalette } from "@hooks/usePalette";
 import CustomAlert from "@components/main/Modal/content/Alert";
 import NoteSettingModal from "@components/main/Modal/content/NoteSetting";
 import LaboratoryModal from "@components/main/Modal/content/Laboratory";
+import UpdateModal from "@components/main/Modal/content/UpdateModal";
 import { useSettingsStore } from "@stores/useSettingsStore";
 import FloatingPopup from "@components/main/Modal/FloatingPopup";
 import Palette from "@components/main/Modal/content/Palette";
 import ColorPicker from "@components/main/Modal/content/ColorPicker";
 import { useKeyStore } from "@stores/useKeyStore";
 import { useAppBootstrap } from "@hooks/useAppBootstrap";
+import { useUpdateCheck } from "@hooks/useUpdateCheck";
 
 export default function App() {
   const { selectedKeyType, setSelectedKeyType, isBootstrapped } = useKeyStore();
   useCustomCssInjection();
   useCustomJsInjection();
   useAppBootstrap();
+
+  // 업데이트 체크
+  const {
+    updateAvailable,
+    isLatestVersion,
+    updateInfo,
+    dismissUpdate,
+    skipVersion,
+    checkForUpdates,
+  } = useUpdateCheck();
+
+  // 앱 시작 시 자동 업데이트 체크
+  useEffect(() => {
+    checkForUpdates();
+  }, []);
 
   // 윈도우 타입
   useEffect(() => {
@@ -549,6 +566,15 @@ export default function App() {
           offsetY={colorPickerState.referenceElement ? 10 : -80}
           placement="right"
           solidOnly={true}
+        />
+      )}
+      {(updateAvailable || isLatestVersion) && updateInfo && (
+        <UpdateModal
+          isOpen={updateAvailable || isLatestVersion}
+          updateInfo={updateInfo}
+          onClose={dismissUpdate}
+          onSkipVersion={skipVersion}
+          isLatestVersion={isLatestVersion}
         />
       )}
     </div>
