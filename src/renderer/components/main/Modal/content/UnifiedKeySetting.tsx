@@ -79,12 +79,19 @@ const UnifiedKeySetting: React.FC<UnifiedKeySettingProps> = ({
   const { t } = useTranslation();
   const initialSkipRef = React.useRef(skipAnimation);
   const scrollRef = React.useRef<HTMLDivElement>(null);
+  const contentRef = React.useRef<HTMLDivElement>(null);
   const [scrollState, setScrollState] = React.useState({
     canScrollUp: false,
     canScrollDown: false,
   });
   // 탭 전환 시 그림자 애니메이션 스킵 여부 (깜빡임 방지)
   const [skipShadowTransition, setSkipShadowTransition] = React.useState(false);
+  // 컨테이너 높이 (애니메이션용)
+  const [containerHeight, setContainerHeight] = React.useState<number | null>(
+    null
+  );
+  // 높이 애니메이션 스킵 여부 (초기 마운트 시)
+  const isFirstRender = React.useRef(true);
 
   const {
     activeTab,
@@ -126,24 +133,36 @@ const UnifiedKeySetting: React.FC<UnifiedKeySettingProps> = ({
 
     // 콘텐츠 크기 변경 감지를 위한 ResizeObserver
     const el = scrollRef.current;
+    const contentEl = contentRef.current;
     if (!el) return;
+
+    const updateHeight = () => {
+      if (contentEl) {
+        const contentHeight = contentEl.scrollHeight;
+        const maxHeight = 195;
+        setContainerHeight(Math.min(contentHeight, maxHeight));
+      }
+    };
 
     const resizeObserver = new ResizeObserver(() => {
       updateScrollState();
+      updateHeight();
     });
 
     // 스크롤 영역 내부의 콘텐츠 크기 변경을 감지
-    if (el.firstElementChild) {
-      resizeObserver.observe(el.firstElementChild);
+    if (contentEl) {
+      resizeObserver.observe(contentEl);
     }
     resizeObserver.observe(el);
 
     // 초기 상태 확인
     updateScrollState();
+    updateHeight();
 
-    // 다음 프레임에서 애니메이션 다시 활성화
+    // 다음 프레임에서 애니메이션 다시 활성화 및 첫 렌더 플래그 해제
     const rafId = requestAnimationFrame(() => {
       setSkipShadowTransition(false);
+      isFirstRender.current = false;
     });
 
     return () => {
@@ -205,10 +224,18 @@ const UnifiedKeySetting: React.FC<UnifiedKeySettingProps> = ({
 
           <div
             ref={scrollRef}
-            className="max-h-[195px] overflow-y-auto modal-content-scroll pr-[14px]"
+            className="overflow-y-auto modal-content-scroll pr-[14px]"
+            style={{
+              height:
+                containerHeight !== null ? `${containerHeight}px` : "auto",
+              maxHeight: "195px",
+              transition: isFirstRender.current
+                ? "none"
+                : "height 100ms ease-in-out",
+            }}
             onScroll={updateScrollState}
           >
-            {renderTabContent()}
+            <div ref={contentRef}>{renderTabContent()}</div>
           </div>
 
           {/* 하단 그림자 */}
