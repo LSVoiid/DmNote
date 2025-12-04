@@ -385,7 +385,8 @@ export function useKeyManager() {
     noteGlowEnabled: boolean,
     noteGlowSize: number,
     noteGlowOpacity: number,
-    noteGlowColor: NoteColor | undefined
+    noteGlowColor: NoteColor | undefined,
+    noteAutoYCorrection?: boolean
   ) => {
     const state = useKeyStore.getState();
     const mode = state.selectedKeyType || selectedKeyType;
@@ -405,6 +406,8 @@ export function useKeyManager() {
               noteGlowSize,
               noteGlowOpacity,
               noteGlowColor: noteGlowColor ?? noteColor,
+              noteAutoYCorrection:
+                noteAutoYCorrection ?? pos.noteAutoYCorrection,
             }
           : pos
       ),

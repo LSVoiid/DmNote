@@ -798,6 +798,8 @@ export default function Grid({
               positions[selectedKeyType][selectedKey.index].noteGlowColor ||
               positions[selectedKeyType][selectedKey.index].noteColor ||
               "#FFFFFF",
+            noteAutoYCorrection:
+              positions[selectedKeyType][selectedKey.index].noteAutoYCorrection,
             className:
               positions[selectedKeyType][selectedKey.index].className || "",
           }}
@@ -837,7 +839,8 @@ export default function Grid({
                   origKey.noteGlowEnabled,
                   origKey.noteGlowSize,
                   origKey.noteGlowOpacity,
-                  origKey.noteGlowColor
+                  origKey.noteGlowColor,
+                  origKey.noteAutoYCorrection
                 );
               }
             }
@@ -900,6 +903,9 @@ export default function Grid({
                 previewData.noteGlowOpacity ?? currentKey.noteGlowOpacity;
               const noteGlowColor =
                 previewData.noteGlowColor ?? currentKey.noteGlowColor;
+              const noteAutoYCorrection =
+                previewData.noteAutoYCorrection ??
+                currentKey.noteAutoYCorrection;
 
               onNoteColorPreview(
                 selectedKey.index,
@@ -908,7 +914,8 @@ export default function Grid({
                 noteGlowEnabled,
                 noteGlowSize,
                 noteGlowOpacity,
-                noteGlowColor
+                noteGlowColor,
+                noteAutoYCorrection
               );
             }
           }}
