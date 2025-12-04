@@ -83,6 +83,8 @@ const UnifiedKeySetting: React.FC<UnifiedKeySettingProps> = ({
     canScrollUp: false,
     canScrollDown: false,
   });
+  // 탭 전환 시 그림자 애니메이션 스킵 여부 (깜빡임 방지)
+  const [skipShadowTransition, setSkipShadowTransition] = React.useState(false);
 
   const {
     activeTab,
@@ -117,9 +119,37 @@ const UnifiedKeySetting: React.FC<UnifiedKeySettingProps> = ({
     setScrollState({ canScrollUp, canScrollDown });
   }, []);
 
-  // 탭 변경 또는 마운트 시 스크롤 상태 확인
+  // 탭 변경 또는 마운트 시 스크롤 상태 확인 (DOM 렌더링 후 확인)
   React.useEffect(() => {
+    // 탭 전환 시 그림자 애니메이션 스킵
+    setSkipShadowTransition(true);
+
+    // 콘텐츠 크기 변경 감지를 위한 ResizeObserver
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const resizeObserver = new ResizeObserver(() => {
+      updateScrollState();
+    });
+
+    // 스크롤 영역 내부의 콘텐츠 크기 변경을 감지
+    if (el.firstElementChild) {
+      resizeObserver.observe(el.firstElementChild);
+    }
+    resizeObserver.observe(el);
+
+    // 초기 상태 확인
     updateScrollState();
+
+    // 다음 프레임에서 애니메이션 다시 활성화
+    const rafId = requestAnimationFrame(() => {
+      setSkipShadowTransition(false);
+    });
+
+    return () => {
+      resizeObserver.disconnect();
+      cancelAnimationFrame(rafId);
+    };
   }, [activeTab, updateScrollState]);
 
   // 탭 콘텐츠 렌더링
@@ -168,9 +198,9 @@ const UnifiedKeySetting: React.FC<UnifiedKeySettingProps> = ({
         <div className="relative">
           {/* 상단 그림자 */}
           <div
-            className={`absolute top-0 left-0 right-[14px] h-[10px] bg-gradient-to-b from-[#1A191E] to-transparent pointer-events-none z-10 transition-opacity duration-150 ${
-              scrollState.canScrollUp ? "opacity-100" : "opacity-0"
-            }`}
+            className={`absolute top-0 left-0 right-[14px] h-[10px] bg-gradient-to-b from-[#1A191E] to-transparent pointer-events-none z-10 ${
+              skipShadowTransition ? "" : "transition-opacity duration-150"
+            } ${scrollState.canScrollUp ? "opacity-100" : "opacity-0"}`}
           />
 
           <div
@@ -183,9 +213,9 @@ const UnifiedKeySetting: React.FC<UnifiedKeySettingProps> = ({
 
           {/* 하단 그림자 */}
           <div
-            className={`absolute bottom-0 left-0 right-[14px] h-[10px] bg-gradient-to-t from-[#1A191E] to-transparent pointer-events-none z-10 transition-opacity duration-150 ${
-              scrollState.canScrollDown ? "opacity-100" : "opacity-0"
-            }`}
+            className={`absolute bottom-0 left-0 right-[14px] h-[10px] bg-gradient-to-t from-[#1A191E] to-transparent pointer-events-none z-10 ${
+              skipShadowTransition ? "" : "transition-opacity duration-150"
+            } ${scrollState.canScrollDown ? "opacity-100" : "opacity-0"}`}
           />
         </div>
 
