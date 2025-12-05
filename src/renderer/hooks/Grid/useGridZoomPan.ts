@@ -203,10 +203,22 @@ export function useGridZoomPan({
       if (e.button !== 1) return;
 
       e.preventDefault();
+      e.stopPropagation(); // 이벤트 전파 방지 (요소들의 mousedown 이벤트가 발생하지 않도록)
 
       const setMiddleButtonDragging =
         useGridSelectionStore.getState().setMiddleButtonDragging;
       setMiddleButtonDragging(true);
+
+      // 드래그 중 커서를 grabbing으로 변경하고 요소들의 pointer-events를 비활성화
+      const container = containerRef.current;
+      if (container) {
+        container.style.cursor = "grabbing";
+      }
+      // contentRef 내의 요소들이 마우스 이벤트를 받지 않도록 설정
+      const content = contentRef.current;
+      if (content) {
+        content.style.pointerEvents = "none";
+      }
 
       const startX = e.clientX;
       const startY = e.clientY;
@@ -221,6 +233,13 @@ export function useGridZoomPan({
 
       const handleMouseUp = () => {
         setMiddleButtonDragging(false);
+        // 커서 및 pointer-events 복원
+        if (container) {
+          container.style.cursor = "";
+        }
+        if (content) {
+          content.style.pointerEvents = "";
+        }
         document.removeEventListener("mousemove", handleMouseMove);
         document.removeEventListener("mouseup", handleMouseUp);
       };
@@ -228,7 +247,7 @@ export function useGridZoomPan({
       document.addEventListener("mousemove", handleMouseMove);
       document.addEventListener("mouseup", handleMouseUp);
     },
-    [mode, panX, panY, setPan]
+    [containerRef, contentRef, mode, panX, panY, setPan]
   );
 
   // 휠 이벤트 등록
@@ -243,15 +262,15 @@ export function useGridZoomPan({
     };
   }, [containerRef, handleWheel]);
 
-  // 미들 버튼 드래그 이벤트 등록
+  // 미들 버튼 드래그 이벤트 등록 (캡처 단계에서 처리하여 요소 이벤트보다 먼저 잡음)
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    container.addEventListener("mousedown", handleMiddleMouseDown);
+    container.addEventListener("mousedown", handleMiddleMouseDown, true);
 
     return () => {
-      container.removeEventListener("mousedown", handleMiddleMouseDown);
+      container.removeEventListener("mousedown", handleMiddleMouseDown, true);
     };
   }, [containerRef, handleMiddleMouseDown]);
 

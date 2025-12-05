@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { MIN_GRID_POSITION, MAX_GRID_POSITION } from "@stores/useGridViewStore";
 import { useSmartGuidesStore } from "@stores/useSmartGuidesStore";
+import { useGridSelectionStore } from "@stores/useGridSelectionStore";
 import { calculateBounds, calculateSnapPoints } from "@utils/smartGuides";
 
 // 위치 클램핑 함수
@@ -81,10 +82,14 @@ export const useDraggable = ({
   }, []);
 
   const handleMouseOver = () => {
+    // 미들 버튼 드래그 중이면 커서 변경하지 않음
+    if (useGridSelectionStore.getState().isMiddleButtonDragging) return;
     if (node && !isDragging) node.style.cursor = "grab";
   };
 
   const handleMouseOut = () => {
+    // 미들 버튼 드래그 중이면 커서 변경하지 않음
+    if (useGridSelectionStore.getState().isMiddleButtonDragging) return;
     if (node && !isDragging) node.style.cursor = "default";
   };
 
@@ -92,8 +97,14 @@ export const useDraggable = ({
     (e) => {
       if (!node) return;
 
+      // 좌클릭만 처리 (미들 버튼은 그리드 팬에 사용)
+      if (e.button !== 0) return;
+
       // disabled 상태면 드래그 무시
       if (disabledRef.current) return;
+
+      // 미들 버튼 드래그 중이면 요소 드래그 무시 (그리드 팬 우선)
+      if (useGridSelectionStore.getState().isMiddleButtonDragging) return;
 
       // 드래그 시작 전 기존 스마트 가이드 클리어 (이전 드래그가 정상 종료되지 않은 경우 대비)
       useSmartGuidesStore.getState().clearGuides();
