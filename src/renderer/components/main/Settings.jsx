@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useTranslation } from "@contexts/I18nContext";
 import { useSettingsStore } from "@stores/useSettingsStore";
 import { useKeyStore } from "@stores/useKeyStore";
@@ -72,21 +72,7 @@ export default function Settings({ showAlert, showConfirm }) {
   const [isReloadingPlugins, setIsReloadingPlugins] = useState(false);
   const [isAddingPlugins, setIsAddingPlugins] = useState(false);
   const [pendingPluginId, setPendingPluginId] = useState(null);
-  const [loadedImages, setLoadedImages] = useState({});
 
-  // 이미지 프리로딩: 컴포넌트 마운트 시 모든 미리보기 이미지를 백그라운드에서 로드
-  useEffect(() => {
-    const preloadImages = () => {
-      Object.entries(PREVIEW_SOURCES).forEach(([key, src]) => {
-        const img = new Image();
-        img.onload = () => {
-          setLoadedImages((prev) => ({ ...prev, [key]: true }));
-        };
-        img.src = src;
-      });
-    };
-    preloadImages();
-  }, []);
   const RESIZE_ANCHOR_OPTIONS = [
     { value: "top-left", key: "topLeft" },
     { value: "bottom-left", key: "bottomLeft" },
