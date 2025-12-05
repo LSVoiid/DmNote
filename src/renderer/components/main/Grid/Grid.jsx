@@ -874,7 +874,36 @@ export default function Grid({
               previewData.type === "counter" &&
               typeof onCounterPreview === "function"
             ) {
-              onCounterPreview(selectedKey.index, previewData);
+              const currentCounter =
+                positions[selectedKeyType][selectedKey.index].counter || {};
+              // 현재 값과 미리보기 값을 병합
+              const mergedPayload = {
+                placement:
+                  previewData.placement ?? currentCounter.placement ?? "inside",
+                align: previewData.align ?? currentCounter.align ?? "bottom",
+                gap: previewData.gap ?? currentCounter.gap ?? 6,
+                fill: {
+                  idle:
+                    previewData.fill?.idle ??
+                    currentCounter.fill?.idle ??
+                    "rgba(255,255,255,0.6)",
+                  active:
+                    previewData.fill?.active ??
+                    currentCounter.fill?.active ??
+                    "rgba(255,255,255,1)",
+                },
+                stroke: {
+                  idle:
+                    previewData.stroke?.idle ??
+                    currentCounter.stroke?.idle ??
+                    "rgba(0,0,0,0)",
+                  active:
+                    previewData.stroke?.active ??
+                    currentCounter.stroke?.active ??
+                    "rgba(0,0,0,0)",
+                },
+              };
+              onCounterPreview(selectedKey.index, mergedPayload);
             }
 
             if (
