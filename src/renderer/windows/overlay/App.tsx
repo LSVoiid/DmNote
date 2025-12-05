@@ -11,6 +11,7 @@ import { Key } from "@components/Key";
 import { DEFAULT_NOTE_SETTINGS } from "@constants/overlayConfig";
 import { useCustomCssInjection } from "@hooks/useCustomCssInjection";
 import { useCustomJsInjection } from "@hooks/useCustomJsInjection";
+import { useBlockBrowserShortcuts } from "@hooks/useBlockBrowserShortcuts";
 import { useNoteSystem } from "@hooks/useNoteSystem";
 import { useAppBootstrap } from "@hooks/useAppBootstrap";
 import { useKeyStore } from "@stores/useKeyStore";
@@ -66,6 +67,7 @@ export default function App() {
   useCustomCssInjection();
   useCustomJsInjection();
   useAppBootstrap();
+  useBlockBrowserShortcuts();
   const developerModeEnabled = useSettingsStore(
     (state) => state.developerModeEnabled
   );

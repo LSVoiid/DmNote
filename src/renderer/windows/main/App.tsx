@@ -3,6 +3,7 @@ import { useTranslation } from "@contexts/I18nContext";
 import TitleBar from "@components/main/TitleBar";
 import { useCustomCssInjection } from "@hooks/useCustomCssInjection";
 import { useCustomJsInjection } from "@hooks/useCustomJsInjection";
+import { useBlockBrowserShortcuts } from "@hooks/useBlockBrowserShortcuts";
 import ToolBar from "@components/main/Tool/ToolBar";
 import Grid from "@components/main/Grid";
 import SettingTab from "@components/main/Settings";
@@ -25,6 +26,7 @@ export default function App() {
   useCustomCssInjection();
   useCustomJsInjection();
   useAppBootstrap();
+  useBlockBrowserShortcuts();
 
   // 업데이트 체크
   const {
