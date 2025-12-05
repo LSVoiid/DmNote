@@ -684,6 +684,10 @@ impl AppState {
             if let Err(err) = set_window_no_activate(&window) {
                 log::warn!("failed to set WS_EX_NOACTIVATE for overlay: {err}");
             }
+            // 시스템 컨텍스트 메뉴 비활성화
+            if let Err(err) = disable_system_context_menu(&window) {
+                log::warn!("failed to disable system context menu for overlay: {err}");
+            }
         }
 
         window.set_ignore_cursor_events(snapshot.overlay_locked)?;
@@ -992,6 +996,14 @@ fn attach_main_window_close_handler(
     overlay_force_close: Arc<AtomicBool>,
     app_handle: AppHandle,
 ) {
+    // 시스템 컨텍스트 메뉴 비활성화
+    #[cfg(target_os = "windows")]
+    {
+        if let Err(err) = disable_system_context_menu(&window) {
+            log::warn!("failed to disable system context menu for main window: {err}");
+        }
+    }
+
     window.on_window_event(move |event| {
         if matches!(event, WindowEvent::CloseRequested { .. }) {
             {
@@ -1058,6 +1070,58 @@ fn set_window_no_activate(window: &WebviewWindow) -> Result<()> {
         let ex_style = GetWindowLongW(hwnd, GWL_EXSTYLE);
         SetWindowLongW(hwnd, GWL_EXSTYLE, ex_style | WS_EX_NOACTIVATE.0 as i32);
     }
+    Ok(())
+}
+
+/// 드래그 가능한 영역에서 시스템 컨텍스트 메뉴(이전 크기, 이동, 최소화 등)가 표시되지 않도록 설정
+/// WM_INITMENU 메시지를 후킹하여 메뉴가 초기화될 때 창을 비활성화했다 활성화하여 메뉴를 취소시키는 방식
+/// (Electron의 hookWindowMessage 방식과 동일)
+#[cfg(target_os = "windows")]
+fn disable_system_context_menu(window: &WebviewWindow) -> Result<()> {
+    use std::ffi::c_void;
+    use windows::Win32::{
+        Foundation::{HWND, LPARAM, LRESULT, WPARAM},
+        UI::{
+            Shell::{DefSubclassProc, SetWindowSubclass},
+            WindowsAndMessaging::WM_INITMENU,
+        },
+    };
+
+    // EnableWindow는 user32.dll에서 직접 호출
+    #[link(name = "user32")]
+    extern "system" {
+        fn EnableWindow(hwnd: isize, enable: i32) -> i32;
+    }
+
+    const SUBCLASS_ID: usize = 1;
+
+    unsafe extern "system" fn subclass_proc(
+        hwnd: HWND,
+        msg: u32,
+        wparam: WPARAM,
+        lparam: LPARAM,
+        _uid_subclass: usize,
+        _dw_ref_data: usize,
+    ) -> LRESULT {
+        if msg == WM_INITMENU {
+            // Electron과 동일한 방식: 창을 잠깐 비활성화했다가 다시 활성화
+            // 이렇게 하면 시스템 메뉴 초기화가 취소됨
+            EnableWindow(hwnd.0 as isize, 0); // FALSE
+            EnableWindow(hwnd.0 as isize, 1); // TRUE
+            return LRESULT(0);
+        }
+        DefSubclassProc(hwnd, msg, wparam, lparam)
+    }
+
+    let hwnd = window.hwnd()?;
+    let hwnd_win = HWND(hwnd.0 as *mut c_void);
+
+    unsafe {
+        SetWindowSubclass(hwnd_win, Some(subclass_proc), SUBCLASS_ID, 0)
+            .ok()
+            .map_err(|e| anyhow!("SetWindowSubclass failed: {e}"))?;
+    }
+
     Ok(())
 }
 
