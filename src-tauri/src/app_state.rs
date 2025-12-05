@@ -181,12 +181,24 @@ impl AppState {
 
     pub fn set_overlay_visibility(&self, app: &AppHandle, visible: bool) -> Result<()> {
         log::debug!("[IPC] set_overlay_visibility: visible={}", visible);
-        let window = self.ensure_overlay_window(app)?;
+        
         if visible {
+            // 오버레이를 열 때: 창이 없으면 생성하고 표시
+            let window = self.ensure_overlay_window(app)?;
             show_overlay_window(&window)?;
+            
+            // 오버레이가 숨겨진 동안 변경된 설정을 다시 적용
+            let snapshot = self.store.snapshot();
+            window.set_ignore_cursor_events(snapshot.overlay_locked)?;
+            window.set_always_on_top(snapshot.always_on_top)?;
         } else {
-            hide_overlay_window(&window)?;
+            // 오버레이를 숨길 때: 창이 존재하는 경우에만 숨김
+            // 창이 없으면 아무 것도 하지 않음 (창을 생성하지 않음)
+            if let Some(window) = app.get_webview_window(OVERLAY_LABEL) {
+                hide_overlay_window(&window)?;
+            }
         }
+        
         *self.overlay_visible.write() = visible;
         app.emit("overlay:visibility", &json!({ "visible": visible }))?;
         Ok(())
@@ -200,8 +212,14 @@ impl AppState {
             })?;
         }
 
-        let window = self.ensure_overlay_window(app)?;
-        window.set_ignore_cursor_events(locked)?;
+        // 오버레이가 보이는 상태일 때만 설정 적용
+        // 숨겨져 있거나 닫혀있는 상태에서는 설정값만 저장하고, 나중에 오버레이를 열 때 적용됨
+        let is_visible = *self.overlay_visible.read();
+        if is_visible {
+            if let Some(window) = app.get_webview_window(OVERLAY_LABEL) {
+                window.set_ignore_cursor_events(locked)?;
+            }
+        }
         app.emit("overlay:lock", &json!({ "locked": locked }))?;
         Ok(())
     }
@@ -238,7 +256,10 @@ impl AppState {
         anchor: Option<String>,
         content_top_offset: Option<f64>,
     ) -> Result<OverlayBounds> {
-        let window = self.ensure_overlay_window(app)?;
+        // 오버레이가 이미 열려있을 때만 리사이즈 수행
+        // 창이 없으면 에러 반환 (창을 자동으로 생성하지 않음)
+        let window = app.get_webview_window(OVERLAY_LABEL)
+            .ok_or_else(|| anyhow!("Overlay window is not open"))?;
         let anchor = anchor
             .and_then(|value| overlay_resize_anchor_from_str(&value))
             .unwrap_or_else(|| self.store.snapshot().overlay_resize_anchor.clone());
@@ -812,14 +833,26 @@ impl AppState {
     }
 
     fn apply_settings_effects(&self, diff: &SettingsDiff, app: &AppHandle) -> Result<()> {
+        // 오버레이가 보이는 상태일 때만 설정 적용
+        let is_visible = *self.overlay_visible.read();
+        
         if let Some(value) = diff.changed.always_on_top {
-            if let Some(window) = app.get_webview_window(OVERLAY_LABEL) {
-                window.set_always_on_top(value)?;
+            if is_visible {
+                if let Some(window) = app.get_webview_window(OVERLAY_LABEL) {
+                    window.set_always_on_top(value)?;
+                }
             }
         }
 
         if let Some(value) = diff.changed.overlay_locked {
-            self.set_overlay_lock(app, value, false)?;
+            // 오버레이가 보이는 상태일 때만 lock 설정 적용
+            // 숨겨져 있거나 닫혀있는 상태에서는 설정값은 이미 저장되었으므로, 나중에 오버레이를 열 때 적용됨
+            if is_visible {
+                if let Some(window) = app.get_webview_window(OVERLAY_LABEL) {
+                    window.set_ignore_cursor_events(value)?;
+                }
+            }
+            app.emit("overlay:lock", &json!({ "locked": value }))?;
         }
 
         if let Some(enabled) = diff.changed.developer_mode_enabled {
