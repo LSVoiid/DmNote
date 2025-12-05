@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useTranslation } from "@contexts/I18nContext";
 import { useSettingsStore } from "@stores/useSettingsStore";
 import { useKeyStore } from "@stores/useKeyStore";
@@ -11,22 +11,22 @@ import { applyCounterSnapshot } from "@stores/keyCounterSignals";
 import { extractPluginId } from "@utils/pluginUtils";
 import { useUpdateCheck } from "@hooks/useUpdateCheck";
 
-// 설정 미리보기 이미지
+// 설정 미리보기 영상
 const PREVIEW_SOURCES = {
   overlayLock:
-    "https://raw.githubusercontent.com/lee-sihun/DmNote/master/docs/assets/1.webp",
+    "https://raw.githubusercontent.com/lee-sihun/DmNote/master/docs/assets/webm/overlay-lock.webm",
   alwaysOnTop:
-    "https://raw.githubusercontent.com/lee-sihun/DmNote/master/docs/assets/2025-08-29_12-07-12.webp",
+    "https://raw.githubusercontent.com/lee-sihun/DmNote/master/docs/assets/webm/alwaysontop.webm",
   noteEffect:
-    "https://raw.githubusercontent.com/lee-sihun/DmNote/master/docs/assets/2025-08-29_13-38-24.webp",
+    "https://raw.githubusercontent.com/lee-sihun/DmNote/master/docs/assets/webm/noteeffect.webm",
   keyCounter:
-    "https://raw.githubusercontent.com/lee-sihun/DmNote/master/docs/assets/2025-09-03_22-52-19.webp",
+    "https://raw.githubusercontent.com/lee-sihun/DmNote/master/docs/assets/webm/counter.webm",
   customCSS:
-    "https://raw.githubusercontent.com/lee-sihun/DmNote/master/docs/assets/1.webp",
+    "https://raw.githubusercontent.com/lee-sihun/DmNote/master/docs/assets/webm/css.webm",
   customJS:
-    "https://raw.githubusercontent.com/lee-sihun/DmNote/master/docs/assets/1.webp",
+    "https://raw.githubusercontent.com/lee-sihun/DmNote/master/docs/assets/webm/plugin.webm",
   resizeAnchor:
-    "https://raw.githubusercontent.com/lee-sihun/DmNote/master/docs/assets/2025-08-29_12-07-12.webp",
+    "https://raw.githubusercontent.com/lee-sihun/DmNote/master/docs/assets/webm/resize.webm",
 };
 
 export default function Settings({ showAlert, showConfirm }) {
@@ -72,7 +72,21 @@ export default function Settings({ showAlert, showConfirm }) {
   const [isReloadingPlugins, setIsReloadingPlugins] = useState(false);
   const [isAddingPlugins, setIsAddingPlugins] = useState(false);
   const [pendingPluginId, setPendingPluginId] = useState(null);
+  const [loadedImages, setLoadedImages] = useState({});
 
+  // 이미지 프리로딩: 컴포넌트 마운트 시 모든 미리보기 이미지를 백그라운드에서 로드
+  useEffect(() => {
+    const preloadImages = () => {
+      Object.entries(PREVIEW_SOURCES).forEach(([key, src]) => {
+        const img = new Image();
+        img.onload = () => {
+          setLoadedImages((prev) => ({ ...prev, [key]: true }));
+        };
+        img.src = src;
+      });
+    };
+    preloadImages();
+  }, []);
   const RESIZE_ANCHOR_OPTIONS = [
     { value: "top-left", key: "topLeft" },
     { value: "bottom-left", key: "bottomLeft" },
@@ -82,7 +96,7 @@ export default function Settings({ showAlert, showConfirm }) {
   ];
 
   const ANGLE_OPTIONS = [
-    { value: "skia", label: "Skia + D3D11" },
+    { value: "skia", label: "Skia" },
     { value: "d3d11", label: "Direct3D 11" },
     { value: "d3d9", label: "Direct3D 9" },
     { value: "gl", label: "OpenGL" },
@@ -749,10 +763,13 @@ export default function Settings({ showAlert, showConfirm }) {
       <div className="absolute flex items-center justify-center top-[10px] right-[10px] w-[522px] h-[376px] bg-primary rounded-[7px] pointer-events-none overflow-hidden">
         {hoveredKey && PREVIEW_SOURCES[hoveredKey] ? (
           <div className="relative w-full h-full">
-            <img
+            <video
               key={hoveredKey}
               src={PREVIEW_SOURCES[hoveredKey]}
-              alt={t(`settings.${hoveredKey}Desc`)}
+              autoPlay
+              loop
+              muted
+              playsInline
               className="w-full h-full object-cover"
             />
             <div className="absolute bottom-0 left-0 right-0 flex justify-center items-end h-[100px] bg-gradient-to-t from-black to-transparent pointer-events-none">
