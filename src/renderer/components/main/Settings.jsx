@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState } from "react";
 import { useTranslation } from "@contexts/I18nContext";
 import { useSettingsStore } from "@stores/useSettingsStore";
 import { useKeyStore } from "@stores/useKeyStore";
@@ -10,6 +10,24 @@ import { PluginDataDeleteModal } from "@components/main/Modal/content/PluginData
 import { applyCounterSnapshot } from "@stores/keyCounterSignals";
 import { extractPluginId } from "@utils/pluginUtils";
 import { useUpdateCheck } from "@hooks/useUpdateCheck";
+
+// 설정 미리보기 이미지
+const PREVIEW_SOURCES = {
+  overlayLock:
+    "https://raw.githubusercontent.com/lee-sihun/DmNote/master/docs/assets/1.webp",
+  alwaysOnTop:
+    "https://raw.githubusercontent.com/lee-sihun/DmNote/master/docs/assets/2025-08-29_12-07-12.webp",
+  noteEffect:
+    "https://raw.githubusercontent.com/lee-sihun/DmNote/master/docs/assets/2025-08-29_13-38-24.webp",
+  keyCounter:
+    "https://raw.githubusercontent.com/lee-sihun/DmNote/master/docs/assets/2025-09-03_22-52-19.webp",
+  customCSS:
+    "https://raw.githubusercontent.com/lee-sihun/DmNote/master/docs/assets/1.webp",
+  customJS:
+    "https://raw.githubusercontent.com/lee-sihun/DmNote/master/docs/assets/1.webp",
+  resizeAnchor:
+    "https://raw.githubusercontent.com/lee-sihun/DmNote/master/docs/assets/2025-08-29_12-07-12.webp",
+};
 
 export default function Settings({ showAlert, showConfirm }) {
   const { t, i18n } = useTranslation();
@@ -55,26 +73,6 @@ export default function Settings({ showAlert, showConfirm }) {
   const [isAddingPlugins, setIsAddingPlugins] = useState(false);
   const [pendingPluginId, setPendingPluginId] = useState(null);
 
-  const VIDEO_SOURCES = {
-    overlayLock:
-      "https://raw.githubusercontent.com/lee-sihun/DmNote/master/src/renderer/assets/mp4/overlay-lock.mp4",
-    alwaysOnTop:
-      "https://raw.githubusercontent.com/lee-sihun/DmNote/master/src/renderer/assets/mp4/alwaysontop.mp4",
-    noteEffect:
-      "https://raw.githubusercontent.com/lee-sihun/DmNote/master/src/renderer/assets/mp4/noteeffect.mp4",
-    keyCounter:
-      "https://raw.githubusercontent.com/lee-sihun/DmNote/master/src/renderer/assets/mp4/counter.mp4",
-    customCSS:
-      "https://raw.githubusercontent.com/lee-sihun/DmNote/master/src/renderer/assets/mp4/css.mp4",
-    customJS:
-      "https://raw.githubusercontent.com/lee-sihun/DmNote/master/src/renderer/assets/mp4/css.mp4",
-    resizeAnchor:
-      "https://raw.githubusercontent.com/lee-sihun/DmNote/master/src/renderer/assets/mp4/resize.mp4",
-  };
-
-  // Video refs for instant playback without any delay
-  const videoRefs = useRef({});
-
   const RESIZE_ANCHOR_OPTIONS = [
     { value: "top-left", key: "topLeft" },
     { value: "bottom-left", key: "bottomLeft" },
@@ -84,6 +82,7 @@ export default function Settings({ showAlert, showConfirm }) {
   ];
 
   const ANGLE_OPTIONS = [
+    { value: "skia", label: "Skia + D3D11" },
     { value: "d3d11", label: "Direct3D 11" },
     { value: "d3d9", label: "Direct3D 9" },
     { value: "gl", label: "OpenGL" },
@@ -748,31 +747,12 @@ export default function Settings({ showAlert, showConfirm }) {
         </div>
       </div>
       <div className="absolute flex items-center justify-center top-[10px] right-[10px] w-[522px] h-[376px] bg-primary rounded-[7px] pointer-events-none overflow-hidden">
-        {/* Hidden preloaded videos for instant playback */}
-        {Object.entries(VIDEO_SOURCES).map(([key, url]) => (
-          <video
-            key={key}
-            ref={(el) => {
-              if (el) videoRefs.current[key] = el;
-            }}
-            src={url}
-            loop
-            muted
-            playsInline
-            preload="auto"
-            className="hidden"
-          />
-        ))}
-
-        {hoveredKey && VIDEO_SOURCES[hoveredKey] ? (
+        {hoveredKey && PREVIEW_SOURCES[hoveredKey] ? (
           <div className="relative w-full h-full">
-            <video
+            <img
               key={hoveredKey}
-              src={VIDEO_SOURCES[hoveredKey]}
-              autoPlay
-              loop
-              muted
-              playsInline
+              src={PREVIEW_SOURCES[hoveredKey]}
+              alt={t(`settings.${hoveredKey}Desc`)}
               className="w-full h-full object-cover"
             />
             <div className="absolute bottom-0 left-0 right-0 flex justify-center items-end h-[100px] bg-gradient-to-t from-black to-transparent pointer-events-none">

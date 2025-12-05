@@ -13,7 +13,7 @@ mod store;
 
 use anyhow::Result;
 use log::LevelFilter;
-use std::{thread, time::Duration};
+use std::{fs, path::PathBuf, thread, time::Duration};
 
 use tauri::{ipc::CapabilityBuilder, LogicalSize, Manager, PhysicalPosition, Position};
 
@@ -23,7 +23,19 @@ use store::AppStore;
 fn main() {
     #[cfg(target_os = "windows")]
     {
-        apply_webview2_additional_args("--disable-blink-features=VSync");
+        // GPU/하드웨어 가속 강제 활성화 및 렌더링 최적화 플래그
+        let gpu_flags = [
+            "--disable-blink-features=VSync",           // VSync 비활성화 (입력 지연 감소)
+            "--enable-gpu-rasterization",               // GPU 래스터화 강제 활성화
+            "--enable-zero-copy",                       // 제로 카피 래스터라이저 활성화
+            "--ignore-gpu-blocklist",                   // GPU 블랙리스트 무시 (강제 GPU 사용)
+        ];
+        for flag in gpu_flags {
+            apply_webview2_additional_args(flag);
+        }
+
+        // 렌더러 설정 적용 (store.json에서 읽어옴)
+        apply_renderer_settings();
     }
 
     if std::env::args().any(|arg| arg == "--keyboard-daemon") {
@@ -143,6 +155,58 @@ fn apply_webview2_additional_args(arg: &str) {
         format!("{existing} {arg}")
     };
     env::set_var(KEY, new_value);
+}
+
+/// store.json에서 렌더러 설정(angleMode)을 읽어 WebView2 플래그로 적용
+#[cfg(target_os = "windows")]
+fn apply_renderer_settings() {
+    // Tauri 초기화 전이므로 직접 경로를 찾아야 함
+    let store_path = get_store_path();
+    
+    let angle_mode = if let Some(path) = store_path {
+        read_angle_mode_from_store(&path).unwrap_or_else(|| "d3d11".to_string())
+    } else {
+        "d3d11".to_string()
+    };
+
+    // ANGLE 백엔드 또는 Skia 렌더러 설정 적용
+    match angle_mode.as_str() {
+        "d3d11" => {
+            apply_webview2_additional_args("--use-angle=d3d11");
+        }
+        "d3d9" => {
+            apply_webview2_additional_args("--use-angle=d3d9");
+        }
+        "gl" => {
+            apply_webview2_additional_args("--use-angle=gl");
+        }
+        "skia" => {
+            // Skia 렌더러 활성화 (고성능 2D 렌더링)
+            apply_webview2_additional_args("--enable-features=UseSkiaRenderer");
+            apply_webview2_additional_args("--use-angle=d3d11"); // Skia + D3D11 조합
+        }
+        _ => {
+            // 기본값: D3D11
+            apply_webview2_additional_args("--use-angle=d3d11");
+        }
+    }
+}
+
+/// 앱 데이터 디렉토리에서 store.json 경로 찾기
+#[cfg(target_os = "windows")]
+fn get_store_path() -> Option<PathBuf> {
+    // Windows: %APPDATA%/com.dmnote.desktop/store.json
+    dirs_next::config_dir().map(|config| config.join("com.dmnote.desktop").join("store.json"))
+}
+
+/// store.json에서 angleMode 값 읽기
+#[cfg(target_os = "windows")]
+fn read_angle_mode_from_store(path: &PathBuf) -> Option<String> {
+    let content = fs::read_to_string(path).ok()?;
+    let json: serde_json::Value = serde_json::from_str(&content).ok()?;
+    json.get("angleMode")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
 }
 
 fn setup_logging() -> Result<()> {
