@@ -31,12 +31,25 @@ const SettingTool = ({
 }: SettingToolProps) => {
   const { t } = useTranslation();
   const [isOverlayVisible, setIsOverlayVisible] = useState(true);
-  const [isExportImportOpen, setIsExportImportOpen] = useState(false);
+  const [isExportImportOpenLocal, setIsExportImportOpenLocal] = useState(false);
   const [isExtrasOpen, setIsExtrasOpenLocal] = useState(false);
   const exportImportRef = useRef<HTMLButtonElement | null>(null);
   const extrasRef = useRef<HTMLButtonElement | null>(null);
   const { noteEffect, laboratoryEnabled } = useSettingsStore();
   const setExtrasPopupOpen = useUIStore((state) => state.setExtrasPopupOpen);
+  const setExportImportPopupOpen = useUIStore((state) => state.setExportImportPopupOpen);
+
+  // isExportImportOpen 상태를 설정하면서 전역 스토어에도 동기화
+  const setIsExportImportOpen = (value: boolean | ((prev: boolean) => boolean)) => {
+    setIsExportImportOpenLocal((prev) => {
+      const newValue = typeof value === "function" ? value(prev) : value;
+      setExportImportPopupOpen(newValue);
+      return newValue;
+    });
+  };
+
+  // 로컬 상태를 읽을 때는 isExportImportOpenLocal 사용
+  const isExportImportOpen = isExportImportOpenLocal;
 
   // isExtrasOpen 상태를 설정하면서 전역 스토어에도 동기화
   const setIsExtrasOpen = (value: boolean | ((prev: boolean) => boolean)) => {

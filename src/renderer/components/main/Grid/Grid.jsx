@@ -206,6 +206,9 @@ export default function Grid({
   // 기타 설정 팝업 열림 상태 (미니맵 표시 제어용)
   const isExtrasPopupOpen = useUIStore((state) => state.isExtrasPopupOpen);
 
+  // 불러오기/내보내기 팝업 열림 상태 (미니맵 표시 제어용)
+  const isExportImportPopupOpen = useUIStore((state) => state.isExportImportPopupOpen);
+
   // 탭 변경 시 선택 해제
   useEffect(() => {
     clearSelection();
@@ -959,7 +962,7 @@ export default function Grid({
         panY={panY}
         containerRef={gridContainerRef}
         mode={selectedKeyType}
-        visible={isGridHovered && !isExtrasPopupOpen}
+        visible={isGridHovered && !isExtrasPopupOpen && !isExportImportPopupOpen}
       />
       {/* 줌 레벨 표시 */}
       <ZoomIndicator zoom={zoom} />
