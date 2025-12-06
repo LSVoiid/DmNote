@@ -238,6 +238,13 @@ const NoteTabContent: React.FC<NoteTabContentProps> = ({
     onPreview({ noteGlowEnabled: newEnabled });
   };
 
+  // 노트 효과 토글 핸들러
+  const handleNoteEffectToggle = () => {
+    const newEnabled = !state.noteEffectEnabled;
+    setState((prev) => ({ ...prev, noteEffectEnabled: newEnabled }));
+    onPreview({ noteEffectEnabled: newEnabled });
+  };
+
   return (
     <div className="flex flex-col gap-[19px]">
       {/* 색상 */}
@@ -373,6 +380,17 @@ const NoteTabContent: React.FC<NoteTabContentProps> = ({
       </div>
 
       <div className="h-px w-full bg-[#2A2A30]" />
+
+      {/* 노트 효과 사용 */}
+      <div className="flex justify-between w-full items-center">
+        <p className="text-white text-style-2">
+          {t("keySetting.noteEffectEnabled")}
+        </p>
+        <Checkbox
+          checked={state.noteEffectEnabled}
+          onChange={handleNoteEffectToggle}
+        />
+      </div>
 
       {/* Y축 자동 보정 */}
       <div className="flex justify-between w-full items-center">

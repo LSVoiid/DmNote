@@ -87,6 +87,8 @@ pub struct KeyPosition {
     pub count: u32,
     pub note_color: NoteColor,
     pub note_opacity: u32,
+    #[serde(default = "default_note_effect_enabled")]
+    pub note_effect_enabled: bool,
     #[serde(default = "default_note_glow_enabled")]
     pub note_glow_enabled: bool,
     #[serde(default = "default_note_glow_size")]
@@ -150,6 +152,8 @@ impl Default for KeyCounterColor {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct KeyCounterSettings {
+    #[serde(default = "default_counter_enabled")]
+    pub enabled: bool,
     #[serde(default)]
     pub placement: KeyCounterPlacement,
     #[serde(default)]
@@ -172,6 +176,7 @@ fn default_stroke_color() -> KeyCounterColor {
 impl Default for KeyCounterSettings {
     fn default() -> Self {
         Self {
+            enabled: true,
             placement: KeyCounterPlacement::Outside,
             align: KeyCounterAlign::Top,
             fill: KeyCounterColor::default(),
@@ -183,6 +188,8 @@ impl Default for KeyCounterSettings {
 
 fn default_gap() -> u32 { 6 }
 
+fn default_counter_enabled() -> bool { true }
+fn default_note_effect_enabled() -> bool { true }
 fn default_note_glow_enabled() -> bool { false }
 fn default_note_glow_size() -> u32 { 20 }
 fn default_note_glow_opacity() -> u32 { 70 }

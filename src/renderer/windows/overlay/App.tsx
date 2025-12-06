@@ -41,6 +41,7 @@ const FALLBACK_POSITION: KeyPosition = {
   count: 0,
   noteColor: "#FFFFFF",
   noteOpacity: 80,
+  noteEffectEnabled: true,
   noteGlowEnabled: false,
   noteGlowSize: 20,
   noteGlowOpacity: 70,
@@ -210,10 +211,19 @@ export default function App() {
         updateKeySignalWithDelay(key, isDown);
         // 노트 이펙트는 즉시 처리 (딜레이 없음)
         if (noteEffect) {
-          requestAnimationFrame(() => {
-            if (isDown) handleKeyDown(key);
-            else handleKeyUp(key);
-          });
+          // 개별 키의 noteEffectEnabled 확인
+          const currentKeys = keyMappings[selectedKeyType] ?? [];
+          const currentPositions = positions[selectedKeyType] ?? [];
+          const keyIndex = currentKeys.indexOf(key);
+          const keyPosition = currentPositions[keyIndex];
+          const keyNoteEffectEnabled = keyPosition?.noteEffectEnabled !== false;
+
+          if (keyNoteEffectEnabled) {
+            requestAnimationFrame(() => {
+              if (isDown) handleKeyDown(key);
+              else handleKeyUp(key);
+            });
+          }
         }
       });
     });
@@ -235,7 +245,15 @@ export default function App() {
       // 안전하게 모든 키 신호 초기화(선택적)
       resetAllKeySignals();
     };
-  }, [handleKeyDown, handleKeyUp, noteEffect, updateKeySignalWithDelay]);
+  }, [
+    handleKeyDown,
+    handleKeyUp,
+    noteEffect,
+    updateKeySignalWithDelay,
+    keyMappings,
+    positions,
+    selectedKeyType,
+  ]);
 
   const currentKeys = useMemo(
     () => keyMappings[selectedKeyType] ?? [],

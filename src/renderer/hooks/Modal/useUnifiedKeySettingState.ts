@@ -49,6 +49,7 @@ export interface KeyData {
   height?: number;
   noteColor?: NoteColor;
   noteOpacity?: number;
+  noteEffectEnabled?: boolean;
   noteGlowEnabled?: boolean;
   noteGlowSize?: number;
   noteGlowOpacity?: number;
@@ -76,6 +77,7 @@ export interface KeyTabState {
 
 // 노트 탭 상태 타입
 export interface NoteTabState {
+  noteEffectEnabled: boolean;
   colorMode: ColorMode;
   noteColor: string;
   gradientBottom: string;
@@ -99,6 +101,7 @@ export interface NoteTabState {
 
 // 카운터 탭 상태 타입
 export interface CounterTabState {
+  counterEnabled: boolean;
   placement: string;
   align: string;
   gap: number;
@@ -128,6 +131,7 @@ export interface NotePreviewData {
   type: "note";
   noteColor?: NoteColor;
   noteOpacity?: number;
+  noteEffectEnabled?: boolean;
   noteGlowEnabled?: boolean;
   noteGlowSize?: number;
   noteGlowOpacity?: number;
@@ -137,6 +141,7 @@ export interface NotePreviewData {
 
 export interface CounterPreviewData {
   type: "counter";
+  enabled?: boolean;
   placement?: string;
   align?: string;
   gap?: number;
@@ -168,6 +173,7 @@ export interface SaveData {
   className: string;
   noteColor: NoteColor;
   noteOpacity: number;
+  noteEffectEnabled: boolean;
   noteGlowEnabled: boolean;
   noteGlowSize: number;
   noteGlowOpacity: number;
@@ -203,6 +209,7 @@ export function createInitialNoteState(keyData: KeyData): NoteTabState {
   const initialGlowSource = keyData.noteGlowColor ?? initialNoteColor;
 
   return {
+    noteEffectEnabled: keyData.noteEffectEnabled !== false,
     colorMode: isGradientColor(initialNoteColor)
       ? COLOR_MODES.gradient
       : COLOR_MODES.solid,
@@ -256,6 +263,7 @@ export function createInitialCounterState(
   );
 
   return {
+    counterEnabled: resolved.enabled,
     placement: resolved.placement,
     align: resolved.align,
     gap: resolved.gap ?? 6,
@@ -386,6 +394,7 @@ export function useUnifiedKeySettingState({
       // 노트 데이터
       noteColor: noteColorValue,
       noteOpacity: noteState.noteOpacity,
+      noteEffectEnabled: noteState.noteEffectEnabled,
       noteGlowEnabled: noteState.glowEnabled,
       noteGlowSize: noteState.glowSize,
       noteGlowOpacity: noteState.glowOpacity,
@@ -393,6 +402,7 @@ export function useUnifiedKeySettingState({
       noteAutoYCorrection: noteState.autoYCorrection,
       // 카운터 데이터
       counter: normalizeCounterSettings({
+        enabled: counterState.counterEnabled,
         placement: counterState.placement,
         align: counterState.align,
         gap: counterState.gap,

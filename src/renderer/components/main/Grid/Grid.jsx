@@ -207,7 +207,9 @@ export default function Grid({
   const isExtrasPopupOpen = useUIStore((state) => state.isExtrasPopupOpen);
 
   // 불러오기/내보내기 팝업 열림 상태 (미니맵 표시 제어용)
-  const isExportImportPopupOpen = useUIStore((state) => state.isExportImportPopupOpen);
+  const isExportImportPopupOpen = useUIStore(
+    (state) => state.isExportImportPopupOpen
+  );
 
   // 탭 변경 시 선택 해제
   useEffect(() => {
@@ -789,6 +791,8 @@ export default function Grid({
               "#FFFFFF",
             noteOpacity:
               positions[selectedKeyType][selectedKey.index].noteOpacity || 80,
+            noteEffectEnabled:
+              positions[selectedKeyType][selectedKey.index].noteEffectEnabled,
             noteGlowEnabled:
               positions[selectedKeyType][selectedKey.index].noteGlowEnabled ??
               true,
@@ -843,7 +847,8 @@ export default function Grid({
                   origKey.noteGlowSize,
                   origKey.noteGlowOpacity,
                   origKey.noteGlowColor,
-                  origKey.noteAutoYCorrection
+                  origKey.noteAutoYCorrection,
+                  origKey.noteEffectEnabled
                 );
               }
             }
@@ -881,6 +886,7 @@ export default function Grid({
                 positions[selectedKeyType][selectedKey.index].counter || {};
               // 현재 값과 미리보기 값을 병합
               const mergedPayload = {
+                enabled: previewData.enabled ?? currentCounter.enabled ?? true,
                 placement:
                   previewData.placement ?? currentCounter.placement ?? "inside",
                 align: previewData.align ?? currentCounter.align ?? "bottom",
@@ -938,6 +944,8 @@ export default function Grid({
               const noteAutoYCorrection =
                 previewData.noteAutoYCorrection ??
                 currentKey.noteAutoYCorrection;
+              const noteEffectEnabled =
+                previewData.noteEffectEnabled ?? currentKey.noteEffectEnabled;
 
               onNoteColorPreview(
                 selectedKey.index,
@@ -947,7 +955,8 @@ export default function Grid({
                 noteGlowSize,
                 noteGlowOpacity,
                 noteGlowColor,
-                noteAutoYCorrection
+                noteAutoYCorrection,
+                noteEffectEnabled
               );
             }
           }}
@@ -962,7 +971,9 @@ export default function Grid({
         panY={panY}
         containerRef={gridContainerRef}
         mode={selectedKeyType}
-        visible={isGridHovered && !isExtrasPopupOpen && !isExportImportPopupOpen}
+        visible={
+          isGridHovered && !isExtrasPopupOpen && !isExportImportPopupOpen
+        }
       />
       {/* 줌 레벨 표시 */}
       <ZoomIndicator zoom={zoom} />

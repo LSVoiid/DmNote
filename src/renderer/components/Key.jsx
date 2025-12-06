@@ -463,8 +463,11 @@ export const Key = memo(
     const counterSettings = normalizeCounterSettings(
       position?.counter ?? createDefaultCounterSettings()
     );
+    // 개별 키의 카운터 enabled와 전역 counterEnabled 모두 확인
     const showInsideCounter =
-      counterEnabled && counterSettings.placement === "inside";
+      counterEnabled &&
+      counterSettings.enabled &&
+      counterSettings.placement === "inside";
 
     let counterSignal;
     if (showInsideCounter) {
@@ -612,6 +615,8 @@ export const Key = memo(
       prevProps.position.idleTransparent ===
         nextProps.position.idleTransparent &&
       prevProps.position.className === nextProps.position.className &&
+      prevProps.position.counter?.enabled ===
+        nextProps.position.counter?.enabled &&
       prevProps.position.counter?.placement ===
         nextProps.position.counter?.placement &&
       prevProps.position.counter?.align === nextProps.position.counter?.align &&

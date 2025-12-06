@@ -73,7 +73,8 @@ const KeyCounter = memo(({ globalKey, position, mode }) => {
     return createDefaultCounterSettings();
   }, [position?.counter]);
 
-  if (counterSettings.placement !== "outside") {
+  // 개별 키의 카운터가 비활성화되었거나 outside가 아니면 렌더링하지 않음
+  if (!counterSettings.enabled || counterSettings.placement !== "outside") {
     return null;
   }
 

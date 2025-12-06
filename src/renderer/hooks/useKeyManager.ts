@@ -45,6 +45,7 @@ type KeyUpdatePayload = {
   height: number;
   noteColor?: NoteColor;
   noteOpacity?: number;
+  noteEffectEnabled?: boolean;
   noteGlowSize?: number;
   noteGlowOpacity?: number;
   noteGlowEnabled?: boolean;
@@ -144,6 +145,8 @@ export function useKeyManager() {
                 height: keyData.height,
                 noteColor: keyData.noteColor ?? value.noteColor ?? "#FFFFFF",
                 noteOpacity: keyData.noteOpacity ?? value.noteOpacity ?? 80,
+                noteEffectEnabled:
+                  keyData.noteEffectEnabled ?? value.noteEffectEnabled ?? true,
                 noteGlowEnabled:
                   keyData.noteGlowEnabled ?? value.noteGlowEnabled ?? true,
                 noteGlowSize: keyData.noteGlowSize ?? value.noteGlowSize ?? 20,
@@ -201,6 +204,7 @@ export function useKeyManager() {
           count: 0,
           noteColor: "#FFFFFF",
           noteOpacity: 80,
+          noteEffectEnabled: true,
           noteGlowEnabled: false,
           noteGlowSize: 20,
           noteGlowOpacity: 70,
@@ -250,6 +254,7 @@ export function useKeyManager() {
           count: 0,
           noteColor: "#FFFFFF",
           noteOpacity: 80,
+          noteEffectEnabled: true,
           noteGlowEnabled: false,
           noteGlowSize: 20,
           noteGlowOpacity: 70,
@@ -386,7 +391,8 @@ export function useKeyManager() {
     noteGlowSize: number,
     noteGlowOpacity: number,
     noteGlowColor: NoteColor | undefined,
-    noteAutoYCorrection?: boolean
+    noteAutoYCorrection?: boolean,
+    noteEffectEnabled?: boolean
   ) => {
     const state = useKeyStore.getState();
     const mode = state.selectedKeyType || selectedKeyType;
@@ -408,6 +414,7 @@ export function useKeyManager() {
               noteGlowColor: noteGlowColor ?? noteColor,
               noteAutoYCorrection:
                 noteAutoYCorrection ?? pos.noteAutoYCorrection,
+              noteEffectEnabled: noteEffectEnabled ?? pos.noteEffectEnabled,
             }
           : pos
       ),

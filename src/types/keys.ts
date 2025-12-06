@@ -19,6 +19,7 @@ export const keyCounterColorSchema = z.object({
 
 const keyCounterSettingsInputSchema = z
   .object({
+    enabled: z.boolean().optional(),
     placement: keyCounterPlacementSchema.optional(),
     align: keyCounterAlignSchema.optional(),
     fill: keyCounterColorSchema.partial().optional(),
@@ -32,6 +33,7 @@ export type KeyCounterAlign = z.infer<typeof keyCounterAlignSchema>;
 export type KeyCounterColor = z.infer<typeof keyCounterColorSchema>;
 
 export interface KeyCounterSettings {
+  enabled: boolean;
   placement: KeyCounterPlacement;
   align: KeyCounterAlign;
   fill: KeyCounterColor;
@@ -40,6 +42,7 @@ export interface KeyCounterSettings {
 }
 
 const COUNTER_DEFAULTS: KeyCounterSettings = Object.freeze({
+  enabled: true,
   placement: "outside" as KeyCounterPlacement,
   align: "top" as KeyCounterAlign,
   // fill: idle white, active black
@@ -51,6 +54,7 @@ const COUNTER_DEFAULTS: KeyCounterSettings = Object.freeze({
 
 export function createDefaultCounterSettings(): KeyCounterSettings {
   return {
+    enabled: COUNTER_DEFAULTS.enabled,
     placement: COUNTER_DEFAULTS.placement,
     align: COUNTER_DEFAULTS.align,
     fill: {
@@ -72,8 +76,9 @@ export function normalizeCounterSettings(raw: unknown): KeyCounterSettings {
     return fallback;
   }
 
-  const { placement, align, fill, stroke, gap } = parsed.data;
+  const { enabled, placement, align, fill, stroke, gap } = parsed.data;
   return {
+    enabled: typeof enabled === "boolean" ? enabled : fallback.enabled,
     placement: placement ?? fallback.placement,
     align: align ?? fallback.align,
     fill: {
@@ -127,6 +132,7 @@ export const keyPositionSchema = z.object({
   count: z.number().int().nonnegative(),
   noteColor: noteColorSchema,
   noteOpacity: z.number().int().min(0).max(100),
+  noteEffectEnabled: z.boolean().optional().default(true),
   noteGlowEnabled: z.boolean().optional().default(false),
   noteGlowSize: z.number().int().min(0).max(50).optional().default(20),
   noteGlowOpacity: z.number().int().min(0).max(100).optional().default(70),

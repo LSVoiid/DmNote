@@ -99,7 +99,8 @@
     "save": "Apply",
     "cancel": "Cancel",
     "noteGlowColor": "Glow Color",
-    "noteAutoYCorrection": "Auto Y Correction"
+    "noteAutoYCorrection": "Auto Y Correction",
+    "noteEffectEnabled": "Enable Note Effect"
   },
   "imagePicker": {
     "idle": "Idle",
@@ -226,6 +227,7 @@
     "glowColor": "Color"
   },
   "counterSetting": {
+    "counterEnabled": "Enable Counter",
     "placement": "Placement",
     "placementArea": "Placement",
     "placementInside": "Inside",

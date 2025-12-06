@@ -99,7 +99,8 @@
     "cancel": "취소",
     "noteGlow": "글로우 효과",
     "noteGlowColor": "글로우 색상",
-    "noteAutoYCorrection": "Y축 자동 보정"
+    "noteAutoYCorrection": "Y축 자동 보정",
+    "noteEffectEnabled": "노트 효과 표시"
   },
   "imagePicker": {
     "idle": "대기",
@@ -226,6 +227,7 @@
     "glowColor": "색상"
   },
   "counterSetting": {
+    "counterEnabled": "카운터 표시",
     "placement": "배치",
     "placementArea": "배치 영역",
     "placementInside": "내부",

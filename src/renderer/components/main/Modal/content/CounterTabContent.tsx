@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "@contexts/I18nContext";
 import ColorPicker from "./ColorPicker";
 import Dropdown from "@components/main/common/Dropdown";
+import Checkbox from "@components/main/common/Checkbox";
 import type {
   CounterTabState,
   CounterPreviewData,
@@ -226,6 +227,13 @@ const CounterTabContent: React.FC<CounterTabContentProps> = ({
     onPreview(payload);
   };
 
+  // 카운터 토글 핸들러
+  const handleCounterToggle = () => {
+    const newEnabled = !state.counterEnabled;
+    setState((prev) => ({ ...prev, counterEnabled: newEnabled }));
+    onPreview({ enabled: newEnabled });
+  };
+
   return (
     <div className="flex flex-col gap-[19px]">
       {/* 배치 영역 */}
@@ -340,6 +348,19 @@ const CounterTabContent: React.FC<CounterTabContentProps> = ({
             </span>
           </button>
         </div>
+      </div>
+
+      <div className="h-px w-full bg-[#2A2A30]" />
+
+      {/* 카운터 사용 */}
+      <div className="flex justify-between w-full items-center">
+        <p className="text-white text-style-2">
+          {t("counterSetting.counterEnabled")}
+        </p>
+        <Checkbox
+          checked={state.counterEnabled}
+          onChange={handleCounterToggle}
+        />
       </div>
 
       {/* 컬러 피커 */}
