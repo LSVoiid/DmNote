@@ -61,6 +61,13 @@ export function useGridSelection({
     window.api.keys.updatePositions(currentPositions).catch((error: Error) => {
       console.error("Failed to sync key positions to overlay", error);
     });
+    try {
+      window.api.bridge.sendTo("overlay", "positions:sync", {
+        positions: currentPositions,
+      });
+    } catch (error) {
+      console.error("Failed to broadcast key positions to overlay", error);
+    }
     // 플러그인 요소는 setElements에서 자동으로 syncToOverlayThrottled 호출됨
   }, []);
 

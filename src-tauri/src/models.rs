@@ -102,6 +102,8 @@ pub struct KeyPosition {
     #[serde(default)]
     pub class_name: Option<String>,
     #[serde(default)]
+    pub z_index: Option<i32>,
+    #[serde(default)]
     pub counter: KeyCounterSettings,
 }
 

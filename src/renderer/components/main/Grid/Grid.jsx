@@ -137,25 +137,35 @@ export default function Grid({
   });
 
   // 선택된 요소의 z-order 조작 핸들러
-  const handleSelectedMoveForward = useCallback(() => {
+  const handleSelectedMoveForward = useCallback(async () => {
     if (selectedElements.length !== 1) return;
     const selected = selectedElements[0];
     if (selected.type === "key") {
-      onMoveForward(selected.index);
+      try {
+        await onMoveForward(selected.index);
+        syncSelectedElementsToOverlay();
+      } catch (error) {
+        console.error("Failed to move selected key forward", error);
+      }
     } else if (selected.type === "plugin") {
       usePluginDisplayElementStore.getState().bringForward(selected.id);
     }
-  }, [selectedElements, onMoveForward]);
+  }, [selectedElements, onMoveForward, syncSelectedElementsToOverlay]);
 
-  const handleSelectedMoveBackward = useCallback(() => {
+  const handleSelectedMoveBackward = useCallback(async () => {
     if (selectedElements.length !== 1) return;
     const selected = selectedElements[0];
     if (selected.type === "key") {
-      onMoveBackward(selected.index);
+      try {
+        await onMoveBackward(selected.index);
+        syncSelectedElementsToOverlay();
+      } catch (error) {
+        console.error("Failed to move selected key backward", error);
+      }
     } else if (selected.type === "plugin") {
       usePluginDisplayElementStore.getState().sendBackward(selected.id);
     }
-  }, [selectedElements, onMoveBackward]);
+  }, [selectedElements, onMoveBackward, syncSelectedElementsToOverlay]);
 
   // 키보드 단축키 훅 사용
   useGridKeyboard({
@@ -250,7 +260,7 @@ export default function Grid({
         position={position}
         keyName={keyMappings[selectedKeyType]?.[index] || ""}
         onPositionChange={onPositionChange}
-        zIndex={index}
+        zIndex={position.zIndex ?? index}
         onClick={() => {
           if (isContextOpen) {
             setIsContextOpen(false);

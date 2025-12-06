@@ -80,6 +80,7 @@ export class NoteBuffer {
   readonly noteGlowColorBottom: Float32Array;
 
   private readonly noteIdByIndex: (string | null)[];
+  private readonly trackKeyByIndex: (string | null)[];
   private readonly indexByNoteId: Map<string, number>;
   private trackLayouts: Map<string, TrackLayoutInput>;
 
@@ -98,6 +99,7 @@ export class NoteBuffer {
     this.noteGlowColorBottom = new Float32Array(MAX_NOTES * 3);
 
     this.noteIdByIndex = new Array<string | null>(MAX_NOTES).fill(null);
+    this.trackKeyByIndex = new Array<string | null>(MAX_NOTES).fill(null);
     this.indexByNoteId = new Map();
     this.trackLayouts = new Map();
 
@@ -111,6 +113,18 @@ export class NoteBuffer {
       nextLayouts.set(track.trackKey, track);
     });
     this.trackLayouts = nextLayouts;
+
+    // 기존 노트들의 trackIndex 업데이트 (zIndex 동기화)
+    for (let i = 0; i < this.activeCount; i++) {
+      const trackKey = this.trackKeyByIndex[i];
+      if (trackKey) {
+        const layout = nextLayouts.get(trackKey);
+        if (layout) {
+          this.trackIndex[i] = layout.trackIndex;
+        }
+      }
+    }
+    this.version += 1;
   }
 
   allocate(trackKey: string, noteId: string, startTime: number) {
@@ -127,9 +141,7 @@ export class NoteBuffer {
         : 0.8;
     const glowEnabled = layout.noteGlowEnabled ?? false;
     const rawGlowSize = layout.noteGlowSize ?? 20;
-    const glowSize = glowEnabled
-      ? Math.min(Math.max(rawGlowSize, 0), 50)
-      : 0;
+    const glowSize = glowEnabled ? Math.min(Math.max(rawGlowSize, 0), 50) : 0;
     const glowOpacity = glowEnabled
       ? Math.min(Math.max((layout.noteGlowOpacity ?? 70) / 100, 0), 1)
       : 0;
@@ -205,7 +217,9 @@ export class NoteBuffer {
 
       for (let i = this.activeCount; i > insertIndex; i -= 1) {
         const movedId = this.noteIdByIndex[i - 1];
+        const movedTrackKey = this.trackKeyByIndex[i - 1];
         this.noteIdByIndex[i] = movedId;
+        this.trackKeyByIndex[i] = movedTrackKey;
         if (movedId) {
           this.indexByNoteId.set(movedId, i);
         }
@@ -249,6 +263,7 @@ export class NoteBuffer {
     this.noteGlowColorBottom[glowColorOffset + 2] = srgbGlowBottom[2];
 
     this.noteIdByIndex[insertIndex] = noteId;
+    this.trackKeyByIndex[insertIndex] = trackKey;
     this.indexByNoteId.set(noteId, insertIndex);
     this.version += 1;
     return insertIndex;
@@ -301,7 +316,9 @@ export class NoteBuffer {
 
       for (let i = index; i < last; i += 1) {
         const movedId = this.noteIdByIndex[i + 1];
+        const movedTrackKey = this.trackKeyByIndex[i + 1];
         this.noteIdByIndex[i] = movedId;
+        this.trackKeyByIndex[i] = movedTrackKey;
         if (movedId) {
           this.indexByNoteId.set(movedId, i);
         }
@@ -309,6 +326,7 @@ export class NoteBuffer {
     }
 
     this.noteIdByIndex[last] = null;
+    this.trackKeyByIndex[last] = null;
     this.indexByNoteId.delete(noteId);
     this.activeCount = Math.max(last, 0);
 
@@ -338,6 +356,7 @@ export class NoteBuffer {
     this.version += 1;
     this.indexByNoteId.clear();
     this.noteIdByIndex.fill(null);
+    this.trackKeyByIndex.fill(null);
     this.noteInfo.fill(0);
     this.noteSize.fill(0);
     this.noteColorTop.fill(0);

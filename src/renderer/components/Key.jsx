@@ -433,8 +433,19 @@ export const Key = memo(
         imageRendering: "auto",
         isolation: "isolate",
         boxSizing: "border-box",
+        zIndex: position.zIndex,
       }),
-      [active, activeImage, inactiveImage, dx, dy, width, height, currentImage]
+      [
+        active,
+        activeImage,
+        inactiveImage,
+        dx,
+        dy,
+        width,
+        height,
+        currentImage,
+        position.zIndex,
+      ]
     );
 
     const imageStyle = useMemo(
@@ -614,6 +625,7 @@ export const Key = memo(
         nextProps.position.activeTransparent &&
       prevProps.position.idleTransparent ===
         nextProps.position.idleTransparent &&
+      prevProps.position.zIndex === nextProps.position.zIndex &&
       prevProps.position.className === nextProps.position.className &&
       prevProps.position.counter?.enabled ===
         nextProps.position.counter?.enabled &&

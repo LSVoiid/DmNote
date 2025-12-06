@@ -106,6 +106,21 @@ export default function App() {
     };
   }, []);
 
+  // 메인에서 bridge를 통한 positions 동기화 수신
+  useEffect(() => {
+    const unsubscribe = window.api.bridge.on<{
+      positions: Record<string, any[]>;
+    }>("positions:sync", (data) => {
+      if (data?.positions) {
+        useKeyStore.setState((state) => ({
+          ...state,
+          positions: data.positions,
+        }));
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
   const selectedKeyType = useKeyStore((state) => state.selectedKeyType);
   const keyMappings = useKeyStore((state) => state.keyMappings);
   const positions = useKeyStore((state) => state.positions);
@@ -366,7 +381,7 @@ export default function App() {
 
         return {
           trackKey: key,
-          trackIndex: index,
+          trackIndex: position.zIndex ?? index,
           position: { ...position, dy: trackStartY },
           width: position.width,
           height: trackHeight,
@@ -470,10 +485,16 @@ export default function App() {
 
       {currentKeys.map((key, index) => {
         const { displayName } = getKeyInfoByGlobalKey(key);
-        const position =
+        const basePosition =
           displayPositions[index] ??
           currentPositions[index] ??
           FALLBACK_POSITION;
+
+        // zIndex가 null/undefined인 경우 index를 fallback으로 사용 (메인 그리드와 동일하게)
+        const position = {
+          ...basePosition,
+          zIndex: basePosition.zIndex ?? index,
+        };
 
         return (
           <OverlayKey

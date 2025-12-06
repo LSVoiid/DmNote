@@ -613,6 +613,10 @@ export function useKeyManager() {
 
     try {
       await window.api.keys.updatePositions(updatedPositions);
+      // 오버레이에 직접 동기화
+      window.api.bridge.sendTo("overlay", "positions:sync", {
+        positions: updatedPositions,
+      });
     } catch (error) {
       console.error("Failed to move key to front", error);
     } finally {
@@ -645,6 +649,10 @@ export function useKeyManager() {
 
     try {
       await window.api.keys.updatePositions(updatedPositions);
+      // 오버레이에 직접 동기화
+      window.api.bridge.sendTo("overlay", "positions:sync", {
+        positions: updatedPositions,
+      });
     } catch (error) {
       console.error("Failed to move key to back", error);
     } finally {
@@ -724,6 +732,10 @@ export function useKeyManager() {
 
     try {
       await window.api.keys.updatePositions(updatedPositions);
+      // 오버레이에 직접 동기화
+      window.api.bridge.sendTo("overlay", "positions:sync", {
+        positions: updatedPositions,
+      });
     } catch (error) {
       console.error("Failed to move key forward", error);
     } finally {
@@ -803,6 +815,10 @@ export function useKeyManager() {
 
     try {
       await window.api.keys.updatePositions(updatedPositions);
+      // 오버레이에 직접 동기화
+      window.api.bridge.sendTo("overlay", "positions:sync", {
+        positions: updatedPositions,
+      });
     } catch (error) {
       console.error("Failed to move key backward", error);
     } finally {
