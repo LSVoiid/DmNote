@@ -12,6 +12,7 @@ import {
   type SaveData,
   type PreviewData,
 } from "@hooks/Modal/useUnifiedKeySettingState";
+import { getScrollShadowState } from "@utils/scrollShadow";
 import type { KeyCounterSettings } from "@src/types/keys";
 
 // ============================================================================
@@ -81,8 +82,8 @@ const UnifiedKeySetting: React.FC<UnifiedKeySettingProps> = ({
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const contentRef = React.useRef<HTMLDivElement>(null);
   const [scrollState, setScrollState] = React.useState({
-    canScrollUp: false,
-    canScrollDown: false,
+    hasTopShadow: false,
+    hasBottomShadow: false,
   });
   // 탭 전환 시 그림자 애니메이션 스킵 여부 (깜빡임 방지)
   const [skipShadowTransition, setSkipShadowTransition] = React.useState(false);
@@ -118,12 +119,16 @@ const UnifiedKeySetting: React.FC<UnifiedKeySettingProps> = ({
   // 스크롤 상태 업데이트
   const updateScrollState = React.useCallback(() => {
     const el = scrollRef.current;
+    const contentEl = contentRef.current;
     if (!el) return;
 
-    const canScrollUp = el.scrollTop > 0;
-    const canScrollDown = el.scrollTop < el.scrollHeight - el.clientHeight - 1;
-
-    setScrollState({ canScrollUp, canScrollDown });
+    const nextState = getScrollShadowState(el, contentEl);
+    setScrollState((prev) =>
+      prev.hasTopShadow === nextState.hasTopShadow &&
+      prev.hasBottomShadow === nextState.hasBottomShadow
+        ? prev
+        : nextState
+    );
   }, []);
 
   // 탭 변경 또는 마운트 시 스크롤 상태 확인 (DOM 렌더링 후 확인)
@@ -219,7 +224,7 @@ const UnifiedKeySetting: React.FC<UnifiedKeySettingProps> = ({
           <div
             className={`absolute top-0 left-0 right-[14px] h-[10px] bg-gradient-to-b from-[#1A191E] to-transparent pointer-events-none z-10 ${
               skipShadowTransition ? "" : "transition-opacity duration-150"
-            } ${scrollState.canScrollUp ? "opacity-100" : "opacity-0"}`}
+            } ${scrollState.hasTopShadow ? "opacity-100" : "opacity-0"}`}
           />
 
           <div
@@ -242,7 +247,7 @@ const UnifiedKeySetting: React.FC<UnifiedKeySettingProps> = ({
           <div
             className={`absolute bottom-0 left-0 right-[14px] h-[10px] bg-gradient-to-t from-[#1A191E] to-transparent pointer-events-none z-10 ${
               skipShadowTransition ? "" : "transition-opacity duration-150"
-            } ${scrollState.canScrollDown ? "opacity-100" : "opacity-0"}`}
+            } ${scrollState.hasBottomShadow ? "opacity-100" : "opacity-0"}`}
           />
         </div>
 

@@ -1,6 +1,7 @@
 import React, { useRef, useState, useCallback, useEffect } from "react";
 import { useTranslation } from "@contexts/I18nContext";
 import Modal from "../Modal";
+import { getScrollShadowState } from "@utils/scrollShadow";
 
 export default function Alert({
   isOpen,
@@ -24,18 +25,21 @@ export default function Alert({
 
   const scrollRef = useRef(null);
   const [scrollState, setScrollState] = useState({
-    canScrollUp: false,
-    canScrollDown: false,
+    hasTopShadow: false,
+    hasBottomShadow: false,
   });
 
   const updateScrollState = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
 
-    const canScrollUp = el.scrollTop > 0;
-    const canScrollDown = el.scrollTop < el.scrollHeight - el.clientHeight - 1;
-
-    setScrollState({ canScrollUp, canScrollDown });
+    const nextState = getScrollShadowState(el);
+    setScrollState((prev) =>
+      prev.hasTopShadow === nextState.hasTopShadow &&
+      prev.hasBottomShadow === nextState.hasBottomShadow
+        ? prev
+        : nextState
+    );
   }, []);
 
   useEffect(() => {
@@ -58,7 +62,7 @@ export default function Alert({
             {/* 상단 그림자 */}
             <div
               className={`absolute top-0 left-0 right-[14px] h-[10px] bg-gradient-to-b from-[#1A191E] to-transparent pointer-events-none z-10 transition-opacity duration-150 ${
-                scrollState.canScrollUp ? "opacity-100" : "opacity-0"
+                scrollState.hasTopShadow ? "opacity-100" : "opacity-0"
               }`}
             />
 
@@ -72,7 +76,7 @@ export default function Alert({
             {/* 하단 그림자 */}
             <div
               className={`absolute bottom-0 left-0 right-[14px] h-[10px] bg-gradient-to-t from-[#1A191E] to-transparent pointer-events-none z-10 transition-opacity duration-150 ${
-                scrollState.canScrollDown ? "opacity-100" : "opacity-0"
+                scrollState.hasBottomShadow ? "opacity-100" : "opacity-0"
               }`}
             />
           </div>
