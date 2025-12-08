@@ -81,7 +81,7 @@ export default function UpdateModal({
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="#DBDEE8"
-                  strokeWidth="2"
+                  strokeWidth="3.5"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 >
