@@ -234,7 +234,7 @@ export function createInput(options: InputOptions = {}): string {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
 
-  return `<input ${idAttr} type="${type}" value="${escapedValue}" placeholder="${placeholder}" class="text-center px-[12px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943] focus:border-[#459BF8] text-style-4 text-[#DBDEE8] outline-none" style="width: ${width}px" ${minAttr} ${maxAttr} ${stepAttr} ${onBlurAttr} ${
+  return `<input ${idAttr} type="${type}" value="${escapedValue}" placeholder="${placeholder}" class="text-center px-[8px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943] focus:border-[#459BF8] text-style-4 text-[#DBDEE8] outline-none" style="width: ${width}px" ${minAttr} ${maxAttr} ${stepAttr} ${onBlurAttr} ${
     disabled ? "disabled" : ""
   } ${onInputAttr} ${onChangeAttr} />`;
 }

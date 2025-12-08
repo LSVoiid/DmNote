@@ -59,6 +59,30 @@ export default function App() {
     };
   }, []);
 
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+
+    const disableSpellcheck = () => {
+      document.documentElement.spellcheck = false;
+      if (document.body) {
+        document.body.spellcheck = false;
+      }
+      document.querySelectorAll("input, textarea").forEach((el) => {
+        if (el instanceof HTMLElement) {
+          el.setAttribute("spellcheck", "false");
+        }
+      });
+    };
+
+    disableSpellcheck();
+
+    const observer = new MutationObserver(() => {
+      disableSpellcheck();
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, []);
+
   const primaryButtonRef = useRef(null);
 
   const {
