@@ -10,7 +10,7 @@
     "loadCss": "CSS 파일 불러오기",
     "customJS": "JS 플러그인 활성화",
     "noJsFile": "(선택된 JS 파일 없음)",
-    "loadJs": "JS 플러그인 추가",
+    "loadJs": "플러그인 추가",
     "pluginManageLabel": "Plugin 파일 상세 관리",
     "reloadPlugins": "리로드",
     "managePlugins": "플러그인 관리",

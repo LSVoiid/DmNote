@@ -10,7 +10,7 @@
     "loadCss": "Import CSS File",
     "customJS": "Enable JS Plugins",
     "noJsFile": "(No JS file selected)",
-    "loadJs": "Add JS Plugins",
+    "loadJs": "Add Plugins",
     "pluginManageLabel": "Plugin file manager",
     "reloadPlugins": "Reload",
     "managePlugins": "Manage Plugins",
