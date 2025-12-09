@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useLenis } from "@hooks/useLenis";
 import { useTranslation } from "@contexts/I18nContext";
 import { useSettingsStore } from "@stores/useSettingsStore";
 import { useKeyStore } from "@stores/useKeyStore";
@@ -73,6 +74,9 @@ export default function Settings({ showAlert, showConfirm }) {
   const [isReloadingPlugins, setIsReloadingPlugins] = useState(false);
   const [isAddingPlugins, setIsAddingPlugins] = useState(false);
   const [pendingPluginId, setPendingPluginId] = useState(null);
+
+  // Lenis smooth scroll 적용 (전역 설정 사용)
+  const { scrollContainerRef } = useLenis();
 
   const RESIZE_ANCHOR_OPTIONS = [
     { value: "top-left", key: "topLeft" },
@@ -479,6 +483,7 @@ export default function Settings({ showAlert, showConfirm }) {
   return (
     <div className="relative w-full h-full">
       <div
+        ref={scrollContainerRef}
         className={`settings-content-scroll w-full h-full flex flex-col py-[10px] px-[10px] gap-[19px] overflow-y-auto bg-[#0B0B0D] ${
           isScrollHovered ? "show-scrollbar" : ""
         }`}

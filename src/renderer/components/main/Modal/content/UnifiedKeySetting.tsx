@@ -1,4 +1,5 @@
 import React from "react";
+import { useLenis } from "@hooks/useLenis";
 import { useTranslation } from "@contexts/I18nContext";
 import Modal from "../Modal";
 import KeyTabContent from "./KeyTabContent";
@@ -79,7 +80,6 @@ const UnifiedKeySetting: React.FC<UnifiedKeySettingProps> = ({
 }) => {
   const { t } = useTranslation();
   const initialSkipRef = React.useRef(skipAnimation);
-  const scrollRef = React.useRef<HTMLDivElement>(null);
   const contentRef = React.useRef<HTMLDivElement>(null);
   const [scrollState, setScrollState] = React.useState({
     hasTopShadow: false,
@@ -93,6 +93,27 @@ const UnifiedKeySetting: React.FC<UnifiedKeySettingProps> = ({
   );
   // 높이 애니메이션 스킵 여부 (초기 마운트 시)
   const isFirstRender = React.useRef(true);
+
+  // 스크롤 상태 업데이트 함수
+  const updateScrollState = React.useCallback((el: HTMLElement | null) => {
+    if (!el) return;
+    const nextState = getScrollShadowState(el, contentRef.current);
+    setScrollState((prev) =>
+      prev.hasTopShadow === nextState.hasTopShadow &&
+      prev.hasBottomShadow === nextState.hasBottomShadow
+        ? prev
+        : nextState
+    );
+  }, []);
+
+  // Lenis smooth scroll 적용 (onScroll 콜백으로 그림자 업데이트)
+  const {
+    scrollContainerRef: scrollRef,
+    wrapperElement,
+    lenisInstance,
+  } = useLenis({
+    onScroll: () => updateScrollState(wrapperElement),
+  });
 
   const {
     activeTab,
@@ -116,20 +137,7 @@ const UnifiedKeySetting: React.FC<UnifiedKeySettingProps> = ({
     onClose,
   });
 
-  // 스크롤 상태 업데이트
-  const updateScrollState = React.useCallback(() => {
-    const el = scrollRef.current;
-    const contentEl = contentRef.current;
-    if (!el) return;
 
-    const nextState = getScrollShadowState(el, contentEl);
-    setScrollState((prev) =>
-      prev.hasTopShadow === nextState.hasTopShadow &&
-      prev.hasBottomShadow === nextState.hasBottomShadow
-        ? prev
-        : nextState
-    );
-  }, []);
 
   // 탭 변경 또는 마운트 시 스크롤 상태 확인 (DOM 렌더링 후 확인)
   React.useEffect(() => {
@@ -137,7 +145,7 @@ const UnifiedKeySetting: React.FC<UnifiedKeySettingProps> = ({
     setSkipShadowTransition(true);
 
     // 콘텐츠 크기 변경 감지를 위한 ResizeObserver
-    const el = scrollRef.current;
+    const el = wrapperElement;
     const contentEl = contentRef.current;
     if (!el) return;
 
@@ -150,7 +158,7 @@ const UnifiedKeySetting: React.FC<UnifiedKeySettingProps> = ({
     };
 
     const resizeObserver = new ResizeObserver(() => {
-      updateScrollState();
+      updateScrollState(el);
       updateHeight();
     });
 
@@ -161,7 +169,7 @@ const UnifiedKeySetting: React.FC<UnifiedKeySettingProps> = ({
     resizeObserver.observe(el);
 
     // 초기 상태 확인
-    updateScrollState();
+    updateScrollState(el);
     updateHeight();
 
     // 다음 프레임에서 애니메이션 다시 활성화 및 첫 렌더 플래그 해제
@@ -174,7 +182,14 @@ const UnifiedKeySetting: React.FC<UnifiedKeySettingProps> = ({
       resizeObserver.disconnect();
       cancelAnimationFrame(rafId);
     };
-  }, [activeTab, updateScrollState]);
+  }, [activeTab, wrapperElement, updateScrollState]);
+
+  // 탭 변경 시 스크롤 최상단으로 초기화
+  React.useEffect(() => {
+    if (lenisInstance.current) {
+      lenisInstance.current.scrollTo(0, { immediate: true });
+    }
+  }, [activeTab, lenisInstance]);
 
   // 탭 콘텐츠 렌더링
   const renderTabContent = () => {
@@ -238,7 +253,6 @@ const UnifiedKeySetting: React.FC<UnifiedKeySettingProps> = ({
                 ? "none"
                 : "height 100ms ease-in-out",
             }}
-            onScroll={updateScrollState}
           >
             <div ref={contentRef}>{renderTabContent()}</div>
           </div>

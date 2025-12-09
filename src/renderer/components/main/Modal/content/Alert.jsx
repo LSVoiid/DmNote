@@ -1,4 +1,5 @@
-import React, { useRef, useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect } from "react";
+import { useLenis } from "@hooks/useLenis";
 import { useTranslation } from "@contexts/I18nContext";
 import Modal from "../Modal";
 import { getScrollShadowState } from "@utils/scrollShadow";
@@ -23,16 +24,14 @@ export default function Alert({
   const isCustom = type === "custom";
   const shouldShowCancel = isConfirm || (isCustom && showCancel);
 
-  const scrollRef = useRef(null);
   const [scrollState, setScrollState] = useState({
     hasTopShadow: false,
     hasBottomShadow: false,
   });
 
-  const updateScrollState = useCallback(() => {
-    const el = scrollRef.current;
+  // 스크롤 상태 업데이트 함수
+  const updateScrollState = useCallback((el) => {
     if (!el) return;
-
     const nextState = getScrollShadowState(el);
     setScrollState((prev) =>
       prev.hasTopShadow === nextState.hasTopShadow &&
@@ -42,13 +41,18 @@ export default function Alert({
     );
   }, []);
 
+  // Lenis smooth scroll 적용 (onScroll 콜백으로 그림자 업데이트)
+  const { scrollContainerRef: scrollRef, wrapperElement } = useLenis({
+    onScroll: () => updateScrollState(wrapperElement),
+  });
+
   useEffect(() => {
-    if (isCustom) {
+    if (isCustom && wrapperElement) {
       // DOM이 렌더링된 후 스크롤 상태 확인
-      const timer = setTimeout(updateScrollState, 0);
+      const timer = setTimeout(() => updateScrollState(wrapperElement), 0);
       return () => clearTimeout(timer);
     }
-  }, [isCustom, message, updateScrollState]);
+  }, [isCustom, message, wrapperElement, updateScrollState]);
 
   return (
     <Modal onClick={onCancel}>
@@ -69,7 +73,6 @@ export default function Alert({
             <div
               ref={scrollRef}
               className="max-h-[244px] overflow-y-auto modal-content-scroll pr-[14px] text-center text-[#FFFFFF]"
-              onScroll={updateScrollState}
               dangerouslySetInnerHTML={{ __html: message }}
             />
 

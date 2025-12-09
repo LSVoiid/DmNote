@@ -1,4 +1,5 @@
 import React from "react";
+import { useLenis } from "@hooks/useLenis";
 import Modal from "@components/main/Modal/Modal";
 import Checkbox from "@components/main/common/Checkbox";
 import TrashIcon from "@assets/svgs/trash.svg";
@@ -15,7 +16,6 @@ export function PluginManagerModal({
   pendingPluginAction,
   t,
 }) {
-  const scrollRef = React.useRef(null);
   const contentRef = React.useRef(null);
   const [scrollState, setScrollState] = React.useState({
     hasTopShadow: false,
@@ -25,13 +25,10 @@ export function PluginManagerModal({
   const [containerHeight, setContainerHeight] = React.useState(null);
   const isFirstRender = React.useRef(true);
 
-  // 스크롤 상태 업데이트
-  const updateScrollState = React.useCallback(() => {
-    const el = scrollRef.current;
-    const contentEl = contentRef.current;
+  // 스크롤 상태 업데이트 함수
+  const updateScrollState = React.useCallback((el) => {
     if (!el) return;
-
-    const nextState = getScrollShadowState(el, contentEl);
+    const nextState = getScrollShadowState(el, contentRef.current);
     setScrollState((prev) =>
       prev.hasTopShadow === nextState.hasTopShadow &&
       prev.hasBottomShadow === nextState.hasBottomShadow
@@ -40,13 +37,18 @@ export function PluginManagerModal({
     );
   }, []);
 
+  // Lenis smooth scroll 적용 (onScroll 콜백으로 그림자 업데이트)
+  const { scrollContainerRef: scrollRef, wrapperElement } = useLenis({
+    onScroll: () => updateScrollState(wrapperElement),
+  });
+
   // 스크롤 상태 및 높이 업데이트
   React.useEffect(() => {
     if (!isOpen) return;
 
     setSkipShadowTransition(true);
 
-    const el = scrollRef.current;
+    const el = wrapperElement;
     const contentEl = contentRef.current;
     if (!el) return;
 
@@ -59,7 +61,7 @@ export function PluginManagerModal({
     };
 
     const resizeObserver = new ResizeObserver(() => {
-      updateScrollState();
+      updateScrollState(el);
       updateHeight();
     });
 
@@ -68,7 +70,7 @@ export function PluginManagerModal({
     }
     resizeObserver.observe(el);
 
-    updateScrollState();
+    updateScrollState(el);
     updateHeight();
 
     const rafId = requestAnimationFrame(() => {
@@ -80,7 +82,7 @@ export function PluginManagerModal({
       resizeObserver.disconnect();
       cancelAnimationFrame(rafId);
     };
-  }, [isOpen, plugins.length, updateScrollState]);
+  }, [isOpen, plugins.length, wrapperElement, updateScrollState]);
 
   if (!isOpen) return null;
 
@@ -111,7 +113,6 @@ export function PluginManagerModal({
                 : "height 100ms ease-in-out",
               willChange: "scroll-position",
             }}
-            onScroll={updateScrollState}
           >
             <div ref={contentRef} className="flex flex-col gap-[19px] py-[5px]">
               {plugins.length === 0 ? (

@@ -5,7 +5,7 @@
 export const LENIS_CONFIG = {
   /** 스크롤 애니메이션 지속 시간 (초) */
   // 낮을수록 빠르게 스크롤
-  duration: 0.8,
+  duration: 0.7,
   /** 휠 스크롤 속도 multiplier */
   // 낮을수록 느리게 스크롤
   wheelMultiplier: 0.9,
