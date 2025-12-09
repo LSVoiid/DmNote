@@ -39,6 +39,64 @@ function clonePlugins(source?: CustomJs | null): JsPlugin[] {
 export function useAppBootstrap() {
   useEffect(() => {
     let disposed = false;
+    // Delay counter updates to keep them in sync with the key display delay
+    const counterDelayTimers = new Map<string, Set<ReturnType<typeof setTimeout>>>();
+
+    const composeCounterKey = (mode?: string, key?: string) =>
+      `${mode || "__unknown_mode__"}::${key || "__unknown_key__"}`;
+
+    const clearCounterDelayTimers = (composedKey?: string) => {
+      if (composedKey) {
+        const timers = counterDelayTimers.get(composedKey);
+        if (timers) {
+          timers.forEach((timer) => clearTimeout(timer));
+          counterDelayTimers.delete(composedKey);
+        }
+        return;
+      }
+
+      counterDelayTimers.forEach((timers) => {
+        timers.forEach((timer) => clearTimeout(timer));
+      });
+      counterDelayTimers.clear();
+    };
+
+    const getCounterDelayMs = () => {
+      const { laboratoryEnabled, noteSettings } = useSettingsStore.getState();
+      if (!laboratoryEnabled) return 0;
+      const delay = Number(noteSettings?.keyDisplayDelayMs ?? 0);
+      return delay > 0 ? delay : 0;
+    };
+
+    const scheduleCounterUpdate = (mode: string, key: string, count: number) => {
+      const delayMs = getCounterDelayMs();
+      const composedKey = composeCounterKey(mode, key);
+
+      if (delayMs <= 0) {
+        clearCounterDelayTimers(composedKey);
+        setKeyCounter(mode, key, count);
+        return;
+      }
+
+      const timer = setTimeout(() => {
+        if (disposed) return;
+        setKeyCounter(mode, key, count);
+        const timers = counterDelayTimers.get(composedKey);
+        if (timers) {
+          timers.delete(timer);
+          if (timers.size === 0) {
+            counterDelayTimers.delete(composedKey);
+          }
+        }
+      }, delayMs);
+
+      const existing = counterDelayTimers.get(composedKey);
+      if (existing) {
+        existing.add(timer);
+      } else {
+        counterDelayTimers.set(composedKey, new Set([timer]));
+      }
+    };
 
     const { setAll, merge } = useSettingsStore.getState();
 
@@ -133,9 +191,10 @@ export function useAppBootstrap() {
         useKeyStore.setState((state) => ({ ...state, selectedKeyType: mode }));
       }),
       window.api.keys.onCounterChanged(({ mode, key, count }) => {
-        setKeyCounter(mode, key, count);
+        scheduleCounterUpdate(mode, key, count);
       }),
       window.api.keys.onCountersChanged((snapshot) => {
+        clearCounterDelayTimers();
         applyCounterSnapshot(snapshot);
       }),
       window.api.keys.customTabs.onChanged(
@@ -172,6 +231,18 @@ export function useAppBootstrap() {
           jsPlugins: clonePlugins(script),
         });
       }),
+      useSettingsStore.subscribe((state, previousState) => {
+        const nextDelay = state.laboratoryEnabled
+          ? Number(state.noteSettings?.keyDisplayDelayMs ?? 0)
+          : 0;
+        const prevDelay =
+          previousState && previousState.laboratoryEnabled
+            ? Number(previousState.noteSettings?.keyDisplayDelayMs ?? 0)
+            : 0;
+        if (nextDelay <= 0 && prevDelay > 0) {
+          clearCounterDelayTimers();
+        }
+      }),
     ];
 
     return () => {
@@ -183,6 +254,7 @@ export function useAppBootstrap() {
           console.error("Failed to unsubscribe", error);
         }
       });
+      clearCounterDelayTimers();
     };
   }, []);
 }
