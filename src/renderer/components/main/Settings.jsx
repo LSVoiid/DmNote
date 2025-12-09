@@ -66,6 +66,7 @@ export default function Settings({ showAlert, showConfirm }) {
   const { checkForUpdates, isChecking } = useUpdateCheck();
 
   const [hoveredKey, setHoveredKey] = useState(null);
+  const [isScrollHovered, setIsScrollHovered] = useState(false);
   const [isPluginModalOpen, setPluginModalOpen] = useState(false);
   const [isDataDeleteModalOpen, setDataDeleteModalOpen] = useState(false);
   const [pluginToDelete, setPluginToDelete] = useState(null);
@@ -477,7 +478,13 @@ export default function Settings({ showAlert, showConfirm }) {
 
   return (
     <div className="relative w-full h-full">
-      <div className="settings-scroll w-full h-full flex flex-col py-[10px] px-[10px] gap-[19px] overflow-y-auto bg-[#0B0B0D]">
+      <div
+        className={`settings-content-scroll w-full h-full flex flex-col py-[10px] px-[10px] gap-[19px] overflow-y-auto bg-[#0B0B0D] ${
+          isScrollHovered ? "show-scrollbar" : ""
+        }`}
+        onMouseEnter={() => setIsScrollHovered(true)}
+        onMouseLeave={() => setIsScrollHovered(false)}
+      >
         {/* 설정 */}
         <div className="flex flex-row gap-[19px]">
           <div className="flex flex-col gap-[10px] w-[348px]">
