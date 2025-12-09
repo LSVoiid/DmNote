@@ -101,6 +101,7 @@ fn main() {
             commands::css::css_tab_get,
             commands::css::css_tab_load,
             commands::css::css_tab_clear,
+            commands::css::css_tab_set,
             commands::css::css_tab_toggle,
             commands::js::js_get,
             commands::js::js_get_use,

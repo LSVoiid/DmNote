@@ -64,6 +64,15 @@ pub struct TabCssToggleResponse {
     pub enabled: bool,
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TabCssSetResponse {
+    pub success: bool,
+    pub tab_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub css: Option<TabCss>,
+}
+
 #[tauri::command(permission = "dmnote-allow-all")]
 pub fn css_get(state: State<'_, AppState>) -> Result<CustomCss, String> {
     Ok(state.store.snapshot().custom_css)
@@ -318,6 +327,56 @@ pub fn css_tab_clear(
     Ok(TabCssClearResponse {
         success: true,
         tab_id,
+    })
+}
+
+/// 특정 탭의 CSS 직접 설정 (복원용)
+#[tauri::command(permission = "dmnote-allow-all")]
+pub fn css_tab_set(
+    state: State<'_, AppState>,
+    app: AppHandle,
+    tab_id: String,
+    css: Option<TabCss>,
+) -> Result<TabCssSetResponse, String> {
+    // 이전 탭 CSS 워칭 중지
+    state.unwatch_tab_css(&tab_id);
+
+    if let Some(ref tab_css) = css {
+        state
+            .store
+            .update(|store| {
+                store.tab_css_overrides.insert(tab_id.clone(), tab_css.clone());
+            })
+            .map_err(|err| err.to_string())?;
+
+        // CSS 핫리로딩: 파일이 있고 enabled인 경우 워칭 시작
+        if tab_css.enabled {
+            if let Some(path) = &tab_css.path {
+                if let Err(err) = state.watch_tab_css(path, &tab_id) {
+                    log::warn!("[css_tab_set] Failed to start watching tab {}: {}", tab_id, err);
+                }
+            }
+        }
+    } else {
+        state
+            .store
+            .update(|store| {
+                store.tab_css_overrides.remove(&tab_id);
+            })
+            .map_err(|err| err.to_string())?;
+    }
+
+    let response = TabCssResponse {
+        tab_id: tab_id.clone(),
+        css: css.clone(),
+    };
+    app.emit("tabCss:changed", &response)
+        .map_err(|err| err.to_string())?;
+
+    Ok(TabCssSetResponse {
+        success: true,
+        tab_id,
+        css,
     })
 }
 

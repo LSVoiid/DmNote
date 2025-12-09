@@ -110,33 +110,16 @@ export default function TabCssModal({ isOpen, onClose, showAlert }: Props) {
     const original = originalStateRef.current;
 
     try {
-      if (original === null) {
-        // 원본이 없었으면 현재 설정 제거
-        if (tabCss !== null) {
-          await window.api.css.tab.clear(selectedKeyType);
-        }
-      } else {
-        // 원본 상태로 복원
-        // enabled 상태 복원
-        if (tabCss?.enabled !== original.enabled) {
-          await window.api.css.tab.toggle(selectedKeyType, original.enabled);
-        }
+      // 원본 상태와 현재 상태가 다른 경우에만 복원
+      const currentState = tabCss;
+      const statesAreDifferent =
+        original?.path !== currentState?.path ||
+        original?.content !== currentState?.content ||
+        original?.enabled !== currentState?.enabled;
 
-        // 파일이 변경된 경우 (원본에 파일이 있었는데 지금 없거나, 다른 파일인 경우)
-        if (original.path && original.path !== tabCss?.path) {
-          // 원본 파일 경로와 내용으로 직접 복원은 불가능하므로,
-          // 이 경우는 복원이 제한적임. 파일 변경은 실시간 적용되므로
-          // 완벽한 복원이 어려움. 일단 enabled 상태만 복원.
-        }
-
-        // 원본에 파일이 없었는데 지금 있으면 제거
-        if (!original.path && tabCss?.path) {
-          await window.api.css.tab.clear(selectedKeyType);
-          // enabled 상태도 복원
-          if (original.enabled !== true) {
-            await window.api.css.tab.toggle(selectedKeyType, original.enabled);
-          }
-        }
+      if (statesAreDifferent) {
+        // css.tab.set을 사용하여 원본 상태로 직접 복원
+        await window.api.css.tab.set(selectedKeyType, original);
       }
     } catch (error) {
       console.error("Failed to restore original state:", error);

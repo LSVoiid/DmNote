@@ -281,17 +281,25 @@ fn paths_match(path1: &str, path2: &str) -> bool {
     let p1 = PathBuf::from(path1);
     let p2 = PathBuf::from(path2);
 
-    // 파일명만 비교 (디렉토리 워칭 시 파일명으로 매칭)
-    if let (Some(name1), Some(name2)) = (p1.file_name(), p2.file_name()) {
-        if name1 == name2 {
-            // 전체 경로도 비교
+    // 먼저 파일명이 같은지 빠르게 확인
+    match (p1.file_name(), p2.file_name()) {
+        (Some(name1), Some(name2)) if name1 == name2 => {
+            // 파일명이 같으면 전체 경로 비교
+            // 플랫폼 차이를 무시하기 위해 정규화된 문자열로 비교
+            let normalized1 = path1.replace('\\', "/").to_lowercase();
+            let normalized2 = path2.replace('\\', "/").to_lowercase();
+            
+            if normalized1 == normalized2 {
+                return true;
+            }
+            
+            // 문자열이 다르면 canonicalize로 최종 확인 (비용이 크므로 마지막에만)
             if let (Ok(canonical1), Ok(canonical2)) = (p1.canonicalize(), p2.canonicalize()) {
                 return canonical1 == canonical2;
             }
-            // canonicalize 실패 시 문자열 비교
-            return path1.replace('\\', "/") == path2.replace('\\', "/");
+            
+            false
         }
+        _ => false,
     }
-
-    false
 }

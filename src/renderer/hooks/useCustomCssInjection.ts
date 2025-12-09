@@ -13,8 +13,6 @@ const STYLE_ELEMENT_ID = "dmn-custom-css";
  * 4. 전역 CSS ON + (탭 설정 없음 또는 로컬 파일 없음) → 전역 CSS 적용
  */
 export function useCustomCssInjection() {
-  const selectedKeyType = useKeyStore((state) => state.selectedKeyType);
-
   // 상태 캐싱 ref
   const globalCssRef = useRef<CustomCss>({ path: null, content: "" });
   const globalUseRef = useRef<boolean>(false);
@@ -137,44 +135,6 @@ export function useCustomCssInjection() {
     };
   }, []);
 
-  // selectedKeyType이 변경될 때 CSS 재적용
-  useEffect(() => {
-    const styleEl = styleElRef.current;
-    if (!styleEl) return;
-
-    const tabCss = tabCssOverridesRef.current[selectedKeyType];
-    const globalCss = globalCssRef.current;
-    const globalUse = globalUseRef.current;
-
-    // 1. 전역 CSS OFF → 모든 CSS 미적용
-    if (!globalUse) {
-      styleEl.textContent = "";
-      styleEl.disabled = true;
-      return;
-    }
-
-    // 2. 전역 ON + 탭 설정이 있는 경우
-    if (tabCss) {
-      if (!tabCss.enabled) {
-        styleEl.textContent = "";
-        styleEl.disabled = true;
-        return;
-      }
-
-      if (tabCss.path && tabCss.content) {
-        styleEl.textContent = tabCss.content;
-        styleEl.disabled = false;
-        return;
-      }
-    }
-
-    // 3. 전역 CSS 적용
-    if (globalCss.content) {
-      styleEl.textContent = globalCss.content;
-      styleEl.disabled = false;
-    } else {
-      styleEl.textContent = "";
-      styleEl.disabled = true;
-    }
-  }, [selectedKeyType]);
+  // Note: selectedKeyType 변경 시 CSS 재적용은 위의 unsubKeyStore에서 처리됨
+  // 별도의 useEffect는 불필요하며 중복 실행을 방지하기 위해 제거됨
 }

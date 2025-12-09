@@ -49,7 +49,6 @@ export default function Settings({ showAlert, showConfirm }) {
     setDeveloperModeEnabled,
     useCustomCSS,
     setUseCustomCSS,
-    customCSSContent,
     setCustomCSSContent,
     customCSSPath,
     setCustomCSSPath,

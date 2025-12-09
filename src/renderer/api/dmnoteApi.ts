@@ -253,6 +253,11 @@ const api: DMNoteAPI = {
           tabId,
           enabled,
         }),
+      set: (tabId: string, css: import("@src/types/css").TabCss | null) =>
+        invoke<import("@src/types/api").TabCssSetResult>("css_tab_set", {
+          tabId,
+          css,
+        }),
       onChanged: (
         listener: (payload: import("@src/types/api").TabCssResponse) => void
       ) =>

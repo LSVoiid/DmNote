@@ -67,6 +67,11 @@ export type TabCssToggleResult = {
   tabId: string;
   enabled: boolean;
 };
+export type TabCssSetResult = {
+  success: boolean;
+  tabId: string;
+  css?: import("@src/types/css").TabCss;
+};
 
 export type JsTogglePayload = { enabled: boolean };
 export type JsSetContentResult = { success: boolean; error?: string };
@@ -596,6 +601,10 @@ export interface DMNoteAPI {
       get(tabId: string): Promise<TabCssResponse>;
       load(tabId: string): Promise<TabCssLoadResult>;
       clear(tabId: string): Promise<TabCssClearResult>;
+      set(
+        tabId: string,
+        css: import("@src/types/css").TabCss | null
+      ): Promise<TabCssSetResult>;
       toggle(tabId: string, enabled: boolean): Promise<TabCssToggleResult>;
       onChanged(listener: (payload: TabCssResponse) => void): Unsubscribe;
     };
