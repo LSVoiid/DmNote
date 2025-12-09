@@ -1,6 +1,13 @@
-import React, { useRef, useEffect, useMemo, useState } from "react";
+import React, {
+  useRef,
+  useEffect,
+  useMemo,
+  useState,
+  useImperativeHandle,
+  forwardRef,
+  useCallback,
+} from "react";
 import { useTranslation } from "@contexts/I18nContext";
-import ColorPicker from "./ColorPicker";
 import Dropdown from "@components/main/common/Dropdown";
 import Checkbox from "@components/main/common/Checkbox";
 import type {
@@ -24,15 +31,22 @@ type ColorPickerTarget =
   | "strokeIdle"
   | "strokeActive";
 
+export interface CounterTabContentRef {
+  fillActiveBtnRef: React.RefObject<HTMLButtonElement>;
+  colorPickerInteractiveRefs: Array<React.RefObject<HTMLElement>>;
+  colorValueFor: (key: string | null) => string;
+  setColorFor: (key: string | null, color: string) => void;
+  handleColorComplete: (key: string | null, color: string) => void;
+}
+
 // ============================================================================
 // 메인 컴포넌트
 // ============================================================================
 
-const CounterTabContent: React.FC<CounterTabContentProps> = ({
-  state,
-  setState,
-  onPreview,
-}) => {
+const CounterTabContent = forwardRef<
+  CounterTabContentRef,
+  CounterTabContentProps
+>(({ state, setState, onPreview }, ref) => {
   const { t } = useTranslation();
 
   // Refs for color picker positioning
@@ -173,59 +187,112 @@ const CounterTabContent: React.FC<CounterTabContentProps> = ({
   };
 
   // 현재 피커 색상 가져오기
-  const colorValueFor = (key: string | null): string => {
-    switch (key) {
-      case "fillIdle":
-        return state.fillIdle;
-      case "fillActive":
-        return state.fillActive;
-      case "strokeIdle":
-        return state.strokeIdle;
-      case "strokeActive":
-        return state.strokeActive;
-      default:
-        return "#FFFFFF";
-    }
-  };
+  const colorValueFor = useCallback(
+    (key: string | null): string => {
+      switch (key) {
+        case "fillIdle":
+          return state.fillIdle;
+        case "fillActive":
+          return state.fillActive;
+        case "strokeIdle":
+          return state.strokeIdle;
+        case "strokeActive":
+          return state.strokeActive;
+        default:
+          return "#FFFFFF";
+      }
+    },
+    [state.fillIdle, state.fillActive, state.strokeIdle, state.strokeActive]
+  );
 
   // 색상 설정 핸들러
-  const setColorFor = (key: string | null, color: string) => {
-    switch (key) {
-      case "fillIdle":
-        setState((prev) => ({ ...prev, fillIdle: color }));
-        break;
-      case "fillActive":
-        setState((prev) => ({ ...prev, fillActive: color }));
-        break;
-      case "strokeIdle":
-        setState((prev) => ({ ...prev, strokeIdle: color }));
-        break;
-      case "strokeActive":
-        setState((prev) => ({ ...prev, strokeActive: color }));
-        break;
-      default:
-        break;
-    }
-  };
+  const setColorFor = useCallback(
+    (key: string | null, color: string) => {
+      switch (key) {
+        case "fillIdle":
+          setState((prev) => ({ ...prev, fillIdle: color }));
+          break;
+        case "fillActive":
+          setState((prev) => ({ ...prev, fillActive: color }));
+          break;
+        case "strokeIdle":
+          setState((prev) => ({ ...prev, strokeIdle: color }));
+          break;
+        case "strokeActive":
+          setState((prev) => ({ ...prev, strokeActive: color }));
+          break;
+        default:
+          break;
+      }
+    },
+    [setState]
+  );
 
-  const handleColorComplete = (key: string | null, color: string) => {
-    setColorFor(key, color);
+  const handleColorComplete = useCallback(
+    (key: string | null, color: string) => {
+      // 먼저 색상 설정
+      switch (key) {
+        case "fillIdle":
+          setState((prev) => ({ ...prev, fillIdle: color }));
+          break;
+        case "fillActive":
+          setState((prev) => ({ ...prev, fillActive: color }));
+          break;
+        case "strokeIdle":
+          setState((prev) => ({ ...prev, strokeIdle: color }));
+          break;
+        case "strokeActive":
+          setState((prev) => ({ ...prev, strokeActive: color }));
+          break;
+        default:
+          break;
+      }
 
-    const payload = {
-      placement: state.placement,
-      align: state.align,
-      gap: state.gap,
-      fill: {
-        idle: key === "fillIdle" ? color : state.fillIdle,
-        active: key === "fillActive" ? color : state.fillActive,
-      },
-      stroke: {
-        idle: key === "strokeIdle" ? color : state.strokeIdle,
-        active: key === "strokeActive" ? color : state.strokeActive,
-      },
-    };
-    onPreview(payload);
-  };
+      const payload = {
+        placement: state.placement,
+        align: state.align,
+        gap: state.gap,
+        fill: {
+          idle: key === "fillIdle" ? color : state.fillIdle,
+          active: key === "fillActive" ? color : state.fillActive,
+        },
+        stroke: {
+          idle: key === "strokeIdle" ? color : state.strokeIdle,
+          active: key === "strokeActive" ? color : state.strokeActive,
+        },
+      };
+      onPreview(payload);
+    },
+    [
+      setState,
+      state.placement,
+      state.align,
+      state.gap,
+      state.fillIdle,
+      state.fillActive,
+      state.strokeIdle,
+      state.strokeActive,
+      onPreview,
+    ]
+  );
+
+  // ref를 통해 refs와 핸들러 노출
+  useImperativeHandle(
+    ref,
+    () => ({
+      fillActiveBtnRef,
+      colorPickerInteractiveRefs,
+      colorValueFor,
+      setColorFor,
+      handleColorComplete,
+    }),
+    [
+      colorPickerInteractiveRefs,
+      colorValueFor,
+      setColorFor,
+      handleColorComplete,
+    ]
+  );
 
   // 카운터 토글 핸들러
   const handleCounterToggle = () => {
@@ -362,25 +429,8 @@ const CounterTabContent: React.FC<CounterTabContentProps> = ({
           onChange={handleCounterToggle}
         />
       </div>
-
-      {/* 컬러 피커 */}
-      {state.pickerFor && (
-        <ColorPicker
-          open={state.pickerOpen}
-          referenceRef={fillActiveBtnRef}
-          color={colorValueFor(state.pickerFor)}
-          onColorChange={(c: string) => setColorFor(state.pickerFor, c)}
-          onColorChangeComplete={(c: string) =>
-            handleColorComplete(state.pickerFor, c)
-          }
-          onClose={closePicker}
-          solidOnly={true}
-          interactiveRefs={colorPickerInteractiveRefs}
-          position="right"
-        />
-      )}
     </div>
   );
-};
+});
 
 export default CounterTabContent;

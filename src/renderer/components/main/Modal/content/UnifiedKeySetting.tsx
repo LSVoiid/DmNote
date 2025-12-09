@@ -2,12 +2,18 @@ import React from "react";
 import { useLenis } from "@hooks/useLenis";
 import { useTranslation } from "@contexts/I18nContext";
 import Modal from "../Modal";
-import KeyTabContent from "./KeyTabContent";
-import NoteTabContent from "./NoteTabContent";
-import CounterTabContent from "./CounterTabContent";
+import KeyTabContent, { type KeyTabContentRef } from "./KeyTabContent";
+import NoteTabContent, { type NoteTabContentRef } from "./NoteTabContent";
+import CounterTabContent, {
+  type CounterTabContentRef,
+} from "./CounterTabContent";
+import ImagePicker from "./ImagePicker";
+import ColorPicker from "./ColorPicker";
 import {
   TABS,
   useUnifiedKeySettingState,
+  COLOR_MODES,
+  toGradient,
   type TabType,
   type KeyData,
   type SaveData,
@@ -94,6 +100,11 @@ const UnifiedKeySetting: React.FC<UnifiedKeySettingProps> = ({
   // 높이 애니메이션 스킵 여부 (초기 마운트 시)
   const isFirstRender = React.useRef(true);
 
+  // 탭 콘텐츠 refs
+  const keyTabRef = React.useRef<KeyTabContentRef>(null);
+  const noteTabRef = React.useRef<NoteTabContentRef>(null);
+  const counterTabRef = React.useRef<CounterTabContentRef>(null);
+
   // 스크롤 상태 업데이트 함수
   const updateScrollState = React.useCallback((el: HTMLElement | null) => {
     if (!el) return;
@@ -136,8 +147,6 @@ const UnifiedKeySetting: React.FC<UnifiedKeySettingProps> = ({
     onSave,
     onClose,
   });
-
-
 
   // 탭 변경 또는 마운트 시 스크롤 상태 확인 (DOM 렌더링 후 확인)
   React.useEffect(() => {
@@ -197,6 +206,7 @@ const UnifiedKeySetting: React.FC<UnifiedKeySettingProps> = ({
       case TABS.KEY:
         return (
           <KeyTabContent
+            ref={keyTabRef}
             state={keyState}
             setState={setKeyState}
             onPreview={handleKeyPreview}
@@ -205,6 +215,7 @@ const UnifiedKeySetting: React.FC<UnifiedKeySettingProps> = ({
       case TABS.NOTE:
         return (
           <NoteTabContent
+            ref={noteTabRef}
             state={noteState}
             setState={setNoteState}
             onPreview={handleNotePreview}
@@ -213,6 +224,7 @@ const UnifiedKeySetting: React.FC<UnifiedKeySettingProps> = ({
       case TABS.COUNTER:
         return (
           <CounterTabContent
+            ref={counterTabRef}
             state={counterState}
             setState={setCounterState}
             onPreview={handleCounterPreview}
@@ -222,6 +234,39 @@ const UnifiedKeySetting: React.FC<UnifiedKeySettingProps> = ({
         return null;
     }
   };
+
+  // 이미지 변경 핸들러 (KeyTab용)
+  const handleIdleImageChange = React.useCallback(
+    (imageUrl: string) => {
+      setKeyState((prev) => ({ ...prev, inactiveImage: imageUrl }));
+      handleKeyPreview({ inactiveImage: imageUrl });
+    },
+    [setKeyState, handleKeyPreview]
+  );
+
+  const handleActiveImageChange = React.useCallback(
+    (imageUrl: string) => {
+      setKeyState((prev) => ({ ...prev, activeImage: imageUrl }));
+      handleKeyPreview({ activeImage: imageUrl });
+    },
+    [setKeyState, handleKeyPreview]
+  );
+
+  const handleIdleTransparentChange = React.useCallback(
+    (checked: boolean) => {
+      setKeyState((prev) => ({ ...prev, idleTransparent: checked }));
+      handleKeyPreview({ idleTransparent: checked });
+    },
+    [setKeyState, handleKeyPreview]
+  );
+
+  const handleActiveTransparentChange = React.useCallback(
+    (checked: boolean) => {
+      setKeyState((prev) => ({ ...prev, activeTransparent: checked }));
+      handleKeyPreview({ activeTransparent: checked });
+    },
+    [setKeyState, handleKeyPreview]
+  );
 
   return (
     <Modal onClick={handleClose} animate={!initialSkipRef.current}>
@@ -281,6 +326,102 @@ const UnifiedKeySetting: React.FC<UnifiedKeySettingProps> = ({
           </button>
         </div>
       </div>
+
+      {/* 이미지 피커 - 스크롤 영역 외부에 렌더링 */}
+      {keyState.showImagePicker && (
+        <ImagePicker
+          open={keyState.showImagePicker}
+          referenceRef={keyTabRef.current?.imageButtonRef}
+          idleImage={keyState.inactiveImage}
+          activeImage={keyState.activeImage}
+          idleTransparent={keyState.idleTransparent}
+          activeTransparent={keyState.activeTransparent}
+          onIdleImageChange={handleIdleImageChange}
+          onActiveImageChange={handleActiveImageChange}
+          onIdleTransparentChange={handleIdleTransparentChange}
+          onActiveTransparentChange={handleActiveTransparentChange}
+          onIdleImageReset={() => handleIdleImageChange("")}
+          onActiveImageReset={() => handleActiveImageChange("")}
+          onClose={() =>
+            setKeyState((prev) => ({ ...prev, showImagePicker: false }))
+          }
+        />
+      )}
+
+      {/* 노트 컬러 피커 - 스크롤 영역 외부에 렌더링 */}
+      {noteState.showPicker && (
+        <ColorPicker
+          open={noteState.showPicker}
+          referenceRef={noteTabRef.current?.colorButtonRef}
+          color={
+            noteState.colorMode === COLOR_MODES.gradient
+              ? toGradient(noteState.noteColor, noteState.gradientBottom)
+              : noteState.noteColor
+          }
+          onColorChange={(c: any) => noteTabRef.current?.handleColorChange(c)}
+          onColorChangeComplete={(c: any) =>
+            noteTabRef.current?.handleColorChangeComplete(c)
+          }
+          onClose={() =>
+            setNoteState((prev) => ({ ...prev, showPicker: false }))
+          }
+          position="right"
+        />
+      )}
+
+      {/* 글로우 컬러 피커 - 스크롤 영역 외부에 렌더링 */}
+      {noteState.showGlowPicker && (
+        <ColorPicker
+          open={noteState.showGlowPicker}
+          referenceRef={noteTabRef.current?.glowColorButtonRef}
+          color={
+            noteState.glowColorMode === COLOR_MODES.gradient
+              ? toGradient(noteState.glowColor, noteState.glowGradientBottom)
+              : noteState.glowColor
+          }
+          onColorChange={(c: any) =>
+            noteTabRef.current?.handleGlowColorChange(c)
+          }
+          onColorChangeComplete={(c: any) =>
+            noteTabRef.current?.handleGlowColorChangeComplete(c)
+          }
+          onClose={() =>
+            setNoteState((prev) => ({ ...prev, showGlowPicker: false }))
+          }
+          position="right"
+        />
+      )}
+
+      {/* 카운터 컬러 피커 - 스크롤 영역 외부에 렌더링 */}
+      {counterState.pickerFor && (
+        <ColorPicker
+          open={counterState.pickerOpen}
+          referenceRef={counterTabRef.current?.fillActiveBtnRef}
+          color={
+            counterTabRef.current?.colorValueFor(counterState.pickerFor) ??
+            "#FFFFFF"
+          }
+          onColorChange={(c: string) =>
+            counterTabRef.current?.setColorFor(counterState.pickerFor, c)
+          }
+          onColorChangeComplete={(c: string) =>
+            counterTabRef.current?.handleColorComplete(
+              counterState.pickerFor,
+              c
+            )
+          }
+          onClose={() =>
+            setCounterState((prev) => ({
+              ...prev,
+              pickerFor: null,
+              pickerOpen: false,
+            }))
+          }
+          solidOnly={true}
+          interactiveRefs={counterTabRef.current?.colorPickerInteractiveRefs}
+          position="right"
+        />
+      )}
     </Modal>
   );
 };

@@ -255,7 +255,7 @@ export default function Grid({
 
     return positions[selectedKeyType].map((position, index) => (
       <DraggableKey
-        key={index}
+        key={`${selectedKeyType}-${index}`}
         index={index}
         position={position}
         keyName={keyMappings[selectedKeyType]?.[index] || ""}
@@ -491,6 +491,7 @@ export default function Grid({
       />
       {/* 줌/팬이 적용되는 콘텐츠 영역 */}
       <div
+        key={selectedKeyType}
         ref={gridContentRef}
         className="absolute"
         style={{
