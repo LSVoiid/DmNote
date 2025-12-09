@@ -1,7 +1,7 @@
-// @id kps-new
+// @id kps
 
 dmn.plugin.defineElement({
-  name: "Simple KPS",
+  name: "KPS",
   maxInstances: 1,
   resizeAnchor: "bottom-left",
 
