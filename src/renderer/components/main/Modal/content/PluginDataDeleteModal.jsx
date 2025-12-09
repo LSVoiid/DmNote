@@ -18,18 +18,18 @@ export function PluginDataDeleteModal({
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex flex-col gap-[8px]">
-          <span className="text-style-3 text-[#FFFFFF]">
+          {/* <span className="text-style-3 text-[#FFFFFF]">
             {t("settings.pluginDataDeleteTitle")}
-          </span>
-          <span className="text-style-2 text-[#9CA3AF] leading-[1.5]">
+          </span> */}
+          <span className="text-style-3 text-[#FFFFFF] !leading-[1.5]">
             {t("settings.pluginDataDeleteMessage", { name: pluginName })}
           </span>
         </div>
 
-        <div className="flex flex-col gap-[8px] p-[12px] bg-[#141318] border-[1px] border-[#2F2E36] rounded-[9px]">
+        <div className="flex flex-col gap-[8px] p-[12px] bg-[#141318] border-[1px] border-[#2F2E36] rounded-[8px]">
           <div className="flex items-start gap-[8px]">
-            <span className="text-style-2 text-[#FCD34D] mt-[2px]">⚠️</span>
-            <span className="text-style-1 text-[#D1D5DB] leading-[1.4]">
+            <span className="text-style-3 text-[#FCD34D] mt-[6px]">⚠️</span>
+            <span className="text-style-2 text-[#D1D5DB] !leading-[1.2]">
               {t("settings.pluginDataDeleteWarning")}
             </span>
           </div>
@@ -37,19 +37,19 @@ export function PluginDataDeleteModal({
 
         <div className="flex items-center gap-[8px]">
           <button
-            className="flex-1 py-[6px] px-[12px] bg-[#DC2626] border-[1px] border-[#991B1B] rounded-[7px] text-style-2 text-[#FFFFFF] hover:bg-[#B91C1C] transition-colors"
+            className="flex-1 h-[30px] bg-[#DC2626] border-[1px] border-[#991B1B] rounded-[7px] text-style-3 text-[#FFFFFF] hover:bg-[#B91C1C] transition-colors"
             onClick={onDeleteWithData}
           >
             {t("settings.deleteWithData")}
           </button>
           <button
-            className="flex-1 py-[6px] px-[12px] bg-[#2A2A31] border-[1px] border-[#3A3944] rounded-[7px] text-style-2 text-[#DBDEE8] hover:bg-[#34343c] transition-colors"
+            className="flex-1 h-[30px] bg-[#2A2A31] rounded-[7px] text-style-3 text-[#DBDEE8] hover:bg-[#34343c] transition-colors"
             onClick={onDeletePluginOnly}
           >
             {t("settings.deletePluginOnly")}
           </button>
           <button
-            className="py-[6px] px-[12px] bg-[#1F2937] border-[1px] border-[#374151] rounded-[7px] text-style-2 text-[#9CA3AF] hover:bg-[#374151] transition-colors"
+            className="h-[30px] px-[12px] bg-[#2A2A31] rounded-[7px] text-style-3 text-[#DBDEE8] hover:bg-[#34343c] transition-colors"
             onClick={onClose}
           >
             {t("common.cancel")}

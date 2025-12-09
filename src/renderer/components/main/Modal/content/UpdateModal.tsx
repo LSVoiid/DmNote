@@ -96,7 +96,7 @@ export default function UpdateModal({
             </div>
 
             {/* 버전 정보 */}
-            <div className="bg-[#222127] rounded-[8px] p-[12px] mb-[16px]">
+            <div className="bg-[#222127] rounded-[8px] p-[12px] mb-[16px] border-[1px] border-[#2F2E36]">
               <div className="flex justify-between items-center">
                 <span className="text-[#8A8A8A] text-[12px]">
                   {t("update.currentVersion")}
@@ -153,7 +153,7 @@ export default function UpdateModal({
             </div>
 
             {/* 버전 정보 */}
-            <div className="bg-[#222127] rounded-[8px] p-[12px] mb-[16px]">
+            <div className="bg-[#222127] rounded-[8px] p-[12px] mb-[16px] border-[1px] border-[#2F2E36]">
               <div className="flex justify-between items-center mb-[8px]">
                 <span className="text-[#8A8A8A] text-[12px]">
                   {t("update.currentVersion")}
