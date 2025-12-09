@@ -109,30 +109,26 @@ export function PluginManagerModal({
               transition: isFirstRender.current
                 ? "none"
                 : "height 100ms ease-in-out",
+              willChange: "scroll-position",
             }}
             onScroll={updateScrollState}
           >
-            <div ref={contentRef} className="flex flex-col gap-[19px]">
+            <div ref={contentRef} className="flex flex-col gap-[19px] py-[5px]">
               {plugins.length === 0 ? (
                 <div className="flex items-center justify-center py-[10px] px-[12px] text-style-2 text-white">
                   {t("settings.noPlugins")}
                 </div>
               ) : (
-                plugins.map((plugin, index) => {
+                plugins.map((plugin) => {
                   const isPending =
                     pendingPluginAction && pendingPluginAction.id === plugin.id;
                   const isRemovePending =
                     isPending && pendingPluginAction.op === "remove";
-                  const isFirst = index === 0;
-                  const isLast = index === plugins.length - 1;
                   return (
                     <div
                       key={plugin.id}
-                      className={`flex items-center justify-between${
-                        scrollState.hasTopShadow && isFirst ? " mt-[5px]" : ""
-                      }${
-                        scrollState.hasBottomShadow && isLast ? " mb-[5px]" : ""
-                      }`}
+                      className="flex items-center justify-between"
+                      style={{ transform: "translateZ(0)" }}
                     >
                       <div className="flex items-center gap-[10px]  h-[23px]">
                         <button
