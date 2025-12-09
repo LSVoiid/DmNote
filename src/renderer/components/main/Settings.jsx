@@ -734,7 +734,7 @@ export default function Settings({ showAlert, showConfirm }) {
               </div>
               {/* 버전 및 설정 초기화 */}
               <div className="flex justify-between items-center py-[14px] px-[12px] bg-[#101013] rounded-[7px]">
-                <p className="text-style-3 text-[#FFFFFF]">Ver 1.3.0</p>
+                <p className="text-style-3 text-[#FFFFFF]">Ver 1.4.0</p>
                 <div className="flex gap-[8px]">
                   <button
                     className="bg-[#2A2A30] hover:bg-[#303036] active:bg-[#393941] rounded-[7px] py-[4px] px-[9px] text-style-2 text-[#DCDEE7] disabled:opacity-50 disabled:cursor-not-allowed"

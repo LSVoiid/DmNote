@@ -15,7 +15,7 @@
   </p>
   
   [![GitHub release](https://img.shields.io/github/release/lee-sihun/DmNote.svg?logo=github)](https://github.com/lee-sihun/DmNote/releases)
-  [![GitHub downloads](https://img.shields.io/github/downloads/lee-sihun/DmNote/total.svg?logo=github)](https://github.com/lee-sihun/DmNote/releases/download/1.3.0/DM.NOTE.v.1.3.0.zip)
+  [![GitHub downloads](https://img.shields.io/github/downloads/lee-sihun/DmNote/total.svg?logo=github)](https://github.com/lee-sihun/DmNote/releases/download/1.4.0/DM.NOTE.v.1.4.0.zip)
   [![GitHub license](https://img.shields.io/github/license/lee-sihun/DmNote.svg?logo=github)](https://github.com/lee-sihun/DmNote/blob/master/LICENSE)
 </div>
 
@@ -27,7 +27,7 @@ https://github.com/user-attachments/assets/20fb118d-3982-4925-9004-9ce0936590c2
 키보드 후킹을 위해 [willhook](https://github.com/myood/willhook-rs) 패키지를 사용합니다.
 간편한 설정으로 스트리밍이나 플레이 영상 제작 시 키 입력을 시각적으로 보여줄 수 있습니다. 현재는 windows 환경만 지원하며, 리듬게임 이외의 다른 게임에서도 사용이 가능합니다.
 
-[DM NOTE v1.3.0 다운로드](https://github.com/lee-sihun/DmNote/releases/download/1.3.0/DM.NOTE.v.1.3.0.zip)
+[DM NOTE v1.4.0 다운로드](https://github.com/lee-sihun/DmNote/releases/download/1.4.0/DM.NOTE.v.1.4.0.zip)
 
 ## ✨ 주요 기능
 
@@ -62,7 +62,7 @@ https://github.com/user-attachments/assets/20fb118d-3982-4925-9004-9ce0936590c2
 ### 🔢 키 카운터
 
 - 키별 입력 횟수 실시간 표시
-- 카운터 위치, 색상 및 스타일 커스터마이징 
+- 카운터 위치, 색상 및 스타일 커스터마이징
 - 커스텀 CSS 지원
 
 ### ⚙️ 그래픽 및 설정
@@ -129,7 +129,7 @@ npm run tauri:dev
 
 ## 📝 참고사항
 
-- 일부 게임의 전체화면 모드에서는 정상 동작하지 않습니다. 이 경우 테두리 없는 창 모드를 사용해주세요. 
+- 일부 게임의 전체화면 모드에서는 정상 동작하지 않습니다. 이 경우 테두리 없는 창 모드를 사용해주세요.
 - 그래픽 문제 발생 시 설정에서 렌더링 옵션을 변경해주세요.
 - OBS 윈도우 캡쳐로 크로마키 없이 배경을 투명하게 불러올 수 있습니다.
 - 게임 화면 위에 표시할 경우, **항상 위에 표시**로 배치한 뒤 **오버레이 창 고정**을 활성화해주세요.
@@ -157,9 +157,3 @@ npm run tauri:dev
 - 동시 입력 간격 밀리초(ms) 표시
 - 입력 통계 분석 기능
  -->
-
-
-
-
-
-
