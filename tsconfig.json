@@ -27,6 +27,7 @@
       "@constants/*": ["./src/renderer/constants/*"],
       "@contexts/*": ["./src/renderer/contexts/*"],
       "@plugins/*": ["./src/renderer/plugins/*"],
+      "@config/*": ["./src/renderer/config/*"],
       "@src/*": ["./src/*"]
     }
   },
