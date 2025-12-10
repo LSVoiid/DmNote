@@ -248,36 +248,16 @@ fn normalize_state(mut data: AppStoreData) -> AppStoreData {
 }
 
 fn merge_default_modes(target: &mut KeyMappings, defaults: KeyMappings) {
-    use std::collections::hash_map::Entry;
-
+    // Only seed missing modes; keep intentionally empty modes as-is.
     for (mode, value) in defaults.into_iter() {
-        match target.entry(mode) {
-            Entry::Vacant(entry) => {
-                entry.insert(value);
-            }
-            Entry::Occupied(mut entry) => {
-                if entry.get().is_empty() {
-                    *entry.get_mut() = value;
-                }
-            }
-        }
+        target.entry(mode).or_insert(value);
     }
 }
 
 fn merge_default_positions(target: &mut KeyPositions, defaults: KeyPositions) {
-    use std::collections::hash_map::Entry;
-
+    // Only seed missing modes; keep intentionally empty modes as-is.
     for (mode, positions) in defaults.into_iter() {
-        match target.entry(mode) {
-            Entry::Vacant(entry) => {
-                entry.insert(positions);
-            }
-            Entry::Occupied(mut entry) => {
-                if entry.get().is_empty() {
-                    *entry.get_mut() = positions;
-                }
-            }
-        }
+        target.entry(mode).or_insert(positions);
     }
 }
 
