@@ -100,8 +100,8 @@ pub fn preset_load(
     let preset: PresetFile =
         serde_json::from_str(&content).map_err(|_| "invalid-preset".to_string())?;
 
-    let keys = preset.keys.unwrap_or_else(default_keys);
-    let positions = preset.key_positions.unwrap_or_else(default_positions);
+    let keys = preset.keys.unwrap_or_else(|| default_keys().clone());
+    let positions = preset.key_positions.unwrap_or_else(|| default_positions().clone());
     let custom_tabs = preset
         .custom_tabs
         .unwrap_or_else(|| synthesize_custom_tabs(&keys));

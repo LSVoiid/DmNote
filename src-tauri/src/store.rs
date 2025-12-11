@@ -218,20 +218,20 @@ fn find_legacy_store_file() -> Option<PathBuf> {
 
 fn initialize_default_state() -> AppStoreData {
     let mut data = AppStoreData::default();
-    data.keys = default_keys();
-    data.key_positions = default_positions();
+    data.keys = default_keys().clone();
+    data.key_positions = default_positions().clone();
     normalize_state(data)
 }
 
 fn normalize_state(mut data: AppStoreData) -> AppStoreData {
     if data.keys.is_empty() {
-        data.keys = default_keys();
+        data.keys = default_keys().clone();
     } else {
         merge_default_modes(&mut data.keys, default_keys());
     }
 
     if data.key_positions.is_empty() {
-        data.key_positions = default_positions();
+        data.key_positions = default_positions().clone();
     } else {
         merge_default_positions(&mut data.key_positions, default_positions());
     }
@@ -247,17 +247,17 @@ fn normalize_state(mut data: AppStoreData) -> AppStoreData {
     data
 }
 
-fn merge_default_modes(target: &mut KeyMappings, defaults: KeyMappings) {
+fn merge_default_modes(target: &mut KeyMappings, defaults: &KeyMappings) {
     // Only seed missing modes; keep intentionally empty modes as-is.
-    for (mode, value) in defaults.into_iter() {
-        target.entry(mode).or_insert(value);
+    for (mode, value) in defaults.iter() {
+        target.entry(mode.clone()).or_insert_with(|| value.clone());
     }
 }
 
-fn merge_default_positions(target: &mut KeyPositions, defaults: KeyPositions) {
+fn merge_default_positions(target: &mut KeyPositions, defaults: &KeyPositions) {
     // Only seed missing modes; keep intentionally empty modes as-is.
-    for (mode, positions) in defaults.into_iter() {
-        target.entry(mode).or_insert(positions);
+    for (mode, positions) in defaults.iter() {
+        target.entry(mode.clone()).or_insert_with(|| positions.clone());
     }
 }
 

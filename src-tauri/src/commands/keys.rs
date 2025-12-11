@@ -130,8 +130,8 @@ pub fn keys_reset_all(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<ResetAllResponse, String> {
-    let keys = default_keys();
-    let positions = default_positions();
+    let keys = default_keys().clone();
+    let positions = default_positions().clone();
     let selected_key_type = "4key".to_string();
     let custom_tabs: Vec<CustomTab> = Vec::new();
 
@@ -234,14 +234,14 @@ pub fn keys_reset_mode(
         });
     }
 
-    let default_positions = default_positions();
+    let default_pos = default_positions();
 
     let mut keys = state.store.snapshot().keys;
     if let Some(value) = defaults.get(&mode) {
         keys.insert(mode.clone(), value.clone());
     }
     let mut positions = state.store.snapshot().key_positions;
-    if let Some(value) = default_positions.get(&mode) {
+    if let Some(value) = default_pos.get(&mode) {
         positions.insert(mode.clone(), value.clone());
     }
 

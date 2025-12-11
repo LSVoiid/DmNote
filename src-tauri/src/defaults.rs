@@ -13,10 +13,12 @@ static DEFAULT_POSITIONS: Lazy<KeyPositions> = Lazy::new(|| {
     serde_json::from_str(DEFAULT_POSITIONS_RAW).expect("failed to parse default key positions")
 });
 
-pub fn default_keys() -> KeyMappings {
-    DEFAULT_KEYS.clone()
+/// 기본 키 매핑에 대한 참조 반환 (메모리 할당 없음)
+pub fn default_keys() -> &'static KeyMappings {
+    &DEFAULT_KEYS
 }
 
-pub fn default_positions() -> KeyPositions {
-    DEFAULT_POSITIONS.clone()
+/// 기본 키 위치에 대한 참조 반환 (메모리 할당 없음)
+pub fn default_positions() -> &'static KeyPositions {
+    &DEFAULT_POSITIONS
 }
