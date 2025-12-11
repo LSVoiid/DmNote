@@ -883,7 +883,6 @@ dependencies = [
  "tauri-runtime-wry",
  "thiserror 1.0.69",
  "uuid",
- "willhook",
  "windows",
 ]
 
@@ -4836,14 +4835,6 @@ dependencies = [
  "thiserror 2.0.17",
  "windows",
  "windows-core 0.61.2",
-]
-
-[[package]]
-name = "willhook"
-version = "0.3.0"
-dependencies = [
- "once_cell",
- "winapi",
 ]
 
 [[package]]

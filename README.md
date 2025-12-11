@@ -24,7 +24,7 @@ https://github.com/user-attachments/assets/20fb118d-3982-4925-9004-9ce0936590c2
 ## 🌟 개요
 
 **DM Note**는 DJMAX RESPECT V에서 사용하기 위해 만들어진 키뷰어 프로그램입니다. Tauri와 React로 구축 되었으며
-키보드 후킹을 위해 [willhook](https://github.com/myood/willhook-rs) 패키지를 사용합니다.
+키보드/마우스 입력 감지를 위해 Windows Raw Input API를 사용합니다.
 간편한 설정으로 스트리밍이나 플레이 영상 제작 시 키 입력을 시각적으로 보여줄 수 있습니다. 현재는 windows 환경만 지원하며, 리듬게임 이외의 다른 게임에서도 사용이 가능합니다.
 
 [DM NOTE v1.4.0 다운로드](https://github.com/lee-sihun/DmNote/releases/download/1.4.0/DM.NOTE.v.1.4.0.zip)
@@ -78,7 +78,7 @@ https://github.com/user-attachments/assets/20fb118d-3982-4925-9004-9ce0936590c2
 - **프론트엔드**: React 19 + Typescript + Vite 7
 - **백엔드**: Tauri
 - **스타일링**: Tailwind CSS 3
-- **키보드 후킹**: [willhook](https://github.com/myood/willhook-rs)
+- **입력 감지**: Windows Raw Input API
 - **패키지 매니저**: npm
 
 ### 폴더 구조
@@ -95,8 +95,7 @@ DmNote/
 │  │  └─ assets/                 # 정적 리소스
 │  └─ types/                     # 공유 타입/스키마
 ├─ src-tauri/                    # Tauri 백엔드
-│  ├─ src/                       # 커맨드, 서비스
-│  └─ vendor/                    # willhook 패치 버전
+│  └─ src/                       # 커맨드, 서비스
 ├─ package.json                  # 프로젝트 의존성 및 실행 스크립트
 ├─ tsconfig.json                 # TypeScript 설정
 └─ vite.config.ts                # Vite 설정
@@ -148,7 +147,6 @@ npm run tauri:dev
 ## ❤️ Special Thanks!
 
 - [tauri-apps/tauri](https://github.com/tauri-apps/tauri)
-- [myood/willhook-rs](https://github.com/myood/willhook-rs)
 
 <!--
 ## 🔜 업데이트 예정
