@@ -19,6 +19,7 @@ export {
   setUndoRedoInProgress,
   setInitialLoading,
   getUndoRedoInProgress,
+  getUndoRedoChangedAt,
   getInitialLoading,
 } from "./historyUtils";
 export {

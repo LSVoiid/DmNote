@@ -5,6 +5,7 @@ import {
   type SettingsStateSnapshot,
 } from "@stores/useSettingsStore";
 import { applyCounterSnapshot, setKeyCounter } from "@stores/keyCounterSignals";
+import { getUndoRedoInProgress } from "@api/pluginDisplayElements";
 import type { SettingsDiff } from "@src/types/settings";
 import type { OverlayResizeAnchor } from "@src/types/settings";
 import type { CustomJs, JsPlugin } from "@src/types/js";
@@ -40,7 +41,10 @@ export function useAppBootstrap() {
   useEffect(() => {
     let disposed = false;
     // Delay counter updates to keep them in sync with the key display delay
-    const counterDelayTimers = new Map<string, Set<ReturnType<typeof setTimeout>>>();
+    const counterDelayTimers = new Map<
+      string,
+      Set<ReturnType<typeof setTimeout>>
+    >();
 
     const composeCounterKey = (mode?: string, key?: string) =>
       `${mode || "__unknown_mode__"}::${key || "__unknown_key__"}`;
@@ -68,7 +72,11 @@ export function useAppBootstrap() {
       return delay > 0 ? delay : 0;
     };
 
-    const scheduleCounterUpdate = (mode: string, key: string, count: number) => {
+    const scheduleCounterUpdate = (
+      mode: string,
+      key: string,
+      count: number
+    ) => {
       const delayMs = getCounterDelayMs();
       const composedKey = composeCounterKey(mode, key);
 
@@ -195,6 +203,7 @@ export function useAppBootstrap() {
       }),
       window.api.keys.onCountersChanged((snapshot) => {
         clearCounterDelayTimers();
+        if (getUndoRedoInProgress()) return;
         applyCounterSnapshot(snapshot);
       }),
       window.api.keys.customTabs.onChanged(

@@ -149,6 +149,8 @@ const api: DMNoteAPI = {
     resetAll: () => invoke<KeysResetAllResponse>("keys_reset_all"),
     resetMode: (mode: string) =>
       invoke<KeysModeResponse>("keys_reset_mode", { mode }),
+    setCounters: (counters: KeyCounters) =>
+      invoke<KeyCounters>("keys_set_counters", { counters }),
     resetCounters: () => invoke<KeyCounters>("keys_reset_counters"),
     resetCountersMode: (mode: string) =>
       invoke<KeyCounters>("keys_reset_counters_mode", { mode }),

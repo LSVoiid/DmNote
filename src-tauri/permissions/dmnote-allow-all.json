@@ -48,6 +48,7 @@
           "keys_reset_counters",
           "keys_reset_counters_mode",
           "keys_reset_single_counter",
+          "keys_set_counters",
           "raw_input_subscribe",
           "raw_input_unsubscribe",
           "positions_get",

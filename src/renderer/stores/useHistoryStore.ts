@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import type { KeyMappings, KeyPositions } from "@src/types/keys";
+import { getCounterSnapshot } from "@stores/keyCounterSignals";
+import type { KeyCounters, KeyMappings, KeyPositions } from "@src/types/keys";
 import type { PluginDisplayElementInternal } from "@src/types/api";
 
 // 플러그인 요소의 히스토리 저장용 직렬화 타입 (함수 핸들러 제외)
@@ -12,6 +13,7 @@ interface HistoryState {
   keyMappings: KeyMappings;
   positions: KeyPositions;
   pluginElements?: SerializablePluginElement[];
+  keyCounters: KeyCounters;
 }
 
 interface HistoryStore {
@@ -79,6 +81,7 @@ export const useHistoryStore = create<HistoryStore>((set, get) => ({
         pluginElements: pluginElements
           ? serializePluginElements(pluginElements)
           : undefined,
+        keyCounters: getCounterSnapshot(),
       };
 
       const newPast = [...state.past, newState];
@@ -112,6 +115,7 @@ export const useHistoryStore = create<HistoryStore>((set, get) => ({
       pluginElements: currentPluginElements
         ? serializePluginElements(currentPluginElements)
         : undefined,
+      keyCounters: getCounterSnapshot(),
     };
 
     set({
@@ -140,6 +144,7 @@ export const useHistoryStore = create<HistoryStore>((set, get) => ({
       pluginElements: currentPluginElements
         ? serializePluginElements(currentPluginElements)
         : undefined,
+      keyCounters: getCounterSnapshot(),
     };
 
     set({

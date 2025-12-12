@@ -13,5 +13,6 @@ export {
   displayElementApi,
   displayElementInstanceRegistry,
   setUndoRedoInProgress,
+  getUndoRedoInProgress,
   setInitialLoading,
 } from "@plugins/runtime/displayElement";

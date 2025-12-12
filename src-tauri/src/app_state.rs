@@ -895,6 +895,19 @@ impl AppState {
         counters.clone()
     }
 
+    pub fn replace_key_counters(
+        &self,
+        counters: KeyCounters,
+        keys: &KeyMappings,
+    ) -> Result<KeyCounters> {
+        {
+            let mut guard = self.key_counters.write();
+            *guard = counters;
+        }
+        self.sync_counters_with_keys(keys);
+        self.persist_key_counters()
+    }
+
     pub fn reset_mode_counters(&self, mode: &str) {
         let mut counters = self.key_counters.write();
         if let Some(entry) = counters.get_mut(mode) {

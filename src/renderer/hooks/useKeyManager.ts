@@ -3,6 +3,7 @@ import { useKeyStore } from "@stores/useKeyStore";
 import { useHistoryStore } from "@stores/useHistoryStore";
 import { usePluginDisplayElementStore } from "@stores/usePluginDisplayElementStore";
 import { setUndoRedoInProgress } from "@api/pluginDisplayElements";
+import { applyCounterSnapshot } from "@stores/keyCounterSignals";
 import type {
   KeyMappings,
   KeyPositions,
@@ -835,7 +836,7 @@ export function useKeyManager() {
     }
   };
 
-  const handleUndo = useCallback(() => {
+  const handleUndo = useCallback(async () => {
     setUndoRedoInProgress(true);
     try {
       // 현재 상태를 가져와서 undo 호출 시 전달
@@ -846,6 +847,11 @@ export function useKeyManager() {
       if (previousState) {
         setKeyMappings(previousState.keyMappings);
         setPositions(previousState.positions);
+
+        // UI는 즉시 반영 (백엔드 이벤트로 다시 한번 동기화됨)
+        if (previousState.keyCounters) {
+          applyCounterSnapshot(previousState.keyCounters);
+        }
 
         // 플러그인 요소 복원 (pluginElements가 존재하는 경우에만)
         // undefined인 경우는 해당 히스토리 항목이 플러그인 요소 변경과 무관하므로 현재 상태 유지
@@ -913,12 +919,25 @@ export function useKeyManager() {
         }
 
         // 백엔드에도 반영
-        Promise.all([
-          window.api.keys.update(previousState.keyMappings),
-          window.api.keys.updatePositions(previousState.positions),
-        ]).catch((error) => {
+        // 중요: keys.update()가 counters를 keys 기준으로 sync 하므로,
+        // counters 복원은 keys/positions 복원 이후에 실행해야 값이 유지됨
+        try {
+          // counters sync는 keys.update() 결과에 의존하므로 먼저 실행
+          await window.api.keys.update(previousState.keyMappings);
+
+          // positions는 실패해도 undo의 핵심(키/카운터 복구)을 막지 않도록 분리
+          window.api.keys
+            .updatePositions(previousState.positions)
+            .catch((error) => {
+              console.error("Failed to apply undo positions", error);
+            });
+
+          if (previousState.keyCounters) {
+            await window.api.keys.setCounters(previousState.keyCounters);
+          }
+        } catch (error) {
           console.error("Failed to apply undo", error);
-        });
+        }
       }
     } finally {
       setUndoRedoInProgress(false);
@@ -932,7 +951,7 @@ export function useKeyManager() {
     setPluginElements,
   ]);
 
-  const handleRedo = useCallback(() => {
+  const handleRedo = useCallback(async () => {
     setUndoRedoInProgress(true);
     try {
       // 현재 상태를 가져와서 redo 호출 시 전달
@@ -943,6 +962,11 @@ export function useKeyManager() {
       if (nextState) {
         setKeyMappings(nextState.keyMappings);
         setPositions(nextState.positions);
+
+        // UI는 즉시 반영 (백엔드 이벤트로 다시 한번 동기화됨)
+        if (nextState.keyCounters) {
+          applyCounterSnapshot(nextState.keyCounters);
+        }
 
         // 플러그인 요소 복원 (pluginElements가 존재하는 경우에만)
         // undefined인 경우는 해당 히스토리 항목이 플러그인 요소 변경과 무관하므로 현재 상태 유지
@@ -1005,13 +1029,21 @@ export function useKeyManager() {
           }
         }
 
-        // 백엔드에도 반영
-        Promise.all([
-          window.api.keys.update(nextState.keyMappings),
-          window.api.keys.updatePositions(nextState.positions),
-        ]).catch((error) => {
+        // 백엔드에도 반영 (keys/positions 복원 후 counters 복원)
+        try {
+          await window.api.keys.update(nextState.keyMappings);
+          window.api.keys
+            .updatePositions(nextState.positions)
+            .catch((error) => {
+              console.error("Failed to apply redo positions", error);
+            });
+
+          if (nextState.keyCounters) {
+            await window.api.keys.setCounters(nextState.keyCounters);
+          }
+        } catch (error) {
           console.error("Failed to apply redo", error);
-        });
+        }
       }
     } finally {
       setUndoRedoInProgress(false);

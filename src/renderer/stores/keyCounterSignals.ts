@@ -22,6 +22,18 @@ export function setKeyCounter(mode: string, key: string, value: number) {
   signalRef.value = value;
 }
 
+export function getCounterSnapshot(): KeyCounters {
+  const snapshot: KeyCounters = {};
+  for (const [composed, signalRef] of keyCounterSignals.entries()) {
+    const [mode, key] = composed.split("::");
+    if (!snapshot[mode]) {
+      snapshot[mode] = {};
+    }
+    snapshot[mode]![key] = signalRef.value ?? 0;
+  }
+  return snapshot;
+}
+
 export function applyCounterSnapshot(counters: KeyCounters) {
   const seen = new Set<string>();
   Object.entries(counters).forEach(([mode, counter]) => {

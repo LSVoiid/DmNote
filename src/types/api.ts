@@ -544,6 +544,7 @@ export interface DMNoteAPI {
     setMode(mode: string): Promise<KeysModeResponse>;
     resetAll(): Promise<KeysResetAllResponse>;
     resetMode(mode: string): Promise<KeysModeResponse>;
+    setCounters(counters: KeyCounters): Promise<KeyCounters>;
     onChanged(listener: (keys: KeyMappings) => void): Unsubscribe;
     onPositionsChanged(
       listener: (positions: KeyPositions) => void
