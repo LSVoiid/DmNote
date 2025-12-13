@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useKeyStore } from "@stores/useKeyStore";
 import { usePluginDisplayElementStore } from "@stores/usePluginDisplayElementStore";
 import { useHistoryStore } from "@stores/useHistoryStore";
@@ -14,6 +14,13 @@ interface ResizeHandle {
   dy: number;
 }
 
+interface ResizeBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 interface UseGridResizeOptions {
   selectedElements: SelectedElement[];
   selectedKeyType: string;
@@ -23,6 +30,8 @@ interface UseGridResizeOptions {
 
 /**
  * 그리드에서 키 및 플러그인 요소 리사이즈를 처리하는 훅
+ * 드래그 중에는 프리뷰 bounds만 업데이트하고, 드래그 종료 시 실제 크기를 적용하여
+ * 시각적 흔들림을 방지합니다.
  */
 export function useGridResize({
   selectedElements,
@@ -31,6 +40,10 @@ export function useGridResize({
   getOtherElements,
 }: UseGridResizeOptions) {
   const resizeStartRef = useRef(false);
+  // 드래그 중 프리뷰 bounds (드래그 중일 때만 값이 있음)
+  const [previewBounds, setPreviewBounds] = useState<ResizeBounds | null>(null);
+  // 최종 적용할 bounds를 저장 (드래그 종료 시 사용)
+  const finalBoundsRef = useRef<ResizeBounds | null>(null);
 
   // 리사이즈 시작 시 히스토리 저장
   const handleResizeStart = useCallback((handle?: ResizeHandle) => {
@@ -49,8 +62,8 @@ export function useGridResize({
       .pushState(keyMappings, currentPositions, currentPluginElements);
   }, []);
 
-  // 키 리사이즈 처리 (스마트 가이드 포함)
-  const handleKeyResize = useCallback(
+  // 키 리사이즈 처리 (스마트 가이드 포함) - 프리뷰 모드
+  const handleKeyResizePreview = useCallback(
     (
       index: number,
       newBounds: {
@@ -61,8 +74,6 @@ export function useGridResize({
         handle?: ResizeHandle;
       }
     ) => {
-      const positions = useKeyStore.getState().positions;
-      const setPositions = useKeyStore.getState().setPositions;
       const smartGuidesStore = useSmartGuidesStore.getState();
       const elementId = `key-${index}`;
 
@@ -139,28 +150,21 @@ export function useGridResize({
         }
       }
 
-      const current = positions[selectedKeyType] || [];
-      const nextPositions: KeyPositions = {
-        ...positions,
-        [selectedKeyType]: current.map((pos, i) =>
-          i === index
-            ? {
-                ...pos,
-                dx: finalX,
-                dy: finalY,
-                width: finalWidth,
-                height: finalHeight,
-              }
-            : pos
-        ),
+      // 프리뷰 bounds 업데이트 (실제 요소는 업데이트하지 않음)
+      const previewData = {
+        x: finalX,
+        y: finalY,
+        width: finalWidth,
+        height: finalHeight,
       };
-      setPositions(nextPositions);
+      setPreviewBounds(previewData);
+      finalBoundsRef.current = previewData;
     },
-    [selectedKeyType, getOtherElements]
+    [getOtherElements]
   );
 
-  // 플러그인 요소 리사이즈 처리 (스마트 가이드 포함)
-  const handlePluginResize = useCallback(
+  // 플러그인 요소 리사이즈 처리 (스마트 가이드 포함) - 프리뷰 모드
+  const handlePluginResizePreview = useCallback(
     (
       fullId: string,
       newBounds: {
@@ -171,8 +175,6 @@ export function useGridResize({
         handle?: ResizeHandle;
       }
     ) => {
-      const updateElement =
-        usePluginDisplayElementStore.getState().updateElement;
       const smartGuidesStore = useSmartGuidesStore.getState();
 
       let finalX = newBounds.x;
@@ -242,19 +244,20 @@ export function useGridResize({
         }
       }
 
-      updateElement(
-        fullId,
-        {
-          position: { x: finalX, y: finalY },
-          measuredSize: { width: finalWidth, height: finalHeight },
-        },
-        { skipSync: true }
-      );
+      // 프리뷰 bounds 업데이트 (실제 요소는 업데이트하지 않음)
+      const previewData = {
+        x: finalX,
+        y: finalY,
+        width: finalWidth,
+        height: finalHeight,
+      };
+      setPreviewBounds(previewData);
+      finalBoundsRef.current = previewData;
     },
     [getOtherElements]
   );
 
-  // 통합 리사이즈 핸들러 (키 및 플러그인 요소 지원)
+  // 통합 리사이즈 핸들러 (키 및 플러그인 요소 지원) - 프리뷰 모드
   const handleResize = useCallback(
     (newBounds: {
       x: number;
@@ -267,51 +270,75 @@ export function useGridResize({
 
       const element = selectedElements[0];
       if (element.type === "key" && element.index !== undefined) {
-        handleKeyResize(element.index, newBounds);
+        handleKeyResizePreview(element.index, newBounds);
       } else if (element.type === "plugin") {
-        handlePluginResize(element.id, newBounds);
+        handlePluginResizePreview(element.id, newBounds);
       }
     },
-    [selectedElements, handleKeyResize, handlePluginResize]
+    [selectedElements, handleKeyResizePreview, handlePluginResizePreview]
   );
 
-  // 리사이즈 종료 처리
+  // 리사이즈 종료 처리 - 실제 요소에 최종 bounds 적용
   const handleResizeComplete = useCallback(() => {
     resizeStartRef.current = false;
 
     // 스마트 가이드 클리어
     useSmartGuidesStore.getState().clearGuides();
 
-    // 백엔드에 저장 및 동기화
-    if (selectedElements.length === 1) {
+    // 최종 bounds를 실제 요소에 적용
+    const finalBounds = finalBoundsRef.current;
+    if (finalBounds && selectedElements.length === 1) {
       const element = selectedElements[0];
-      if (element.type === "key") {
+
+      if (element.type === "key" && element.index !== undefined) {
+        // 키 요소에 최종 크기 적용
         const positions = useKeyStore.getState().positions;
-        window.api.keys.updatePositions(positions).catch((error) => {
+        const setPositions = useKeyStore.getState().setPositions;
+        const current = positions[selectedKeyType] || [];
+        const nextPositions: KeyPositions = {
+          ...positions,
+          [selectedKeyType]: current.map((pos, i) =>
+            i === element.index
+              ? {
+                  ...pos,
+                  dx: finalBounds.x,
+                  dy: finalBounds.y,
+                  width: finalBounds.width,
+                  height: finalBounds.height,
+                }
+              : pos
+          ),
+        };
+        setPositions(nextPositions);
+
+        // 백엔드에 저장
+        window.api.keys.updatePositions(nextPositions).catch((error) => {
           console.error("Failed to update key positions after resize", error);
         });
       } else if (element.type === "plugin") {
-        // 플러그인 요소 리사이즈 완료 시 오버레이에 동기화
+        // 플러그인 요소에 최종 크기 적용
         const pluginStore = usePluginDisplayElementStore.getState();
-        const pluginEl = pluginStore.elements.find(
-          (el) => el.fullId === element.id
-        );
-        if (pluginEl) {
-          // skipSync 없이 updateElement 호출하여 동기화 트리거
-          pluginStore.updateElement(element.id, {
-            position: pluginEl.position,
-            measuredSize: pluginEl.measuredSize,
-          });
-        }
+        pluginStore.updateElement(element.id, {
+          position: { x: finalBounds.x, y: finalBounds.y },
+          measuredSize: {
+            width: finalBounds.width,
+            height: finalBounds.height,
+          },
+        });
       }
     }
 
+    // 프리뷰 상태 클리어
+    setPreviewBounds(null);
+    finalBoundsRef.current = null;
+
     onResizeEnd?.();
-  }, [selectedElements, onResizeEnd]);
+  }, [selectedElements, selectedKeyType, onResizeEnd]);
 
   return {
     handleResizeStart,
     handleResize,
     handleResizeComplete,
+    previewBounds,
   };
 }

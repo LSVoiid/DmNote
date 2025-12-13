@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from "react";
+import React, { useCallback, useRef, useState } from "react";
 
 /**
  * 8방향 리사이즈 핸들을 표시하는 컴포넌트
@@ -6,29 +6,122 @@ import React, { useCallback, useRef } from "react";
  */
 
 // ===== 조절 가능한 설정 값들 =====
-const HANDLE_VISUAL_SIZE = 8; // 핸들의 시각적 크기 (픽셀)
-const HANDLE_HIT_SIZE = 16; // 핸들의 클릭 가능 영역 크기 (픽셀) - 이 값을 조절하여 잡는 범위 변경
+const CORNER_HANDLE_SIZE = 10; // 꼭짓점 핸들의 시각적 크기 (픽셀)
+const EDGE_HANDLE_WIDTH = 8; // 상하좌우 핸들의 두께 (픽셀) - 꼭짓점과 비슷한 두께
+const EDGE_HANDLE_LENGTH = 18; // 상하좌우 핸들의 길이 (픽셀)
+const HANDLE_HIT_SIZE = 18; // 핸들의 클릭 가능 영역 크기 (픽셀) - 이 값을 조절하여 잡는 범위 변경
 const MIN_SIZE = 10; // 키의 최소 크기 (픽셀)
 const RESIZE_SNAP_SIZE = 5; // 리사이즈 시 스냅 단위 (픽셀) - 이 값을 조절하여 크기 조절 단위 변경
 // ================================
 
-const HANDLE_VISUAL_HALF = HANDLE_VISUAL_SIZE / 2;
 const HANDLE_HIT_HALF = HANDLE_HIT_SIZE / 2;
 
-// 8방향 핸들 정의
+// 핸들 타입 정의 (corner: 꼭짓점, edge-v: 수직 방향 모서리, edge-h: 수평 방향 모서리)
 const HANDLES = [
-  { id: "nw", cursor: "nwse-resize", x: 0, y: 0, dx: -1, dy: -1 },
-  { id: "n", cursor: "ns-resize", x: 0.5, y: 0, dx: 0, dy: -1 },
-  { id: "ne", cursor: "nesw-resize", x: 1, y: 0, dx: 1, dy: -1 },
-  { id: "w", cursor: "ew-resize", x: 0, y: 0.5, dx: -1, dy: 0 },
-  { id: "e", cursor: "ew-resize", x: 1, y: 0.5, dx: 1, dy: 0 },
-  { id: "sw", cursor: "nesw-resize", x: 0, y: 1, dx: -1, dy: 1 },
-  { id: "s", cursor: "ns-resize", x: 0.5, y: 1, dx: 0, dy: 1 },
-  { id: "se", cursor: "nwse-resize", x: 1, y: 1, dx: 1, dy: 1 },
+  {
+    id: "nw",
+    cursor: "nwse-resize",
+    x: 0,
+    y: 0,
+    dx: -1,
+    dy: -1,
+    type: "corner",
+  },
+  { id: "n", cursor: "ns-resize", x: 0.5, y: 0, dx: 0, dy: -1, type: "edge-h" },
+  {
+    id: "ne",
+    cursor: "nesw-resize",
+    x: 1,
+    y: 0,
+    dx: 1,
+    dy: -1,
+    type: "corner",
+  },
+  { id: "w", cursor: "ew-resize", x: 0, y: 0.5, dx: -1, dy: 0, type: "edge-v" },
+  { id: "e", cursor: "ew-resize", x: 1, y: 0.5, dx: 1, dy: 0, type: "edge-v" },
+  {
+    id: "sw",
+    cursor: "nesw-resize",
+    x: 0,
+    y: 1,
+    dx: -1,
+    dy: 1,
+    type: "corner",
+  },
+  { id: "s", cursor: "ns-resize", x: 0.5, y: 1, dx: 0, dy: 1, type: "edge-h" },
+  { id: "se", cursor: "nwse-resize", x: 1, y: 1, dx: 1, dy: 1, type: "corner" },
 ];
+
+// 핸들 시각적 스타일 반환
+const getHandleStyle = (type, isHovered) => {
+  const baseStyle = {
+    backgroundColor: isHovered ? "rgba(59, 130, 246, 1)" : "white",
+    border: "1.5px solid rgba(59, 130, 246, 0.9)",
+    pointerEvents: "none",
+    transition: "background-color 0.15s ease",
+  };
+
+  if (type === "corner") {
+    return {
+      ...baseStyle,
+      width: CORNER_HANDLE_SIZE,
+      height: CORNER_HANDLE_SIZE,
+      borderRadius: "50%",
+    };
+  } else if (type === "edge-h") {
+    // 상/하 핸들: 가로로 긴 형태
+    return {
+      ...baseStyle,
+      width: EDGE_HANDLE_LENGTH,
+      height: EDGE_HANDLE_WIDTH,
+      borderRadius: EDGE_HANDLE_WIDTH / 2,
+    };
+  } else {
+    // edge-v: 좌/우 핸들: 세로로 긴 형태
+    return {
+      ...baseStyle,
+      width: EDGE_HANDLE_WIDTH,
+      height: EDGE_HANDLE_LENGTH,
+      borderRadius: EDGE_HANDLE_WIDTH / 2,
+    };
+  }
+};
+
+// 개별 핸들 컴포넌트 (호버 상태 관리)
+function Handle({ handle, centerX, centerY, onMouseDown }) {
+  const [isHovered, setIsHovered] = useState(false);
+
+  const hitX = centerX - HANDLE_HIT_HALF;
+  const hitY = centerY - HANDLE_HIT_HALF;
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        left: hitX,
+        top: hitY,
+        width: HANDLE_HIT_SIZE,
+        height: HANDLE_HIT_SIZE,
+        cursor: handle.cursor,
+        zIndex: 21,
+        backgroundColor: "transparent",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+      onMouseDown={(e) => onMouseDown(e, handle)}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      {/* 시각적 핸들 (히트 영역 중앙에 배치) */}
+      <div style={getHandleStyle(handle.type, isHovered)} />
+    </div>
+  );
+}
 
 export default function ResizeHandles({
   bounds, // { x, y, width, height } - 그리드 좌표
+  previewBounds, // { x, y, width, height } - 드래그 중 프리뷰용 bounds (선택적)
   zoom = 1,
   panX = 0,
   panY = 0,
@@ -141,13 +234,16 @@ export default function ResizeHandles({
 
   if (!bounds) return null;
 
+  // 프리뷰 bounds가 있으면 프리뷰용으로 사용, 없으면 실제 bounds 사용
+  const displayBounds = previewBounds || bounds;
+
   // 선택 테두리의 중심선 기준 좌표 (테두리 두께 2px의 중심 = 1px)
   const borderThickness = 2;
   const borderCenter = borderThickness / 2; // 테두리의 중심선까지의 거리
-  const selectionLeft = bounds.x * zoom + panX - borderCenter;
-  const selectionTop = bounds.y * zoom + panY - borderCenter;
-  const selectionWidth = bounds.width * zoom + borderCenter * 2;
-  const selectionHeight = bounds.height * zoom + borderCenter * 2;
+  const selectionLeft = displayBounds.x * zoom + panX - borderCenter;
+  const selectionTop = displayBounds.y * zoom + panY - borderCenter;
+  const selectionWidth = displayBounds.width * zoom + borderCenter * 2;
+  const selectionHeight = displayBounds.height * zoom + borderCenter * 2;
 
   return (
     <>
@@ -156,49 +252,14 @@ export default function ResizeHandles({
         const centerX = selectionLeft + selectionWidth * handle.x;
         const centerY = selectionTop + selectionHeight * handle.y;
 
-        // 시각적 핸들 위치 (중심에서 반만큼 오프셋)
-        const visualX = centerX - HANDLE_VISUAL_HALF;
-        const visualY = centerY - HANDLE_VISUAL_HALF;
-
-        // 히트 영역 위치 (중심에서 반만큼 오프셋)
-        const hitX = centerX - HANDLE_HIT_HALF;
-        const hitY = centerY - HANDLE_HIT_HALF;
-
         return (
-          <div
+          <Handle
             key={handle.id}
-            style={{
-              position: "absolute",
-              // 히트 영역 (투명, 더 넓은 클릭 범위)
-              left: hitX,
-              top: hitY,
-              width: HANDLE_HIT_SIZE,
-              height: HANDLE_HIT_SIZE,
-              cursor: handle.cursor,
-              zIndex: 21,
-              // 히트 영역은 투명
-              backgroundColor: "transparent",
-              // 디버깅용: 히트 영역 시각화 (필요시 주석 해제)
-              // backgroundColor: "rgba(255, 0, 0, 0.2)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-            onMouseDown={(e) => handleMouseDown(e, handle)}
-          >
-            {/* 시각적 핸들 (히트 영역 중앙에 배치) */}
-            <div
-              style={{
-                width: HANDLE_VISUAL_SIZE,
-                height: HANDLE_VISUAL_SIZE,
-                backgroundColor: "white",
-                border: "1px solid rgba(59, 130, 246, 0.8)",
-                borderRadius: "1px",
-                // boxShadow: "0 0 2px rgba(0, 0, 0, 0.3)",
-                pointerEvents: "none",
-              }}
-            />
-          </div>
+            handle={handle}
+            centerX={centerX}
+            centerY={centerY}
+            onMouseDown={handleMouseDown}
+          />
         );
       })}
     </>

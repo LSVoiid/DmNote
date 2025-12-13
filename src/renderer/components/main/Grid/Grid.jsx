@@ -143,13 +143,17 @@ export default function Grid({
   const { getOtherElements } = useSmartGuidesElements();
 
   // 리사이즈 훅 사용
-  const { handleResizeStart, handleResize, handleResizeComplete } =
-    useGridResize({
-      selectedElements,
-      selectedKeyType,
-      onResizeEnd: syncSelectedElementsToOverlay,
-      getOtherElements,
-    });
+  const {
+    handleResizeStart,
+    handleResize,
+    handleResizeComplete,
+    previewBounds,
+  } = useGridResize({
+    selectedElements,
+    selectedKeyType,
+    onResizeEnd: syncSelectedElementsToOverlay,
+    getOtherElements,
+  });
 
   // 선택된 요소의 z-order 조작 핸들러
   const handleSelectedMoveForward = useCallback(async () => {
@@ -543,7 +547,7 @@ export default function Grid({
       {/* 마퀴 선택 오버레이 */}
       <MarqueeSelectionOverlay zoom={zoom} panX={panX} panY={panY} />
       {/* 선택된 요소 표시 */}
-      {selectedElements.map((el) => {
+      {selectedElements.map((el, idx) => {
         let bounds = null;
         if (el.type === "key" && el.index !== undefined) {
           const pos = positions[selectedKeyType]?.[el.index];
@@ -567,15 +571,22 @@ export default function Grid({
           }
         }
         if (!bounds) return null;
+
+        // 단일 선택이고 프리뷰 bounds가 있으면 프리뷰 bounds 사용 (드래그 중 파란 선도 함께 이동)
+        const displayBounds =
+          selectedElements.length === 1 && previewBounds
+            ? previewBounds
+            : bounds;
+
         return (
           <div
             key={el.id}
             style={{
               position: "absolute",
-              left: bounds.x * zoom + panX - 2,
-              top: bounds.y * zoom + panY - 2,
-              width: bounds.width * zoom + 4,
-              height: bounds.height * zoom + 4,
+              left: displayBounds.x * zoom + panX - 2,
+              top: displayBounds.y * zoom + panY - 2,
+              width: displayBounds.width * zoom + 4,
+              height: displayBounds.height * zoom + 4,
               border: "2px solid rgba(59, 130, 246, 0.8)",
               borderRadius: "4px",
               pointerEvents: "none",
@@ -634,6 +645,7 @@ export default function Grid({
           return (
             <ResizeHandles
               bounds={bounds}
+              previewBounds={previewBounds}
               zoom={zoom}
               panX={panX}
               panY={panY}
