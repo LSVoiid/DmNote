@@ -148,6 +148,19 @@ export const PluginElement: React.FC<PluginElementProps> = ({
     }
   }, [element.resizeAnchor, definition?.resizeAnchor, element.measuredSize]);
 
+  // element.measuredSize가 외부에서 변경될 때(리사이즈 등) userPreservedSizeRef 업데이트
+  // 단, needsRemeasure 상태가 아닐 때만 (설정 변경으로 인한 재측정 중에는 스킵)
+  useEffect(() => {
+    if (
+      windowType === "main" &&
+      definition?.resizable &&
+      element.measuredSize &&
+      !needsRemeasureRef.current
+    ) {
+      userPreservedSizeRef.current = { ...element.measuredSize };
+    }
+  }, [windowType, definition?.resizable, element.measuredSize]);
+
   useEffect(() => {
     localeRef.current = locale;
   }, [locale]);
@@ -199,7 +212,7 @@ export const PluginElement: React.FC<PluginElementProps> = ({
     >
   >(new Set());
 
-  // Settings 변경 감지 (overlay에서만)
+  // Settings 변경 감지 (overlay에서만 - 리스너 콜백용)
   useEffect(() => {
     if (windowType !== "overlay") return;
 
@@ -233,6 +246,103 @@ export const PluginElement: React.FC<PluginElementProps> = ({
       prevSettingsRef.current = { ...currentSettings };
     }
   }, [windowType, element.settings]);
+
+  // Settings 변경 시 measuredSize 리셋 (main 윈도우, resizable 요소만)
+  // 설정 변경으로 UI가 변할 수 있으므로 새로 측정하도록 함
+  const prevSettingsForResizeRef = useRef<Record<string, any> | null>(null);
+  // 설정 변경으로 재측정이 필요한 상태인지 플래그
+  const needsRemeasureRef = useRef(false);
+  // 사용자가 설정한(또는 초기 측정된) preserveAxis 축의 크기
+  // 이 값은 리사이즈나 초기 측정 시에만 업데이트되고, 설정 변경 시에는 유지됨
+  const userPreservedSizeRef = useRef<{
+    width: number;
+    height: number;
+  } | null>(null);
+  // 설정별 크기 히스토리 (설정 JSON -> 크기 매핑)
+  const settingsSizeHistoryRef = useRef<
+    Map<string, { width: number; height: number }>
+  >(new Map());
+
+  useEffect(() => {
+    if (windowType !== "main") return;
+    if (!definition?.resizable) return;
+
+    const currentSettings = element.settings || {};
+    const prevSettings = prevSettingsForResizeRef.current;
+
+    // 최초 마운트 시에는 이전 설정 저장만
+    if (prevSettings === null) {
+      prevSettingsForResizeRef.current = { ...currentSettings };
+      // 초기 설정에 대한 크기 저장
+      if (element.measuredSize) {
+        const settingsKey = JSON.stringify(currentSettings);
+        settingsSizeHistoryRef.current.set(settingsKey, {
+          ...element.measuredSize,
+        });
+      }
+      return;
+    }
+
+    // 설정이 실제로 변경되었는지 확인 (JSON 문자열 비교)
+    const currentStr = JSON.stringify(currentSettings);
+    const prevStr = JSON.stringify(prevSettings);
+    const hasChanged = currentStr !== prevStr;
+
+    if (hasChanged) {
+      // 이전 설정에 대한 현재 크기 저장 (나중에 복원용)
+      if (element.measuredSize) {
+        settingsSizeHistoryRef.current.set(prevStr, {
+          ...element.measuredSize,
+        });
+      }
+
+      // 현재 설정에 대해 저장된 크기가 있으면 복원, 없으면 재측정
+      const savedSize = settingsSizeHistoryRef.current.get(currentStr);
+      if (savedSize) {
+        // 저장된 크기로 즉시 복원 (width, height도 함께 업데이트)
+        const currentSize = element.measuredSize;
+        const resizeAnchor: ElementResizeAnchor =
+          element.resizeAnchor || definition?.resizeAnchor || "top-left";
+
+        // 앵커 기반 위치 보정 계산
+        let newPosition = element.position;
+        if (currentSize && resizeAnchor !== "top-left") {
+          const { dx, dy } = calculateAnchorOffset(
+            resizeAnchor,
+            currentSize,
+            savedSize
+          );
+          if (dx !== 0 || dy !== 0) {
+            newPosition = {
+              x: element.position.x + dx,
+              y: element.position.y + dy,
+            };
+          }
+        }
+
+        updateElement(element.fullId, {
+          measuredSize: savedSize,
+          width: savedSize.width,
+          height: savedSize.height,
+          position: newPosition,
+        });
+        prevMeasuredSizeRef.current = savedSize;
+      } else {
+        // 재측정 필요 플래그 설정
+        needsRemeasureRef.current = true;
+      }
+
+      // 이전 설정 업데이트
+      prevSettingsForResizeRef.current = { ...currentSettings };
+    }
+  }, [
+    windowType,
+    definition?.resizable,
+    element.settings,
+    element.fullId,
+    element.measuredSize,
+    updateElement,
+  ]);
 
   // 컨텍스트 메뉴 상태
   const [contextMenuOpen, setContextMenuOpen] = useState(false);
@@ -584,13 +694,78 @@ export const PluginElement: React.FC<PluginElementProps> = ({
     if (!target) return;
 
     // 메인 윈도우에서만 실제 크기 측정 후 store 업데이트
-    if (windowType === "main" && containerRef.current) {
+    // resizable인 경우: 이미 measuredSize가 있고 재측정이 필요하지 않으면 스킵
+    const isResizableWithSize =
+      definition?.resizable &&
+      element.measuredSize &&
+      !needsRemeasureRef.current;
+
+    if (windowType === "main" && containerRef.current && !isResizableWithSize) {
       requestAnimationFrame(() => {
         if (containerRef.current) {
+          // 재측정이 필요한 경우, 일시적으로 크기 제약을 풀어 자연스러운 콘텐츠 크기 측정
+          const needsRemeasure =
+            needsRemeasureRef.current && definition?.resizable;
+          const preserveAxis = definition?.preserveAxis || "both";
+
+          let originalWidth = "";
+          let originalHeight = "";
+
+          if (needsRemeasure) {
+            originalWidth = containerRef.current.style.width;
+            originalHeight = containerRef.current.style.height;
+
+            // preserveAxis에 따라 해제할 축 결정
+            if (preserveAxis !== "width" && preserveAxis !== "both") {
+              containerRef.current.style.width = "auto";
+            }
+            if (preserveAxis !== "height" && preserveAxis !== "both") {
+              containerRef.current.style.height = "auto";
+            }
+          }
+
           const rect = containerRef.current.getBoundingClientRect();
           const measuredWidth = Math.ceil(rect.width / zoom);
           const measuredHeight = Math.ceil(rect.height / zoom);
-          const newSize = { width: measuredWidth, height: measuredHeight };
+
+          // 스타일 복원
+          if (needsRemeasure) {
+            containerRef.current.style.width = originalWidth;
+            containerRef.current.style.height = originalHeight;
+          }
+
+          // 설정 변경으로 인한 재측정인 경우, preserveAxis에 해당하는 축은 유지
+          let finalWidth = measuredWidth;
+          let finalHeight = measuredHeight;
+          const userPreservedSize = userPreservedSizeRef.current;
+
+          if (definition?.resizable && needsRemeasureRef.current) {
+            // preserveAxis에 따라 각 축 유지 여부 결정
+            const shouldPreserveWidth =
+              preserveAxis === "width" || preserveAxis === "both";
+            const shouldPreserveHeight =
+              preserveAxis === "height" || preserveAxis === "both";
+
+            // 가로: 유지 설정이고 저장된 값이 있으면 그 값 사용
+            if (shouldPreserveWidth && userPreservedSize) {
+              finalWidth = userPreservedSize.width;
+            }
+            // 세로: 유지 설정이고 저장된 값이 있으면 그 값 사용
+            if (shouldPreserveHeight && userPreservedSize) {
+              finalHeight = userPreservedSize.height;
+            }
+            needsRemeasureRef.current = false;
+          }
+
+          // 초기 측정 시 또는 콘텐츠가 커진 경우 userPreservedSizeRef 업데이트
+          if (!userPreservedSize) {
+            userPreservedSizeRef.current = {
+              width: finalWidth,
+              height: finalHeight,
+            };
+          }
+
+          const newSize = { width: finalWidth, height: finalHeight };
 
           // 줌이 변경되었는지 확인
           const zoomChanged = prevZoomRef.current !== zoom;
@@ -600,8 +775,8 @@ export const PluginElement: React.FC<PluginElementProps> = ({
           const prevSize = prevMeasuredSizeRef.current;
           const sizeChanged =
             !element.measuredSize ||
-            element.measuredSize.width !== measuredWidth ||
-            element.measuredSize.height !== measuredHeight;
+            element.measuredSize.width !== finalWidth ||
+            element.measuredSize.height !== finalHeight;
 
           if (sizeChanged) {
             // 리사이즈 앵커 결정 (우선순위: element > definition > default)
@@ -935,8 +1110,8 @@ export const PluginElement: React.FC<PluginElementProps> = ({
     updateElementBatched,
   ]);
 
-  const elementStyle: React.CSSProperties = useMemo(
-    () => ({
+  const elementStyle: React.CSSProperties = useMemo(() => {
+    const baseStyle: React.CSSProperties = {
       position: "absolute",
       left: 0,
       top: 0,
@@ -952,20 +1127,30 @@ export const PluginElement: React.FC<PluginElementProps> = ({
           : "default",
       willChange: "transform",
       pointerEvents: windowType === "main" ? "auto" : "none",
-      ...element.style,
-    }),
-    [
-      renderX,
-      renderY,
-      element.zIndex,
-      element.draggable,
-      element.onClick,
-      element.style,
-      windowType,
-      arrayIndex,
-      keyCount,
-    ]
-  );
+    };
+
+    // resizable 플러그인 요소의 경우 명시적 크기 적용
+    // 내부 콘텐츠가 width/height: 100%로 이 크기를 따라감
+    if (definition?.resizable && element.measuredSize) {
+      baseStyle.width = element.measuredSize.width;
+      baseStyle.height = element.measuredSize.height;
+      baseStyle.overflow = "hidden";
+    }
+
+    return { ...baseStyle, ...element.style };
+  }, [
+    renderX,
+    renderY,
+    element.zIndex,
+    element.draggable,
+    element.onClick,
+    element.style,
+    element.measuredSize,
+    definition?.resizable,
+    windowType,
+    arrayIndex,
+    keyCount,
+  ]);
 
   const attachRef = useCallback(
     (node: HTMLDivElement | null) => {

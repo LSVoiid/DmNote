@@ -42,7 +42,8 @@ interface PluginDisplayElementStore {
   addElement: (element: PluginDisplayElementInternal) => void;
   updateElement: (
     fullId: string,
-    updates: Partial<PluginDisplayElementInternal>
+    updates: Partial<PluginDisplayElementInternal>,
+    options?: { skipSync?: boolean }
   ) => void;
   updateElementBatched: (
     fullId: string,
@@ -74,14 +75,18 @@ export const usePluginDisplayElementStore = create<PluginDisplayElementStore>(
         return { elements: newElements };
       }),
 
-    updateElement: (fullId, updates) =>
+    updateElement: (fullId, updates, options?: { skipSync?: boolean }) =>
       set((state) => {
         const newElements = state.elements.map((el) =>
           el.fullId === fullId ? { ...el, ...updates } : el
         );
         // 메인 윈도우에서만 오버레이로 동기화
         // state만 변경된 경우 동기화 스킵 (오버레이에서 자체 관리)
-        if ((window as any).__dmn_window_type === "main") {
+        // skipSync 옵션이 true인 경우 동기화 스킵 (리사이즈 중 등)
+        if (
+          (window as any).__dmn_window_type === "main" &&
+          !options?.skipSync
+        ) {
           const updateKeys = Object.keys(updates);
           const isStateOnlyUpdate =
             updateKeys.length === 1 && updateKeys[0] === "state";

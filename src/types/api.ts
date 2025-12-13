@@ -334,6 +334,21 @@ export interface PluginDefinition {
    */
   maxInstances?: number;
   /**
+   * 그리드에서 크기 조절 가능 여부
+   * @default false
+   */
+  resizable?: boolean;
+  /**
+   * 설정 변경 시 유지할 축
+   * resizable이 true일 때만 적용됨
+   * - 'width': 가로 크기 유지, 세로는 콘텐츠 따라감
+   * - 'height': 세로 크기 유지, 가로는 콘텐츠 따라감
+   * - 'both': 둘 다 유지 (기본값)
+   * - 'none': 둘 다 콘텐츠 따라감
+   * @default 'both'
+   */
+  preserveAxis?: "width" | "height" | "both" | "none";
+  /**
    * 요소 크기 변경 시 기준점 (기본값)
    * 인스턴스별로 setAnchor()를 통해 오버라이드 가능
    * @default "top-left"
@@ -408,6 +423,10 @@ export type PluginDisplayElementInternal = PluginDisplayElement & {
   pluginId: string;
   fullId: string;
   measuredSize?: { width: number; height: number };
+  /** 리사이즈 시 사용되는 명시적 너비 */
+  width?: number;
+  /** 리사이즈 시 사용되는 명시적 높이 */
+  height?: number;
   // 자동 생성된 핸들러 ID (함수가 전달된 경우)
   _onClickId?: string;
   _onPositionChangeId?: string;

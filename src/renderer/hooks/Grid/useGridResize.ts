@@ -22,8 +22,7 @@ interface UseGridResizeOptions {
 }
 
 /**
- * 그리드에서 키 요소 리사이즈를 처리하는 훅
- * (플러그인 요소 리사이즈는 현재 지원하지 않음)
+ * 그리드에서 키 및 플러그인 요소 리사이즈를 처리하는 훅
  */
 export function useGridResize({
   selectedElements,
@@ -160,7 +159,102 @@ export function useGridResize({
     [selectedKeyType, getOtherElements]
   );
 
-  // 통합 리사이즈 핸들러 (키 요소만 지원)
+  // 플러그인 요소 리사이즈 처리 (스마트 가이드 포함)
+  const handlePluginResize = useCallback(
+    (
+      fullId: string,
+      newBounds: {
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+        handle?: ResizeHandle;
+      }
+    ) => {
+      const updateElement =
+        usePluginDisplayElementStore.getState().updateElement;
+      const smartGuidesStore = useSmartGuidesStore.getState();
+
+      let finalX = newBounds.x;
+      let finalY = newBounds.y;
+      let finalWidth = newBounds.width;
+      let finalHeight = newBounds.height;
+
+      // 스마트 가이드 계산 (getOtherElements가 제공된 경우)
+      if (getOtherElements) {
+        const otherElements = getOtherElements(fullId);
+
+        // 리사이즈 중인 요소의 bounds 계산
+        const draggedBounds = calculateBounds(
+          newBounds.x,
+          newBounds.y,
+          newBounds.width,
+          newBounds.height,
+          fullId
+        );
+
+        const snapResult = calculateSnapPoints(draggedBounds, otherElements);
+        const handle = newBounds.handle;
+
+        if (handle) {
+          // X축 스냅
+          if (snapResult.didSnapX) {
+            if (handle.dx === -1) {
+              const widthDiff = finalX - snapResult.snappedX;
+              finalX = snapResult.snappedX;
+              finalWidth = finalWidth + widthDiff;
+            } else if (handle.dx === 1) {
+              const snappedRight = snapResult.snappedX + draggedBounds.width;
+              finalWidth = snappedRight - finalX;
+            } else if (handle.dx === 0) {
+              finalX = snapResult.snappedX;
+            }
+          }
+
+          // Y축 스냅
+          if (snapResult.didSnapY) {
+            if (handle.dy === -1) {
+              const heightDiff = finalY - snapResult.snappedY;
+              finalY = snapResult.snappedY;
+              finalHeight = finalHeight + heightDiff;
+            } else if (handle.dy === 1) {
+              const snappedBottom = snapResult.snappedY + draggedBounds.height;
+              finalHeight = snappedBottom - finalY;
+            } else if (handle.dy === 0) {
+              finalY = snapResult.snappedY;
+            }
+          }
+
+          // 스냅 후 가이드라인 업데이트
+          if (snapResult.didSnapX || snapResult.didSnapY) {
+            const snappedBounds = calculateBounds(
+              finalX,
+              finalY,
+              finalWidth,
+              finalHeight,
+              fullId
+            );
+            smartGuidesStore.setDraggedBounds(snappedBounds);
+            smartGuidesStore.setActiveGuides(snapResult.guides);
+          } else {
+            smartGuidesStore.clearGuides();
+          }
+        }
+      }
+
+      updateElement(
+        fullId,
+        {
+          position: { x: finalX, y: finalY },
+          measuredSize: { width: finalWidth, height: finalHeight },
+        },
+        { skipSync: true }
+      );
+    },
+    [getOtherElements]
+  );
+
+  // 통합 리사이즈 핸들러 (키 및 플러그인 요소 지원)
   const handleResize = useCallback(
     (newBounds: {
       x: number;
@@ -172,13 +266,13 @@ export function useGridResize({
       if (selectedElements.length !== 1) return;
 
       const element = selectedElements[0];
-      // 키 요소만 리사이즈 지원
       if (element.type === "key" && element.index !== undefined) {
         handleKeyResize(element.index, newBounds);
+      } else if (element.type === "plugin") {
+        handlePluginResize(element.id, newBounds);
       }
-      // 플러그인 요소 리사이즈는 현재 지원하지 않음
     },
-    [selectedElements, handleKeyResize]
+    [selectedElements, handleKeyResize, handlePluginResize]
   );
 
   // 리사이즈 종료 처리
@@ -188,7 +282,7 @@ export function useGridResize({
     // 스마트 가이드 클리어
     useSmartGuidesStore.getState().clearGuides();
 
-    // 백엔드에 저장
+    // 백엔드에 저장 및 동기화
     if (selectedElements.length === 1) {
       const element = selectedElements[0];
       if (element.type === "key") {
@@ -196,6 +290,19 @@ export function useGridResize({
         window.api.keys.updatePositions(positions).catch((error) => {
           console.error("Failed to update key positions after resize", error);
         });
+      } else if (element.type === "plugin") {
+        // 플러그인 요소 리사이즈 완료 시 오버레이에 동기화
+        const pluginStore = usePluginDisplayElementStore.getState();
+        const pluginEl = pluginStore.elements.find(
+          (el) => el.fullId === element.id
+        );
+        if (pluginEl) {
+          // skipSync 없이 updateElement 호출하여 동기화 트리거
+          pluginStore.updateElement(element.id, {
+            position: pluginEl.position,
+            measuredSize: pluginEl.measuredSize,
+          });
+        }
       }
     }
 

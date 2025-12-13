@@ -584,22 +584,52 @@ export default function Grid({
           />
         );
       })}
-      {/* 단일 선택 시 리사이즈 핸들 표시 (키 요소만 지원) */}
+      {/* 단일 선택 시 리사이즈 핸들 표시 */}
       {selectedElements.length === 1 &&
         (() => {
           const el = selectedElements[0];
-          // 키 요소만 리사이즈 지원 (플러그인 요소는 현재 미지원)
-          if (el.type !== "key" || el.index === undefined) return null;
+          let bounds = null;
+          let elementId = null;
 
-          const pos = positions[selectedKeyType]?.[el.index];
-          if (!pos) return null;
+          if (el.type === "key" && el.index !== undefined) {
+            // 키 요소
+            const pos = positions[selectedKeyType]?.[el.index];
+            if (!pos) return null;
 
-          const bounds = {
-            x: pos.dx,
-            y: pos.dy,
-            width: pos.width || 60,
-            height: pos.height || 60,
-          };
+            bounds = {
+              x: pos.dx,
+              y: pos.dy,
+              width: pos.width || 60,
+              height: pos.height || 60,
+            };
+            elementId = `key-${el.index}`;
+          } else if (el.type === "plugin") {
+            // 플러그인 요소 - resizable 속성 확인
+            const pluginEl = pluginElements.find((p) => p.fullId === el.id);
+            if (!pluginEl || !pluginEl.measuredSize) {
+              return null;
+            }
+
+            // definitions에서 해당 플러그인의 resizable 설정 확인
+            const definitions =
+              usePluginDisplayElementStore.getState().definitions;
+            const definition = pluginEl.definitionId
+              ? definitions.get(pluginEl.definitionId)
+              : null;
+
+            // resizable이 true인 경우에만 리사이즈 핸들 표시
+            if (!definition?.resizable) return null;
+
+            bounds = {
+              x: pluginEl.position.x,
+              y: pluginEl.position.y,
+              width: pluginEl.measuredSize.width,
+              height: pluginEl.measuredSize.height,
+            };
+            elementId = el.id;
+          }
+
+          if (!bounds || !elementId) return null;
 
           return (
             <ResizeHandles
@@ -610,7 +640,7 @@ export default function Grid({
               onResizeStart={handleResizeStart}
               onResize={handleResize}
               onResizeEnd={handleResizeComplete}
-              elementId={`key-${el.index}`}
+              elementId={elementId}
               getOtherElements={getOtherElements}
             />
           );
