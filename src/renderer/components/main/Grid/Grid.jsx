@@ -14,6 +14,7 @@ import ZoomIndicator from "./ZoomIndicator";
 import SmartGuidesOverlay from "./SmartGuidesOverlay";
 import GridBackground from "./GridBackground";
 import MarqueeSelectionOverlay from "./MarqueeSelectionOverlay";
+import ResizeHandles from "./ResizeHandles";
 import { useGridSelectionStore } from "@stores/useGridSelectionStore";
 import { useHistoryStore } from "@stores/useHistoryStore";
 import { useUIStore } from "@stores/useUIStore";
@@ -25,6 +26,8 @@ import {
   useGridSelection,
   useGridContextMenu,
   useGridMarquee,
+  useGridResize,
+  useSmartGuidesElements,
 } from "@hooks/Grid";
 
 export default function Grid({
@@ -135,6 +138,18 @@ export default function Grid({
     pluginElements,
     clientToGridCoords,
   });
+
+  // 스마트 가이드를 위한 다른 요소들의 bounds 가져오기
+  const { getOtherElements } = useSmartGuidesElements();
+
+  // 리사이즈 훅 사용
+  const { handleResizeStart, handleResize, handleResizeComplete } =
+    useGridResize({
+      selectedElements,
+      selectedKeyType,
+      onResizeEnd: syncSelectedElementsToOverlay,
+      getOtherElements,
+    });
 
   // 선택된 요소의 z-order 조작 핸들러
   const handleSelectedMoveForward = useCallback(async () => {
@@ -569,6 +584,37 @@ export default function Grid({
           />
         );
       })}
+      {/* 단일 선택 시 리사이즈 핸들 표시 (키 요소만 지원) */}
+      {selectedElements.length === 1 &&
+        (() => {
+          const el = selectedElements[0];
+          // 키 요소만 리사이즈 지원 (플러그인 요소는 현재 미지원)
+          if (el.type !== "key" || el.index === undefined) return null;
+
+          const pos = positions[selectedKeyType]?.[el.index];
+          if (!pos) return null;
+
+          const bounds = {
+            x: pos.dx,
+            y: pos.dy,
+            width: pos.width || 60,
+            height: pos.height || 60,
+          };
+
+          return (
+            <ResizeHandles
+              bounds={bounds}
+              zoom={zoom}
+              panX={panX}
+              panY={panY}
+              onResizeStart={handleResizeStart}
+              onResize={handleResize}
+              onResizeEnd={handleResizeComplete}
+              elementId={`key-${el.index}`}
+              getOtherElements={getOtherElements}
+            />
+          );
+        })()}
       {/* 우클릭 리스트 팝업 */}
       <div className="relative">
         <ListPopup

@@ -20,3 +20,6 @@ export { useGridZoomPan } from "./useGridZoomPan";
 // Hooks - Draggable & Smart Guides
 export { useDraggable } from "./useDraggable";
 export { useSmartGuidesElements } from "./useSmartGuidesElements";
+
+// Hooks - Resize
+export { useGridResize } from "./useGridResize";
