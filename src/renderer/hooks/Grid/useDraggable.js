@@ -234,6 +234,16 @@ export const useDraggable = ({
               );
               smartGuidesStore.setDraggedBounds(snappedBounds);
               smartGuidesStore.setActiveGuides(snapResult.guides);
+
+              // 간격 가이드도 업데이트
+              if (
+                snapResult.spacingGuides &&
+                snapResult.spacingGuides.length > 0
+              ) {
+                smartGuidesStore.setSpacingGuides(snapResult.spacingGuides);
+              } else {
+                smartGuidesStore.setSpacingGuides([]);
+              }
             } else {
               // 스마트 가이드 스냅이 없으면 가이드라인 클리어
               smartGuidesStore.clearGuides();

@@ -573,6 +573,16 @@ export const PluginElement: React.FC<PluginElementProps> = ({
             );
             smartGuidesStore.setDraggedBounds(snappedBounds);
             smartGuidesStore.setActiveGuides(snapResult.guides);
+
+            // 간격 가이드도 업데이트
+            if (
+              snapResult.spacingGuides &&
+              snapResult.spacingGuides.length > 0
+            ) {
+              smartGuidesStore.setSpacingGuides(snapResult.spacingGuides);
+            } else {
+              smartGuidesStore.setSpacingGuides([]);
+            }
           } else {
             smartGuidesStore.clearGuides();
           }
