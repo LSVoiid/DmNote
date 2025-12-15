@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { MIN_GRID_POSITION, MAX_GRID_POSITION } from "@stores/useGridViewStore";
 import { useSmartGuidesStore } from "@stores/useSmartGuidesStore";
 import { useGridSelectionStore } from "@stores/useGridSelectionStore";
+import { useSettingsStore } from "@stores/useSettingsStore";
 import { calculateBounds, calculateSnapPoints } from "@utils/smartGuides";
 
 // 위치 클램핑 함수
@@ -198,7 +199,17 @@ export const useDraggable = ({
           let didSmartSnapX = false;
           let didSmartSnapY = false;
 
-          if (getOtherElementsFn && currentElementId) {
+          // gridSettings에서 정렬 가이드 활성화 여부 확인
+          const gridSettings = useSettingsStore.getState().gridSettings;
+          const alignmentGuidesEnabled =
+            gridSettings?.alignmentGuides !== false;
+          const spacingGuidesEnabled = gridSettings?.spacingGuides !== false;
+
+          if (
+            getOtherElementsFn &&
+            currentElementId &&
+            alignmentGuidesEnabled
+          ) {
             const otherElements = getOtherElementsFn(currentElementId);
             const draggedBounds = calculateBounds(
               newDx,
@@ -215,13 +226,24 @@ export const useDraggable = ({
 
             if (snapResult.didSnapX || snapResult.didSnapY) {
               // 스마트 가이드 스냅이 적용됨 (축별로 개별 처리)
+              // 간격 스냅이 비활성화된 경우 간격 스냅 무시
               if (snapResult.didSnapX) {
-                finalX = snapResult.snappedX;
-                didSmartSnapX = true;
+                // 간격 스냅인 경우 spacingGuidesEnabled 확인
+                if (snapResult.didSpacingSnapX && !spacingGuidesEnabled) {
+                  // 간격 스냅 무시, 정렬 스냅만 사용
+                  // didSnapX가 true이지만 didSpacingSnapX만 true인 경우는 무시
+                } else {
+                  finalX = snapResult.snappedX;
+                  didSmartSnapX = true;
+                }
               }
               if (snapResult.didSnapY) {
-                finalY = snapResult.snappedY;
-                didSmartSnapY = true;
+                if (snapResult.didSpacingSnapY && !spacingGuidesEnabled) {
+                  // 간격 스냅 무시
+                } else {
+                  finalY = snapResult.snappedY;
+                  didSmartSnapY = true;
+                }
               }
 
               // 스냅된 bounds 업데이트
@@ -235,8 +257,9 @@ export const useDraggable = ({
               smartGuidesStore.setDraggedBounds(snappedBounds);
               smartGuidesStore.setActiveGuides(snapResult.guides);
 
-              // 간격 가이드도 업데이트
+              // 간격 가이드도 업데이트 (spacingGuidesEnabled가 true인 경우에만)
               if (
+                spacingGuidesEnabled &&
                 snapResult.spacingGuides &&
                 snapResult.spacingGuides.length > 0
               ) {

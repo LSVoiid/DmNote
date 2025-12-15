@@ -373,6 +373,35 @@ impl Default for OverlayResizeAnchor {
     }
 }
 
+/// 그리드 스마트 가이드 설정
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct GridSettings {
+    /// 정렬 가이드 활성화 (드래그/리사이즈 시 요소 정렬 스냅)
+    #[serde(default = "default_true")]
+    pub alignment_guides: bool,
+    /// 간격 일치 가이드 활성화 (요소 간 간격 일치 스냅)
+    #[serde(default = "default_true")]
+    pub spacing_guides: bool,
+    /// 크기 일치 가이드 활성화 (리사이즈 시 크기 일치 스냅)
+    #[serde(default = "default_true")]
+    pub size_match_guides: bool,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+impl Default for GridSettings {
+    fn default() -> Self {
+        Self {
+            alignment_guides: true,
+            spacing_guides: true,
+            size_match_guides: true,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct OverlayBounds {
@@ -451,6 +480,9 @@ pub struct AppStoreData {
     pub overlay_bounds_are_logical: bool,
     #[serde(default)]
     pub key_counter_enabled: bool,
+    /// 그리드 스마트 가이드 설정
+    #[serde(default)]
+    pub grid_settings: GridSettings,
     /// 플러그인 데이터 저장소 (plugin_data_* 키로 저장)
     #[serde(default, flatten)]
     pub plugin_data: HashMap<String, serde_json::Value>,
@@ -484,6 +516,7 @@ impl Default for AppStoreData {
             overlay_last_content_top_offset: None,
             overlay_bounds_are_logical: false,
             key_counter_enabled: false,
+            grid_settings: GridSettings::default(),
             plugin_data: HashMap::new(),
         }
     }
@@ -538,6 +571,8 @@ pub struct SettingsState {
     pub overlay_resize_anchor: OverlayResizeAnchor,
     #[serde(default)]
     pub key_counter_enabled: bool,
+    #[serde(default)]
+    pub grid_settings: GridSettings,
 }
 
 impl Default for SettingsState {
@@ -559,6 +594,7 @@ impl Default for SettingsState {
             custom_js: CustomJs::default(),
             overlay_resize_anchor: OverlayResizeAnchor::TopLeft,
             key_counter_enabled: false,
+            grid_settings: GridSettings::default(),
         }
     }
 }
@@ -616,6 +652,7 @@ pub struct SettingsPatchInput {
     pub custom_js: Option<CustomJsPatch>,
     pub overlay_resize_anchor: Option<OverlayResizeAnchor>,
     pub key_counter_enabled: Option<bool>,
+    pub grid_settings: Option<GridSettings>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -665,6 +702,7 @@ impl SettingsDiff {
             p.custom_js.is_some(),
             p.overlay_resize_anchor.is_some(),
             p.key_counter_enabled.is_some(),
+            p.grid_settings.is_some(),
         ]
         .iter()
         .filter(|&&x| x)
@@ -711,4 +749,6 @@ pub struct SettingsPatch {
     pub overlay_resize_anchor: Option<OverlayResizeAnchor>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub key_counter_enabled: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub grid_settings: Option<GridSettings>,
 }

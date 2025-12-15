@@ -142,7 +142,8 @@
     "settings": "Settings",
     "etcSettings": "Etc",
     "noteSettings": "Note Settings",
-    "laboratory": "Experimental"
+    "laboratory": "Experimental",
+    "gridSettings": "Grid Settings"
   },
   "toolbar": {
     "resetTab": "Reset Tab",
@@ -284,5 +285,12 @@
     "checkUpdate": "Check for Updates",
     "checking": "Checking...",
     "latestAlready": "You're up to date."
+  },
+  "gridSettings": {
+    "alignmentGuides": "Alignment Guides",
+    "spacingGuides": "Spacing Guides",
+    "sizeMatchGuides": "Size Match Guides",
+    "save": "Save",
+    "cancel": "Cancel"
   }
 }

@@ -3,6 +3,7 @@ import { useKeyStore } from "@stores/useKeyStore";
 import { usePluginDisplayElementStore } from "@stores/usePluginDisplayElementStore";
 import { useHistoryStore } from "@stores/useHistoryStore";
 import { useSmartGuidesStore } from "@stores/useSmartGuidesStore";
+import { useSettingsStore } from "@stores/useSettingsStore";
 import {
   calculateBounds,
   calculateSnapPoints,
@@ -103,6 +104,11 @@ export function useGridResize({
       }
     ) => {
       const smartGuidesStore = useSmartGuidesStore.getState();
+      const gridSettings = useSettingsStore.getState().gridSettings;
+      const alignmentGuidesEnabled = gridSettings?.alignmentGuides !== false;
+      const spacingGuidesEnabled = gridSettings?.spacingGuides !== false;
+      const sizeMatchGuidesEnabled = gridSettings?.sizeMatchGuides !== false;
+
       const elementId = `key-${index}`;
 
       let finalX = newBounds.x;
@@ -110,8 +116,8 @@ export function useGridResize({
       let finalWidth = newBounds.width;
       let finalHeight = newBounds.height;
 
-      // 스마트 가이드 계산 (getOtherElements가 제공된 경우)
-      if (getOtherElements) {
+      // 스마트 가이드 계산 (getOtherElements가 제공된 경우, 정렬 가이드가 활성화된 경우)
+      if (getOtherElements && alignmentGuidesEnabled) {
         const otherElements = getOtherElements(elementId);
 
         // 리사이즈 중인 요소의 bounds 계산
@@ -127,8 +133,11 @@ export function useGridResize({
         const handle = newBounds.handle;
 
         if (handle) {
-          // X축 스냅
-          if (snapResult.didSnapX) {
+          // X축 스냅 (간격 스냅인 경우 spacingGuidesEnabled 확인)
+          if (
+            snapResult.didSnapX &&
+            !(snapResult.didSpacingSnapX && !spacingGuidesEnabled)
+          ) {
             if (handle.dx === -1) {
               // 왼쪽 핸들: 왼쪽 가장자리 스냅
               const widthDiff = finalX - snapResult.snappedX;
@@ -144,8 +153,11 @@ export function useGridResize({
             }
           }
 
-          // Y축 스냅
-          if (snapResult.didSnapY) {
+          // Y축 스냅 (간격 스냅인 경우 spacingGuidesEnabled 확인)
+          if (
+            snapResult.didSnapY &&
+            !(snapResult.didSpacingSnapY && !spacingGuidesEnabled)
+          ) {
             if (handle.dy === -1) {
               // 위쪽 핸들: 위쪽 가장자리 스냅
               const heightDiff = finalY - snapResult.snappedY;
@@ -161,73 +173,109 @@ export function useGridResize({
             }
           }
 
-          // Size Matching: 다른 요소와 동일한 크기로 스냅
-          const sizeSnapResult = calculateSizeSnap(
-            finalWidth,
-            finalHeight,
-            otherElements,
-            elementId
-          );
-
-          if (sizeSnapResult.didSnapWidth) {
-            // 핸들 방향에 따라 크기 조정
-            if (handle.dx === -1) {
-              // 왼쪽 핸들: 왼쪽 가장자리를 조정
-              finalX = finalX - (sizeSnapResult.snappedWidth - finalWidth);
-            }
-            finalWidth = sizeSnapResult.snappedWidth;
-          }
-
-          if (sizeSnapResult.didSnapHeight) {
-            if (handle.dy === -1) {
-              // 위쪽 핸들: 위쪽 가장자리를 조정
-              finalY = finalY - (sizeSnapResult.snappedHeight - finalHeight);
-            }
-            finalHeight = sizeSnapResult.snappedHeight;
-          }
-
-          // 스냅 후 bounds로 가이드라인 업데이트
-          const hasAlignSnap = snapResult.didSnapX || snapResult.didSnapY;
-          const hasSizeSnap =
-            sizeSnapResult.didSnapWidth || sizeSnapResult.didSnapHeight;
-
-          if (hasAlignSnap || hasSizeSnap) {
-            const snappedBounds = calculateBounds(
-              finalX,
-              finalY,
+          // Size Matching: 다른 요소와 동일한 크기로 스냅 (sizeMatchGuidesEnabled 확인)
+          if (sizeMatchGuidesEnabled) {
+            const sizeSnapResult = calculateSizeSnap(
               finalWidth,
               finalHeight,
+              otherElements,
               elementId
             );
-            smartGuidesStore.setDraggedBounds(snappedBounds);
 
-            // 정렬 가이드 업데이트
+            if (sizeSnapResult.didSnapWidth) {
+              // 핸들 방향에 따라 크기 조정
+              if (handle.dx === -1) {
+                // 왼쪽 핸들: 왼쪽 가장자리를 조정
+                finalX = finalX - (sizeSnapResult.snappedWidth - finalWidth);
+              }
+              finalWidth = sizeSnapResult.snappedWidth;
+            }
+
+            if (sizeSnapResult.didSnapHeight) {
+              if (handle.dy === -1) {
+                // 위쪽 핸들: 위쪽 가장자리를 조정
+                finalY = finalY - (sizeSnapResult.snappedHeight - finalHeight);
+              }
+              finalHeight = sizeSnapResult.snappedHeight;
+            }
+
+            // 스냅 후 bounds로 가이드라인 업데이트
+            const hasAlignSnap =
+              (snapResult.didSnapX &&
+                !(snapResult.didSpacingSnapX && !spacingGuidesEnabled)) ||
+              (snapResult.didSnapY &&
+                !(snapResult.didSpacingSnapY && !spacingGuidesEnabled));
+            const hasSizeSnap =
+              sizeSnapResult.didSnapWidth || sizeSnapResult.didSnapHeight;
+
+            if (hasAlignSnap || hasSizeSnap) {
+              const snappedBounds = calculateBounds(
+                finalX,
+                finalY,
+                finalWidth,
+                finalHeight,
+                elementId
+              );
+              smartGuidesStore.setDraggedBounds(snappedBounds);
+
+              // 정렬 가이드 업데이트
+              if (hasAlignSnap) {
+                smartGuidesStore.setActiveGuides(snapResult.guides);
+                // 간격 가이드 업데이트 (spacingGuidesEnabled가 true인 경우에만)
+                if (
+                  spacingGuidesEnabled &&
+                  snapResult.spacingGuides &&
+                  snapResult.spacingGuides.length > 0
+                ) {
+                  smartGuidesStore.setSpacingGuides(snapResult.spacingGuides);
+                } else {
+                  smartGuidesStore.setSpacingGuides([]);
+                }
+              } else {
+                smartGuidesStore.setActiveGuides([]);
+                smartGuidesStore.setSpacingGuides([]);
+              }
+
+              // Size Match 가이드 업데이트 (정렬 스냅과 별개로 항상 표시)
+              if (hasSizeSnap) {
+                smartGuidesStore.setSizeMatchGuides(
+                  sizeSnapResult.sizeMatchGuides
+                );
+              } else {
+                smartGuidesStore.setSizeMatchGuides([]);
+              }
+            } else {
+              smartGuidesStore.clearGuides();
+            }
+          } else {
+            // sizeMatchGuides가 비활성화된 경우 기존 정렬 스냅만 처리
+            const hasAlignSnap =
+              (snapResult.didSnapX &&
+                !(snapResult.didSpacingSnapX && !spacingGuidesEnabled)) ||
+              (snapResult.didSnapY &&
+                !(snapResult.didSpacingSnapY && !spacingGuidesEnabled));
             if (hasAlignSnap) {
+              const snappedBounds = calculateBounds(
+                finalX,
+                finalY,
+                finalWidth,
+                finalHeight,
+                elementId
+              );
+              smartGuidesStore.setDraggedBounds(snappedBounds);
               smartGuidesStore.setActiveGuides(snapResult.guides);
-              // 간격 가이드 업데이트
               if (
-                snapResult.spacingGuides &&
-                snapResult.spacingGuides.length > 0
+                spacingGuidesEnabled &&
+                snapResult.spacingGuides?.length > 0
               ) {
                 smartGuidesStore.setSpacingGuides(snapResult.spacingGuides);
               } else {
                 smartGuidesStore.setSpacingGuides([]);
               }
-            } else {
-              smartGuidesStore.setActiveGuides([]);
-              smartGuidesStore.setSpacingGuides([]);
-            }
-
-            // Size Match 가이드 업데이트 (정렬 스냅과 별개로 항상 표시)
-            if (hasSizeSnap) {
-              smartGuidesStore.setSizeMatchGuides(
-                sizeSnapResult.sizeMatchGuides
-              );
-            } else {
               smartGuidesStore.setSizeMatchGuides([]);
+            } else {
+              smartGuidesStore.clearGuides();
             }
-          } else {
-            smartGuidesStore.clearGuides();
           }
         }
       }
@@ -258,14 +306,18 @@ export function useGridResize({
       }
     ) => {
       const smartGuidesStore = useSmartGuidesStore.getState();
+      const gridSettings = useSettingsStore.getState().gridSettings;
+      const alignmentGuidesEnabled = gridSettings?.alignmentGuides !== false;
+      const spacingGuidesEnabled = gridSettings?.spacingGuides !== false;
+      const sizeMatchGuidesEnabled = gridSettings?.sizeMatchGuides !== false;
 
       let finalX = newBounds.x;
       let finalY = newBounds.y;
       let finalWidth = newBounds.width;
       let finalHeight = newBounds.height;
 
-      // 스마트 가이드 계산 (getOtherElements가 제공된 경우)
-      if (getOtherElements) {
+      // 스마트 가이드 계산 (getOtherElements가 제공된 경우, 정렬 가이드가 활성화된 경우)
+      if (getOtherElements && alignmentGuidesEnabled) {
         const otherElements = getOtherElements(fullId);
 
         // 리사이즈 중인 요소의 bounds 계산
@@ -281,8 +333,11 @@ export function useGridResize({
         const handle = newBounds.handle;
 
         if (handle) {
-          // X축 스냅
-          if (snapResult.didSnapX) {
+          // X축 스냅 (간격 스냅인 경우 spacingGuidesEnabled 확인)
+          if (
+            snapResult.didSnapX &&
+            !(snapResult.didSpacingSnapX && !spacingGuidesEnabled)
+          ) {
             if (handle.dx === -1) {
               const widthDiff = finalX - snapResult.snappedX;
               finalX = snapResult.snappedX;
@@ -295,8 +350,11 @@ export function useGridResize({
             }
           }
 
-          // Y축 스냅
-          if (snapResult.didSnapY) {
+          // Y축 스냅 (간격 스냅인 경우 spacingGuidesEnabled 확인)
+          if (
+            snapResult.didSnapY &&
+            !(snapResult.didSpacingSnapY && !spacingGuidesEnabled)
+          ) {
             if (handle.dy === -1) {
               const heightDiff = finalY - snapResult.snappedY;
               finalY = snapResult.snappedY;
@@ -309,69 +367,105 @@ export function useGridResize({
             }
           }
 
-          // Size Matching: 다른 요소와 동일한 크기로 스냅
-          const sizeSnapResult = calculateSizeSnap(
-            finalWidth,
-            finalHeight,
-            otherElements,
-            fullId
-          );
-
-          if (sizeSnapResult.didSnapWidth) {
-            if (handle.dx === -1) {
-              finalX = finalX - (sizeSnapResult.snappedWidth - finalWidth);
-            }
-            finalWidth = sizeSnapResult.snappedWidth;
-          }
-
-          if (sizeSnapResult.didSnapHeight) {
-            if (handle.dy === -1) {
-              finalY = finalY - (sizeSnapResult.snappedHeight - finalHeight);
-            }
-            finalHeight = sizeSnapResult.snappedHeight;
-          }
-
-          // 스냅 후 가이드라인 업데이트
-          const hasAlignSnap = snapResult.didSnapX || snapResult.didSnapY;
-          const hasSizeSnap =
-            sizeSnapResult.didSnapWidth || sizeSnapResult.didSnapHeight;
-
-          if (hasAlignSnap || hasSizeSnap) {
-            const snappedBounds = calculateBounds(
-              finalX,
-              finalY,
+          // Size Matching: 다른 요소와 동일한 크기로 스냅 (sizeMatchGuidesEnabled 확인)
+          if (sizeMatchGuidesEnabled) {
+            const sizeSnapResult = calculateSizeSnap(
               finalWidth,
               finalHeight,
+              otherElements,
               fullId
             );
-            smartGuidesStore.setDraggedBounds(snappedBounds);
 
-            // 정렬 가이드 업데이트
+            if (sizeSnapResult.didSnapWidth) {
+              if (handle.dx === -1) {
+                finalX = finalX - (sizeSnapResult.snappedWidth - finalWidth);
+              }
+              finalWidth = sizeSnapResult.snappedWidth;
+            }
+
+            if (sizeSnapResult.didSnapHeight) {
+              if (handle.dy === -1) {
+                finalY = finalY - (sizeSnapResult.snappedHeight - finalHeight);
+              }
+              finalHeight = sizeSnapResult.snappedHeight;
+            }
+
+            // 스냅 후 가이드라인 업데이트
+            const hasAlignSnap =
+              (snapResult.didSnapX &&
+                !(snapResult.didSpacingSnapX && !spacingGuidesEnabled)) ||
+              (snapResult.didSnapY &&
+                !(snapResult.didSpacingSnapY && !spacingGuidesEnabled));
+            const hasSizeSnap =
+              sizeSnapResult.didSnapWidth || sizeSnapResult.didSnapHeight;
+
+            if (hasAlignSnap || hasSizeSnap) {
+              const snappedBounds = calculateBounds(
+                finalX,
+                finalY,
+                finalWidth,
+                finalHeight,
+                fullId
+              );
+              smartGuidesStore.setDraggedBounds(snappedBounds);
+
+              // 정렬 가이드 업데이트
+              if (hasAlignSnap) {
+                smartGuidesStore.setActiveGuides(snapResult.guides);
+                if (
+                  spacingGuidesEnabled &&
+                  snapResult.spacingGuides &&
+                  snapResult.spacingGuides.length > 0
+                ) {
+                  smartGuidesStore.setSpacingGuides(snapResult.spacingGuides);
+                } else {
+                  smartGuidesStore.setSpacingGuides([]);
+                }
+              } else {
+                smartGuidesStore.setActiveGuides([]);
+                smartGuidesStore.setSpacingGuides([]);
+              }
+
+              // Size Match 가이드 업데이트
+              if (hasSizeSnap) {
+                smartGuidesStore.setSizeMatchGuides(
+                  sizeSnapResult.sizeMatchGuides
+                );
+              } else {
+                smartGuidesStore.setSizeMatchGuides([]);
+              }
+            } else {
+              smartGuidesStore.clearGuides();
+            }
+          } else {
+            // sizeMatchGuides가 비활성화된 경우 기존 정렬 스냅만 처리
+            const hasAlignSnap =
+              (snapResult.didSnapX &&
+                !(snapResult.didSpacingSnapX && !spacingGuidesEnabled)) ||
+              (snapResult.didSnapY &&
+                !(snapResult.didSpacingSnapY && !spacingGuidesEnabled));
             if (hasAlignSnap) {
+              const snappedBounds = calculateBounds(
+                finalX,
+                finalY,
+                finalWidth,
+                finalHeight,
+                fullId
+              );
+              smartGuidesStore.setDraggedBounds(snappedBounds);
               smartGuidesStore.setActiveGuides(snapResult.guides);
               if (
-                snapResult.spacingGuides &&
-                snapResult.spacingGuides.length > 0
+                spacingGuidesEnabled &&
+                snapResult.spacingGuides?.length > 0
               ) {
                 smartGuidesStore.setSpacingGuides(snapResult.spacingGuides);
               } else {
                 smartGuidesStore.setSpacingGuides([]);
               }
-            } else {
-              smartGuidesStore.setActiveGuides([]);
-              smartGuidesStore.setSpacingGuides([]);
-            }
-
-            // Size Match 가이드 업데이트
-            if (hasSizeSnap) {
-              smartGuidesStore.setSizeMatchGuides(
-                sizeSnapResult.sizeMatchGuides
-              );
-            } else {
               smartGuidesStore.setSizeMatchGuides([]);
+            } else {
+              smartGuidesStore.clearGuides();
             }
-          } else {
-            smartGuidesStore.clearGuides();
           }
         }
       }

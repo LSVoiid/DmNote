@@ -145,6 +145,7 @@ impl AppState {
                 custom_js,
                 overlay_resize_anchor: state.overlay_resize_anchor.clone(),
                 key_counter_enabled: state.key_counter_enabled,
+                grid_settings: state.grid_settings.clone(),
             },
             keys: state.keys.clone(),
             positions: state.key_positions.clone(),

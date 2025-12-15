@@ -13,6 +13,18 @@ export type OverlayResizeAnchor =
   | "bottom-right"
   | "center";
 
+export interface GridSettings {
+  alignmentGuides: boolean;
+  spacingGuides: boolean;
+  sizeMatchGuides: boolean;
+}
+
+export const DEFAULT_GRID_SETTINGS: GridSettings = {
+  alignmentGuides: true,
+  spacingGuides: true,
+  sizeMatchGuides: true,
+};
+
 export interface SettingsState {
   hardwareAcceleration: boolean;
   alwaysOnTop: boolean;
@@ -30,6 +42,7 @@ export interface SettingsState {
   customJS: CustomJs;
   overlayResizeAnchor: OverlayResizeAnchor;
   keyCounterEnabled: boolean;
+  gridSettings: GridSettings;
 }
 
 export const DEFAULT_SETTINGS_STATE: SettingsState = {
@@ -49,22 +62,31 @@ export const DEFAULT_SETTINGS_STATE: SettingsState = {
   customJS: { path: null, content: "", plugins: [] },
   overlayResizeAnchor: "top-left",
   keyCounterEnabled: false,
+  gridSettings: DEFAULT_GRID_SETTINGS,
 };
 
 export type SettingsPatchInput = Partial<
-  Omit<SettingsState, "noteSettings" | "customCSS" | "customJS">
+  Omit<
+    SettingsState,
+    "noteSettings" | "customCSS" | "customJS" | "gridSettings"
+  >
 > & {
   noteSettings?: Partial<NoteSettings>;
   customCSS?: Partial<CustomCss>;
   customJS?: Partial<CustomJs>;
+  gridSettings?: Partial<GridSettings>;
 };
 
 export type SettingsPatch = Partial<
-  Omit<SettingsState, "noteSettings" | "customCSS" | "customJS">
+  Omit<
+    SettingsState,
+    "noteSettings" | "customCSS" | "customJS" | "gridSettings"
+  >
 > & {
   noteSettings?: NoteSettings;
   customCSS?: CustomCss;
   customJS?: CustomJs;
+  gridSettings?: GridSettings;
 };
 
 export interface SettingsDiff {
@@ -102,6 +124,13 @@ export function normalizeSettingsPatch(
         ...current.customJS,
         ...(value as Partial<CustomJs>),
       } as CustomJs;
+      continue;
+    }
+    if (key === "gridSettings") {
+      next.gridSettings = {
+        ...current.gridSettings,
+        ...(value as Partial<GridSettings>),
+      } as GridSettings;
       continue;
     }
     (next as Record<string, unknown>)[key as string] = value;

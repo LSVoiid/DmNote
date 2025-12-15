@@ -6,6 +6,18 @@ import {
 import type { OverlayResizeAnchor } from "@src/types/settings";
 import type { JsPlugin } from "@src/types/js";
 
+export interface GridSettings {
+  alignmentGuides: boolean;
+  spacingGuides: boolean;
+  sizeMatchGuides: boolean;
+}
+
+const DEFAULT_GRID_SETTINGS: GridSettings = {
+  alignmentGuides: true,
+  spacingGuides: true,
+  sizeMatchGuides: true,
+};
+
 interface SettingsState {
   hardwareAcceleration: boolean;
   alwaysOnTop: boolean;
@@ -24,6 +36,7 @@ interface SettingsState {
   developerModeEnabled: boolean;
   overlayResizeAnchor: OverlayResizeAnchor;
   keyCounterEnabled: boolean;
+  gridSettings: GridSettings;
   setAll: (payload: SettingsStateSnapshot) => void;
   merge: (payload: Partial<SettingsStateSnapshot>) => void;
   setLaboratoryEnabled: (value: boolean) => void;
@@ -43,6 +56,7 @@ interface SettingsState {
   setBackgroundColor: (value: string) => void;
   setOverlayResizeAnchor: (value: OverlayResizeAnchor) => void;
   setKeyCounterEnabled: (value: boolean) => void;
+  setGridSettings: (value: GridSettings) => void;
 }
 
 export type SettingsStateSnapshot = Omit<
@@ -66,6 +80,7 @@ export type SettingsStateSnapshot = Omit<
   | "setOverlayResizeAnchor"
   | "setKeyCounterEnabled"
   | "setDeveloperModeEnabled"
+  | "setGridSettings"
 >;
 
 const initialState: SettingsStateSnapshot = {
@@ -86,6 +101,7 @@ const initialState: SettingsStateSnapshot = {
   developerModeEnabled: false,
   overlayResizeAnchor: "top-left",
   keyCounterEnabled: false,
+  gridSettings: DEFAULT_GRID_SETTINGS,
 };
 
 function mergeSnapshot(
@@ -115,6 +131,12 @@ function mergeSnapshot(
       ? patch.jsPlugins.map((plugin) => ({ ...plugin }))
       : prev.jsPlugins;
   }
+  if (patch.gridSettings) {
+    next.gridSettings = {
+      ...prev.gridSettings,
+      ...patch.gridSettings,
+    };
+  }
   return next;
 }
 
@@ -139,4 +161,5 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   setBackgroundColor: (value) => set({ backgroundColor: value }),
   setOverlayResizeAnchor: (value) => set({ overlayResizeAnchor: value }),
   setKeyCounterEnabled: (value) => set({ keyCounterEnabled: value }),
+  setGridSettings: (value) => set({ gridSettings: value }),
 }));

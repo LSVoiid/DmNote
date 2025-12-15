@@ -142,7 +142,8 @@
     "settings": "설정",
     "etcSettings": "기타 설정",
     "noteSettings": "노트 설정",
-    "laboratory": "실험적 기능"
+    "laboratory": "실험적 기능",
+    "gridSettings": "그리드 설정"
   },
   "toolbar": {
     "resetTab": "탭 초기화",
@@ -284,5 +285,12 @@
     "checkUpdate": "업데이트 확인",
     "checking": "확인 중...",
     "latestAlready": "최신 버전입니다."
+  },
+  "gridSettings": {
+    "alignmentGuides": "정렬 가이드",
+    "spacingGuides": "간격 일치 가이드",
+    "sizeMatchGuides": "크기 일치 가이드",
+    "save": "저장",
+    "cancel": "취소"
   }
 }

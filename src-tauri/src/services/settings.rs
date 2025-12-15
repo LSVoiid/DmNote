@@ -44,6 +44,7 @@ impl SettingsService {
             state.custom_js = next.custom_js.clone();
             state.overlay_resize_anchor = next.overlay_resize_anchor.clone();
             state.key_counter_enabled = next.key_counter_enabled;
+            state.grid_settings = next.grid_settings.clone();
         })?;
 
         Ok(SettingsDiff {
@@ -103,6 +104,9 @@ fn normalize_patch(patch: &SettingsPatchInput, current: &SettingsState) -> Setti
     if let Some(value) = patch.key_counter_enabled {
         normalized.key_counter_enabled = Some(value);
     }
+    if let Some(value) = patch.grid_settings.as_ref() {
+        normalized.grid_settings = Some(value.clone());
+    }
     normalized
 }
 
@@ -154,6 +158,9 @@ fn apply_changes(mut current: SettingsState, patch: &SettingsPatch) -> SettingsS
     }
     if let Some(value) = patch.key_counter_enabled {
         current.key_counter_enabled = value;
+    }
+    if let Some(value) = patch.grid_settings.as_ref() {
+        current.grid_settings = value.clone();
     }
     current
 }

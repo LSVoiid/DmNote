@@ -12,6 +12,7 @@ import { usePalette } from "@hooks/usePalette";
 import CustomAlert from "@components/main/Modal/content/Alert";
 import NoteSettingModal from "@components/main/Modal/content/NoteSetting";
 import LaboratoryModal from "@components/main/Modal/content/Laboratory";
+import GridSettingsModal from "@components/main/Modal/content/GridSettingsModal";
 import UpdateModal from "@components/main/Modal/content/UpdateModal";
 import { useSettingsStore } from "@stores/useSettingsStore";
 import FloatingPopup from "@components/main/Modal/FloatingPopup";
@@ -118,6 +119,7 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isNoteSettingOpen, setIsNoteSettingOpen] = useState(false);
   const [isLaboratoryOpen, setIsLaboratoryOpen] = useState(false);
+  const [isGridSettingsOpen, setIsGridSettingsOpen] = useState(false);
   const [skipModalAnimationOnReturn, setSkipModalAnimationOnReturn] =
     useState(false);
   const {
@@ -505,6 +507,7 @@ export default function App() {
         showAlert={showAlert}
         onOpenNoteSetting={() => setIsNoteSettingOpen(true)}
         onOpenLaboratory={() => setIsLaboratoryOpen(true)}
+        onOpenGridSettings={() => setIsGridSettingsOpen(true)}
         primaryButtonRef={primaryButtonRef}
       />
       {palette && (
@@ -555,6 +558,9 @@ export default function App() {
           }}
           onClose={() => setIsLaboratoryOpen(false)}
         />
+      )}
+      {isGridSettingsOpen && (
+        <GridSettingsModal onClose={() => setIsGridSettingsOpen(false)} />
       )}
       <CustomAlert
         isOpen={alertState.isOpen}

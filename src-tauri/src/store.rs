@@ -295,6 +295,7 @@ fn settings_from_store(store: &AppStoreData) -> SettingsState {
         custom_js,
         overlay_resize_anchor: store.overlay_resize_anchor.clone(),
         key_counter_enabled: store.key_counter_enabled,
+        grid_settings: store.grid_settings.clone(),
     }
 }
 
