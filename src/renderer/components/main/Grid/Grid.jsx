@@ -1,4 +1,10 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, {
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+  useMemo,
+} from "react";
 import { useTranslation } from "@contexts/I18nContext";
 import DraggableKey from "@components/Key";
 import { getKeyInfoByGlobalKey } from "@utils/KeyMaps";
@@ -15,6 +21,7 @@ import SmartGuidesOverlay from "./SmartGuidesOverlay";
 import GridBackground from "./GridBackground";
 import MarqueeSelectionOverlay from "./MarqueeSelectionOverlay";
 import ResizeHandles from "./ResizeHandles";
+import GroupResizeHandles, { isElementResizable } from "./GroupResizeHandles";
 import { useGridSelectionStore } from "@stores/useGridSelectionStore";
 import { useHistoryStore } from "@stores/useHistoryStore";
 import { useUIStore } from "@stores/useUIStore";
@@ -148,6 +155,11 @@ export default function Grid({
     handleResize,
     handleResizeComplete,
     previewBounds,
+    // 그룹 리사이즈 관련
+    handleGroupResize,
+    handleGroupResizeComplete,
+    previewGroupBounds,
+    previewElementBounds,
   } = useGridResize({
     selectedElements,
     selectedKeyType,
@@ -546,8 +558,26 @@ export default function Grid({
       <SmartGuidesOverlay zoom={zoom} panX={panX} panY={panY} />
       {/* 마퀴 선택 오버레이 */}
       <MarqueeSelectionOverlay zoom={zoom} panX={panX} panY={panY} />
-      {/* 선택된 요소 표시 */}
+      {/* 선택된 요소 표시 - 그룹 리사이즈 중에는 개별 테두리 숨김 (흔들림 방지) */}
       {selectedElements.map((el, idx) => {
+        // 그룹 리사이즈 중에는 개별 요소 테두리 숨김 (스냅으로 인한 흔들림 방지)
+        if (selectedElements.length > 1 && previewElementBounds) {
+          return null;
+        }
+
+        // 다중 선택 시 리사이즈 불가능한 요소는 파란 선 대신 주황색 선으로 표시됨 (GroupResizeHandles에서 처리)
+        if (selectedElements.length > 1) {
+          const isResizable = isElementResizable(
+            el,
+            positions,
+            selectedKeyType,
+            pluginElements
+          );
+          if (!isResizable) {
+            return null; // 주황색 선은 GroupResizeHandles에서 표시
+          }
+        }
+
         let bounds = null;
         if (el.type === "key" && el.index !== undefined) {
           const pos = positions[selectedKeyType]?.[el.index];
@@ -573,10 +603,10 @@ export default function Grid({
         if (!bounds) return null;
 
         // 단일 선택이고 프리뷰 bounds가 있으면 프리뷰 bounds 사용 (드래그 중 파란 선도 함께 이동)
-        const displayBounds =
-          selectedElements.length === 1 && previewBounds
-            ? previewBounds
-            : bounds;
+        let displayBounds = bounds;
+        if (selectedElements.length === 1 && previewBounds) {
+          displayBounds = previewBounds;
+        }
 
         return (
           <div
@@ -657,6 +687,22 @@ export default function Grid({
             />
           );
         })()}
+      {/* 다중 선택 시 그룹 리사이즈 핸들 표시 */}
+      {selectedElements.length > 1 && (
+        <GroupResizeHandles
+          selectedElements={selectedElements}
+          positions={positions}
+          selectedKeyType={selectedKeyType}
+          pluginElements={pluginElements}
+          zoom={zoom}
+          panX={panX}
+          panY={panY}
+          previewGroupBounds={previewGroupBounds}
+          onGroupResizeStart={handleResizeStart}
+          onGroupResize={handleGroupResize}
+          onGroupResizeEnd={handleGroupResizeComplete}
+        />
+      )}
       {/* 우클릭 리스트 팝업 */}
       <div className="relative">
         <ListPopup

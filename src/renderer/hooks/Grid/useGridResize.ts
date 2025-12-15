@@ -25,6 +25,19 @@ interface ResizeBounds {
   height: number;
 }
 
+// 그룹 리사이즈용 요소 bounds
+interface GroupElementBounds {
+  element: SelectedElement;
+  bounds: ResizeBounds;
+}
+
+// 그룹 리사이즈 결과
+interface GroupResizeResult {
+  groupBounds: ResizeBounds;
+  elementBounds: GroupElementBounds[];
+  handle: ResizeHandle;
+}
+
 interface UseGridResizeOptions {
   selectedElements: SelectedElement[];
   selectedKeyType: string;
@@ -48,6 +61,17 @@ export function useGridResize({
   const [previewBounds, setPreviewBounds] = useState<ResizeBounds | null>(null);
   // 최종 적용할 bounds를 저장 (드래그 종료 시 사용)
   const finalBoundsRef = useRef<ResizeBounds | null>(null);
+
+  // 그룹 리사이즈용 상태
+  const [previewGroupBounds, setPreviewGroupBounds] =
+    useState<ResizeBounds | null>(null);
+  const [previewElementBounds, setPreviewElementBounds] = useState<
+    GroupElementBounds[] | null
+  >(null);
+  const finalGroupBoundsRef = useRef<{
+    groupBounds: ResizeBounds;
+    elementBounds: GroupElementBounds[];
+  } | null>(null);
 
   // 리사이즈 시작 시 히스토리 저장
   const handleResizeStart = useCallback((handle?: ResizeHandle) => {
@@ -443,10 +467,101 @@ export function useGridResize({
     onResizeEnd?.();
   }, [selectedElements, selectedKeyType, onResizeEnd]);
 
+  // 그룹 리사이즈 핸들러 - 프리뷰 모드
+  const handleGroupResize = useCallback((result: GroupResizeResult) => {
+    setPreviewGroupBounds(result.groupBounds);
+    setPreviewElementBounds(result.elementBounds);
+    finalGroupBoundsRef.current = {
+      groupBounds: result.groupBounds,
+      elementBounds: result.elementBounds,
+    };
+  }, []);
+
+  // 그룹 리사이즈 완료 처리 - 실제 요소들에 최종 bounds 적용
+  const handleGroupResizeComplete = useCallback(() => {
+    resizeStartRef.current = false;
+
+    // 스마트 가이드 클리어
+    useSmartGuidesStore.getState().clearGuides();
+
+    const finalData = finalGroupBoundsRef.current;
+    if (finalData && finalData.elementBounds.length > 0) {
+      const positions = useKeyStore.getState().positions;
+      const setPositions = useKeyStore.getState().setPositions;
+      const current = positions[selectedKeyType] || [];
+      const pluginStore = usePluginDisplayElementStore.getState();
+
+      // 프리뷰 값을 그대로 사용 (스냅은 이미 드래그 중에 적용됨)
+      // 추가 스냅 적용 시 프리뷰와 최종 위치가 달라지는 문제 발생
+
+      // 키 요소들 업데이트
+      const keyUpdates = finalData.elementBounds.filter(
+        ({ element }) => element.type === "key" && element.index !== undefined
+      );
+
+      if (keyUpdates.length > 0) {
+        const nextPositions: KeyPositions = {
+          ...positions,
+          [selectedKeyType]: current.map((pos, i) => {
+            const update = keyUpdates.find(
+              ({ element }) => element.index === i
+            );
+            if (update) {
+              return {
+                ...pos,
+                dx: update.bounds.x,
+                dy: update.bounds.y,
+                width: update.bounds.width,
+                height: update.bounds.height,
+              };
+            }
+            return pos;
+          }),
+        };
+        setPositions(nextPositions);
+
+        // 백엔드에 저장
+        window.api.keys.updatePositions(nextPositions).catch((error) => {
+          console.error(
+            "Failed to update key positions after group resize",
+            error
+          );
+        });
+      }
+
+      // 플러그인 요소들 업데이트
+      const pluginUpdates = finalData.elementBounds.filter(
+        ({ element }) => element.type === "plugin"
+      );
+
+      for (const { element, bounds } of pluginUpdates) {
+        pluginStore.updateElement(element.id, {
+          position: { x: bounds.x, y: bounds.y },
+          measuredSize: {
+            width: bounds.width,
+            height: bounds.height,
+          },
+        });
+      }
+    }
+
+    // 프리뷰 상태 클리어
+    setPreviewGroupBounds(null);
+    setPreviewElementBounds(null);
+    finalGroupBoundsRef.current = null;
+
+    onResizeEnd?.();
+  }, [selectedKeyType, onResizeEnd]);
+
   return {
     handleResizeStart,
     handleResize,
     handleResizeComplete,
     previewBounds,
+    // 그룹 리사이즈 관련
+    handleGroupResize,
+    handleGroupResizeComplete,
+    previewGroupBounds,
+    previewElementBounds,
   };
 }

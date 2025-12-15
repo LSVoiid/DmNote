@@ -68,7 +68,16 @@ export function useGridSelection({
     } catch (error) {
       console.error("Failed to broadcast key positions to overlay", error);
     }
-    // 플러그인 요소는 setElements에서 자동으로 syncToOverlayThrottled 호출됨
+    // 플러그인 요소도 명시적으로 동기화 (드래그 종료 시 skipSync로 인해 동기화되지 않았을 수 있음)
+    const currentPluginElements =
+      usePluginDisplayElementStore.getState().elements;
+    try {
+      window.api.bridge.sendTo("overlay", "plugin:displayElements:sync", {
+        elements: currentPluginElements,
+      });
+    } catch (error) {
+      console.error("Failed to sync plugin elements to overlay", error);
+    }
   }, []);
 
   // 선택된 요소들 일괄 이동 함수 (배치 업데이트)
@@ -147,8 +156,10 @@ export function useGridSelection({
           }
           return pluginEl;
         });
-        // setElements는 내부적으로 syncToOverlayThrottled 호출 (드래그 중에도 throttle 덕분에 문제 없음)
-        usePluginDisplayElementStore.getState().setElements(newElements);
+        // syncToOverlay가 false이면 오버레이 동기화 스킵 (드래그 중)
+        usePluginDisplayElementStore
+          .getState()
+          .setElements(newElements, { skipSync: !syncToOverlay });
       }
     },
     [selectedElements, selectedKeyType]

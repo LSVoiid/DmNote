@@ -51,7 +51,10 @@ interface PluginDisplayElementStore {
   ) => void;
   removeElement: (fullId: string) => void;
   clearByPluginId: (pluginId: string) => void;
-  setElements: (elements: PluginDisplayElementInternal[]) => void;
+  setElements: (
+    elements: PluginDisplayElementInternal[],
+    options?: { skipSync?: boolean }
+  ) => void;
   registerDefinition: (definition: PluginDefinitionInternal) => void;
   // z-order 관련 함수들
   bringToFront: (fullId: string) => void;
@@ -155,10 +158,14 @@ export const usePluginDisplayElementStore = create<PluginDisplayElementStore>(
         return { elements: newElements, definitions: newDefinitions };
       }),
 
-    setElements: (elements) =>
+    setElements: (elements, options?: { skipSync?: boolean }) =>
       set(() => {
         // 메인 윈도우에서만 오버레이로 동기화
-        if ((window as any).__dmn_window_type === "main") {
+        // skipSync 옵션이 true인 경우 동기화 스킵 (드래그 중 등)
+        if (
+          (window as any).__dmn_window_type === "main" &&
+          !options?.skipSync
+        ) {
           syncToOverlayThrottled(elements);
         }
         return { elements };
