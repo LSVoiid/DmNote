@@ -11,7 +11,7 @@ const EDGE_HANDLE_WIDTH = 8; // 상하좌우 핸들의 두께 (픽셀) - 꼭짓�
 const EDGE_HANDLE_LENGTH = 18; // 상하좌우 핸들의 길이 (픽셀)
 const HANDLE_HIT_SIZE = 18; // 핸들의 클릭 가능 영역 크기 (픽셀) - 이 값을 조절하여 잡는 범위 변경
 const MIN_SIZE = 10; // 키의 최소 크기 (픽셀)
-const RESIZE_SNAP_SIZE = 1; // 리사이즈 시 스냅 단위 (픽셀) - 이 값을 조절하여 크기 조절 단위 변경
+const RESIZE_SNAP_SIZE = 5; // 리사이즈 시 스냅 단위 (픽셀) - 이 값을 조절하여 크기 조절 단위 변경
 // ================================
 
 const HANDLE_HIT_HALF = HANDLE_HIT_SIZE / 2;

@@ -87,7 +87,7 @@ const SNAP_THRESHOLD = 8;
 // 간격 스냅 임계값 (픽셀)
 const SPACING_SNAP_THRESHOLD = 5;
 // 크기 일치 스냅 임계값 (픽셀)
-const SIZE_MATCH_THRESHOLD = 5;
+const SIZE_MATCH_THRESHOLD = 4;
 
 /**
  * 요소의 bounds 정보 계산
@@ -842,6 +842,7 @@ function calculateSpacingGuides(
 /**
  * 크기 일치 스냅 계산 (리사이즈용)
  * 다른 요소와 동일한 width/height로 스냅
+ * 여러 요소가 비슷한 크기일 경우, 가장 가까운 크기를 가진 요소에 스냅
  */
 export function calculateSizeSnap(
   currentWidth: number,
@@ -857,52 +858,67 @@ export function calculateSizeSnap(
 
   const others = otherElements.filter((el) => el.id !== draggedId);
 
+  // 가장 가까운 매치를 추적하기 위한 변수
+  let closestWidthDiff = Infinity;
+  let closestHeightDiff = Infinity;
+  let closestWidthMatch: ElementBounds | null = null;
+  let closestHeightMatch: ElementBounds | null = null;
+
+  // 첫 번째 패스: 임계값 내에서 가장 가까운 크기를 찾음
   for (const other of others) {
-    // Width 일치 체크 (정확히 같거나 임계값 이내)
-    if (!didSnapWidth) {
-      const widthDiff = Math.abs(currentWidth - other.width);
-      if (widthDiff <= SIZE_MATCH_THRESHOLD) {
-        snappedWidth = other.width;
-        didSnapWidth = true;
-        sizeMatchGuides.push({
-          type: "size-match",
-          dimension: "width",
-          value: other.width,
-          position: { x: other.centerX, y: other.top - 15 },
-          matchedElementId: other.id,
-          matchedElementBounds: {
-            left: other.left,
-            top: other.top,
-            width: other.width,
-            height: other.height,
-          },
-        });
-      }
+    // Width 일치 체크 - 가장 가까운 것 선택
+    const widthDiff = Math.abs(currentWidth - other.width);
+    if (widthDiff <= SIZE_MATCH_THRESHOLD && widthDiff < closestWidthDiff) {
+      closestWidthDiff = widthDiff;
+      closestWidthMatch = other;
     }
 
-    // Height 일치 체크 (정확히 같거나 임계값 이내)
-    if (!didSnapHeight) {
-      const heightDiff = Math.abs(currentHeight - other.height);
-      if (heightDiff <= SIZE_MATCH_THRESHOLD) {
-        snappedHeight = other.height;
-        didSnapHeight = true;
-        sizeMatchGuides.push({
-          type: "size-match",
-          dimension: "height",
-          value: other.height,
-          position: { x: other.right + 15, y: other.centerY },
-          matchedElementId: other.id,
-          matchedElementBounds: {
-            left: other.left,
-            top: other.top,
-            width: other.width,
-            height: other.height,
-          },
-        });
-      }
+    // Height 일치 체크 - 가장 가까운 것 선택
+    const heightDiff = Math.abs(currentHeight - other.height);
+    if (heightDiff <= SIZE_MATCH_THRESHOLD && heightDiff < closestHeightDiff) {
+      closestHeightDiff = heightDiff;
+      closestHeightMatch = other;
     }
+  }
 
-    if (didSnapWidth && didSnapHeight) break;
+  // 두 번째 패스: 가장 가까운 매치에 대한 스냅 적용
+  if (closestWidthMatch) {
+    snappedWidth = closestWidthMatch.width;
+    didSnapWidth = true;
+    sizeMatchGuides.push({
+      type: "size-match",
+      dimension: "width",
+      value: closestWidthMatch.width,
+      position: { x: closestWidthMatch.centerX, y: closestWidthMatch.top - 15 },
+      matchedElementId: closestWidthMatch.id,
+      matchedElementBounds: {
+        left: closestWidthMatch.left,
+        top: closestWidthMatch.top,
+        width: closestWidthMatch.width,
+        height: closestWidthMatch.height,
+      },
+    });
+  }
+
+  if (closestHeightMatch) {
+    snappedHeight = closestHeightMatch.height;
+    didSnapHeight = true;
+    sizeMatchGuides.push({
+      type: "size-match",
+      dimension: "height",
+      value: closestHeightMatch.height,
+      position: {
+        x: closestHeightMatch.right + 15,
+        y: closestHeightMatch.centerY,
+      },
+      matchedElementId: closestHeightMatch.id,
+      matchedElementBounds: {
+        left: closestHeightMatch.left,
+        top: closestHeightMatch.top,
+        width: closestHeightMatch.width,
+        height: closestHeightMatch.height,
+      },
+    });
   }
 
   return {
