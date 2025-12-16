@@ -113,6 +113,38 @@ export function calculateBounds(
 }
 
 /**
+ * 여러 요소들의 전체 바운딩 박스 계산 (그룹 선택용)
+ * @param elements 요소들의 bounds 배열
+ * @returns 전체 요소를 감싸는 바운딩 박스
+ */
+export function calculateGroupBounds(
+  elements: ElementBounds[]
+): ElementBounds | null {
+  if (elements.length === 0) return null;
+
+  if (elements.length === 1) return elements[0];
+
+  const left = Math.min(...elements.map((el) => el.left));
+  const top = Math.min(...elements.map((el) => el.top));
+  const right = Math.max(...elements.map((el) => el.right));
+  const bottom = Math.max(...elements.map((el) => el.bottom));
+  const width = right - left;
+  const height = bottom - top;
+
+  return {
+    id: "group",
+    left,
+    top,
+    right,
+    bottom,
+    centerX: left + width / 2,
+    centerY: top + height / 2,
+    width,
+    height,
+  };
+}
+
+/**
  * 두 값이 스냅 거리 내에 있는지 확인
  */
 function isWithinThreshold(
@@ -123,13 +155,31 @@ function isWithinThreshold(
   return Math.abs(value1 - value2) <= threshold;
 }
 
+// 캔버스 중앙 좌표 (그리드 렌더링 영역 900x396 기준)
+export const CANVAS_CENTER_X = 450;
+export const CANVAS_CENTER_Y = 195;
+
+/**
+ * calculateSnapPoints 옵션 인터페이스
+ */
+export interface SnapPointsOptions {
+  /** 그룹 선택 시 전체 그룹의 bounds (캔버스 중앙 스냅에 사용) */
+  groupBounds?: ElementBounds | null;
+}
+
 /**
  * 드래그 중인 요소와 다른 요소들 사이의 스냅 포인트 계산
+ * 캔버스 중앙 기준 스냅도 포함
+ * @param draggedBounds 드래그 중인 요소의 bounds
+ * @param otherElements 다른 요소들의 bounds
+ * @param threshold 스냅 임계값 (기본값: 8px)
+ * @param options 추가 옵션 (groupBounds 등)
  */
 export function calculateSnapPoints(
   draggedBounds: ElementBounds,
   otherElements: ElementBounds[],
-  threshold: number = SNAP_THRESHOLD
+  threshold: number = SNAP_THRESHOLD,
+  options?: SnapPointsOptions
 ): SnapResult {
   const guides: GuideLine[] = [];
   let snappedX = draggedBounds.left;
@@ -140,6 +190,30 @@ export function calculateSnapPoints(
   // 가장 가까운 스냅 포인트 추적
   let closestXDiff = Infinity;
   let closestYDiff = Infinity;
+
+  // === 캔버스 중앙 기준 스냅 ===
+  // 그룹 선택 시에는 그룹 전체의 중심을 기준으로, 아니면 개별 요소의 중심을 기준으로
+  const centerBounds = options?.groupBounds || draggedBounds;
+
+  // 요소(또는 그룹)의 중심이 캔버스 가로 중앙에 정렬
+  let diff = Math.abs(centerBounds.centerX - CANVAS_CENTER_X);
+  if (diff <= threshold && diff < closestXDiff) {
+    closestXDiff = diff;
+    // 그룹의 중심이 캔버스 중앙에 오도록 드래그 요소의 위치 계산
+    const offsetX = draggedBounds.centerX - centerBounds.centerX;
+    snappedX = CANVAS_CENTER_X - draggedBounds.width / 2 + offsetX;
+    didSnapX = true;
+  }
+
+  // 요소(또는 그룹)의 중심이 캔버스 세로 중앙에 정렬
+  diff = Math.abs(centerBounds.centerY - CANVAS_CENTER_Y);
+  if (diff <= threshold && diff < closestYDiff) {
+    closestYDiff = diff;
+    // 그룹의 중심이 캔버스 중앙에 오도록 드래그 요소의 위치 계산
+    const offsetY = draggedBounds.centerY - centerBounds.centerY;
+    snappedY = CANVAS_CENTER_Y - draggedBounds.height / 2 + offsetY;
+    didSnapY = true;
+  }
 
   for (const other of otherElements) {
     // 자기 자신은 스킵
@@ -331,6 +405,34 @@ export function calculateSnapPoints(
     }
   }
 
+  // === 캔버스 중앙 기준 가이드라인 추가 ===
+  // 그룹 선택 시에는 그룹의 중심을, 아니면 개별 요소의 중심을 기준으로
+  const snappedCenterBounds = options?.groupBounds
+    ? {
+        // 그룹의 스냅 후 중심 계산 (드래그 요소의 이동량을 적용)
+        centerX: options.groupBounds.centerX + (snappedX - draggedBounds.left),
+        centerY: options.groupBounds.centerY + (snappedY - draggedBounds.top),
+      }
+    : snappedBounds;
+
+  // X축: 요소(또는 그룹) 중심이 캔버스 가로 중앙에 정렬된 경우
+  if (didSnapX && Math.abs(snappedCenterBounds.centerX - CANVAS_CENTER_X) < 1) {
+    guides.push({
+      type: "vertical",
+      position: CANVAS_CENTER_X,
+      alignType: "center",
+    });
+  }
+
+  // Y축: 요소(또는 그룹) 중심이 캔버스 세로 중앙에 정렬된 경우
+  if (didSnapY && Math.abs(snappedCenterBounds.centerY - CANVAS_CENTER_Y) < 1) {
+    guides.push({
+      type: "horizontal",
+      position: CANVAS_CENTER_Y,
+      alignType: "middle",
+    });
+  }
+
   // 중복 가이드라인 제거
   const uniqueGuides = guides.filter(
     (guide, index, self) =>
@@ -375,6 +477,13 @@ export function calculateGuideLineExtent(
   draggedBounds: ElementBounds,
   otherElements: ElementBounds[]
 ): { start: number; end: number } {
+  // 캔버스 중앙 가이드라인인지 확인
+  const isCanvasCenterGuide =
+    (guide.type === "vertical" &&
+      Math.abs(guide.position - CANVAS_CENTER_X) < 1) ||
+    (guide.type === "horizontal" &&
+      Math.abs(guide.position - CANVAS_CENTER_Y) < 1);
+
   const relevantElements = otherElements.filter((el) => {
     if (el.id === draggedBounds.id) return false;
 
@@ -398,19 +507,24 @@ export function calculateGuideLineExtent(
   // 드래그 중인 요소도 포함
   relevantElements.push(draggedBounds);
 
+  // 캔버스 중앙 가이드라인의 경우 더 긴 범위 표시
+  const CANVAS_CENTER_GUIDE_EXTENSION = 500;
+
   if (guide.type === "vertical") {
     const tops = relevantElements.map((el) => el.top);
     const bottoms = relevantElements.map((el) => el.bottom);
+    const extension = isCanvasCenterGuide ? CANVAS_CENTER_GUIDE_EXTENSION : 20;
     return {
-      start: Math.min(...tops) - 20,
-      end: Math.max(...bottoms) + 20,
+      start: Math.min(...tops) - extension,
+      end: Math.max(...bottoms) + extension,
     };
   } else {
     const lefts = relevantElements.map((el) => el.left);
     const rights = relevantElements.map((el) => el.right);
+    const extension = isCanvasCenterGuide ? CANVAS_CENTER_GUIDE_EXTENSION : 20;
     return {
-      start: Math.min(...lefts) - 20,
-      end: Math.max(...rights) + 20,
+      start: Math.min(...lefts) - extension,
+      end: Math.max(...rights) + extension,
     };
   }
 }

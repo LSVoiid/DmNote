@@ -11,7 +11,11 @@ import {
 import { toCssRgba } from "@utils/colorUtils";
 import { useSmartGuidesElements } from "@hooks/Grid";
 import { useSmartGuidesStore } from "@stores/useSmartGuidesStore";
-import { calculateBounds, calculateSnapPoints } from "@utils/smartGuides";
+import {
+  calculateBounds,
+  calculateSnapPoints,
+  calculateGroupBounds,
+} from "@utils/smartGuides";
 
 export default function DraggableKey({
   index,
@@ -153,9 +157,45 @@ export default function DraggableKey({
             elementId
           );
 
+          // 다중 선택 시 그룹 전체의 bounds 계산 (캔버스 중앙 스냅용)
+          let groupBounds = null;
+          if (selectedElements.length > 1) {
+            // 선택된 요소들의 현재 bounds 수집
+            const selectedBoundsArray = selectedElements
+              .map((sel) => {
+                // 현재 드래그 중인 요소인 경우 새 위치 사용
+                if (
+                  sel.id === elementId ||
+                  (sel.type === "key" && sel.index === index)
+                ) {
+                  return draggedBounds;
+                }
+                // 다른 선택된 요소들은 otherElements에서 찾아서 이동량 적용
+                const found = otherElements.find(
+                  (el) =>
+                    el.id === sel.id ||
+                    (sel.type === "key" && el.id === `key-${sel.index}`)
+                );
+                if (found) {
+                  return calculateBounds(
+                    found.left + rawDeltaX,
+                    found.top + rawDeltaY,
+                    found.width,
+                    found.height,
+                    found.id
+                  );
+                }
+                return null;
+              })
+              .filter(Boolean);
+            groupBounds = calculateGroupBounds(selectedBoundsArray);
+          }
+
           const snapResult = calculateSnapPoints(
             draggedBounds,
-            nonSelectedElements
+            nonSelectedElements,
+            undefined,
+            { groupBounds }
           );
 
           let finalX = newX;
