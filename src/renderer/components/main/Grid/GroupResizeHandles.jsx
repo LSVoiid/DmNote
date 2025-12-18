@@ -329,6 +329,12 @@ export default function GroupResizeHandles({
         const rawDeltaX = (moveEvent.clientX - startMouseX) / zoom;
         const rawDeltaY = (moveEvent.clientY - startMouseY) / zoom;
 
+        const snapDelta = (delta) =>
+          Math.round(delta / RESIZE_SNAP_SIZE) * RESIZE_SNAP_SIZE;
+
+        const snappedDeltaX = handle.dx !== 0 ? snapDelta(rawDeltaX) : 0;
+        const snappedDeltaY = handle.dy !== 0 ? snapDelta(rawDeltaY) : 0;
+
         // 새 그룹 bounds 계산
         let newGroupX = startGroupBounds.x;
         let newGroupY = startGroupBounds.y;
@@ -339,44 +345,38 @@ export default function GroupResizeHandles({
         if (handle.dx === -1) {
           newGroupWidth = Math.max(
             MIN_SIZE,
-            startGroupBounds.width - rawDeltaX
+            startGroupBounds.width - snappedDeltaX
           );
           if (newGroupWidth > MIN_SIZE) {
-            newGroupX = startGroupBounds.x + rawDeltaX;
+            newGroupX = startGroupBounds.x + snappedDeltaX;
           } else {
             newGroupX = startGroupBounds.x + startGroupBounds.width - MIN_SIZE;
           }
         } else if (handle.dx === 1) {
           newGroupWidth = Math.max(
             MIN_SIZE,
-            startGroupBounds.width + rawDeltaX
+            startGroupBounds.width + snappedDeltaX
           );
         }
 
         if (handle.dy === -1) {
           newGroupHeight = Math.max(
             MIN_SIZE,
-            startGroupBounds.height - rawDeltaY
+            startGroupBounds.height - snappedDeltaY
           );
           if (newGroupHeight > MIN_SIZE) {
-            newGroupY = startGroupBounds.y + rawDeltaY;
+            newGroupY = startGroupBounds.y + snappedDeltaY;
           } else {
             newGroupY = startGroupBounds.y + startGroupBounds.height - MIN_SIZE;
           }
         } else if (handle.dy === 1) {
           newGroupHeight = Math.max(
             MIN_SIZE,
-            startGroupBounds.height + rawDeltaY
+            startGroupBounds.height + snappedDeltaY
           );
         }
 
-        // 그룹 bounds에 스냅 적용 (개별 요소가 아닌 그룹 전체에 적용)
-        newGroupX = Math.round(newGroupX / RESIZE_SNAP_SIZE) * RESIZE_SNAP_SIZE;
-        newGroupY = Math.round(newGroupY / RESIZE_SNAP_SIZE) * RESIZE_SNAP_SIZE;
-        newGroupWidth =
-          Math.round(newGroupWidth / RESIZE_SNAP_SIZE) * RESIZE_SNAP_SIZE;
-        newGroupHeight =
-          Math.round(newGroupHeight / RESIZE_SNAP_SIZE) * RESIZE_SNAP_SIZE;
+        // 그룹 스냅은 위에서 delta 기반으로 처리됨
 
         // 최소 크기 보장
         newGroupWidth = Math.max(MIN_SIZE, newGroupWidth);
@@ -405,13 +405,17 @@ export default function GroupResizeHandles({
             let newWidth = bounds.width * scaleX;
             let newHeight = bounds.height * scaleY;
 
-            // 개별 요소에도 스냅 적용 (그리드에 딱 맞게)
-            newX = Math.round(newX / RESIZE_SNAP_SIZE) * RESIZE_SNAP_SIZE;
-            newY = Math.round(newY / RESIZE_SNAP_SIZE) * RESIZE_SNAP_SIZE;
-            newWidth =
-              Math.round(newWidth / RESIZE_SNAP_SIZE) * RESIZE_SNAP_SIZE;
-            newHeight =
-              Math.round(newHeight / RESIZE_SNAP_SIZE) * RESIZE_SNAP_SIZE;
+            // 개별 요소에도 스냅 적용 (그리드에 맞게)
+            // - 절대좌표 스냅은 드래그 시작 순간에도 값이 바뀌는 문제가 있어 "변화량(delta)"만 스냅
+            // - 드래그하지 않는 축까지 스냅하면 1~2px 정도 틀어지는 현상이 발생할 수 있음
+            if (handle.dx !== 0) {
+              newX = bounds.x + snapDelta(newX - bounds.x);
+              newWidth = bounds.width + snapDelta(newWidth - bounds.width);
+            }
+            if (handle.dy !== 0) {
+              newY = bounds.y + snapDelta(newY - bounds.y);
+              newHeight = bounds.height + snapDelta(newHeight - bounds.height);
+            }
 
             // 최소 크기 보장
             newWidth = Math.max(MIN_SIZE, newWidth);
@@ -429,19 +433,13 @@ export default function GroupResizeHandles({
           }
         );
 
-        // 새 그룹 bounds 계산 (리사이즈된 요소 + 리사이즈 불가능한 요소 모두 포함)
-        let finalGroupMinX = Infinity;
-        let finalGroupMinY = Infinity;
-        let finalGroupMaxX = -Infinity;
-        let finalGroupMaxY = -Infinity;
-
-        // 리사이즈된 요소들
-        for (const { bounds } of newElementBounds) {
-          finalGroupMinX = Math.min(finalGroupMinX, bounds.x);
-          finalGroupMinY = Math.min(finalGroupMinY, bounds.y);
-          finalGroupMaxX = Math.max(finalGroupMaxX, bounds.x + bounds.width);
-          finalGroupMaxY = Math.max(finalGroupMaxY, bounds.y + bounds.height);
-        }
+        // 새 그룹 bounds 계산
+        // - 요소별 스냅 결과로 min/max가 흔들리면(특히 왼쪽 핸들) 프리뷰 선이 좌우로 떨릴 수 있어,
+        //   프리뷰는 "그룹 변환 결과"를 기준으로 유지한다.
+        let finalGroupMinX = newGroupX;
+        let finalGroupMinY = newGroupY;
+        let finalGroupMaxX = newGroupX + newGroupWidth;
+        let finalGroupMaxY = newGroupY + newGroupHeight;
 
         // 리사이즈 불가능한 요소들 (원래 위치 유지)
         for (const { bounds } of nonResizableElementBounds || []) {
