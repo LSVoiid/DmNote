@@ -63,7 +63,7 @@ export function extractPluginId(content: string, filename: string): string {
   // 첫 20줄에서 @id 메타데이터 찾기
   const lines = content.split("\n").slice(0, 20);
   for (const line of lines) {
-    const match = line.match(/\/\/\s*@id:\s*([a-z0-9-_]+)/i);
+    const match = line.match(/\/\/\s*@id(?:\s*:\s*|\s+)([a-z0-9-_]+)/i);
     if (match) {
       return match[1].toLowerCase();
     }
