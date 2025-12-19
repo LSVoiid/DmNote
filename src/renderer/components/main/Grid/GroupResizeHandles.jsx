@@ -241,6 +241,8 @@ export default function GroupResizeHandles({
     startMouseY: 0,
     startGroupBounds: null,
     startElementBounds: [],
+    maxShrinkX: 0,
+    maxShrinkY: 0,
   });
 
   // 그룹 바운딩 박스 계산
@@ -295,6 +297,21 @@ export default function GroupResizeHandles({
           )
       );
 
+      const getMaxShrink = (boundsList, groupSize, axis) => {
+        if (!Number.isFinite(groupSize) || groupSize <= 0) return 0;
+        let minScale = 0;
+        for (const { bounds } of boundsList) {
+          const size = axis === "x" ? bounds.width : bounds.height;
+          if (!Number.isFinite(size) || size <= 0) continue;
+          if (size >= MIN_SIZE) {
+            minScale = Math.max(minScale, MIN_SIZE / size);
+          }
+        }
+        const groupMinScale = MIN_SIZE / groupSize;
+        minScale = Math.min(1, Math.max(minScale, groupMinScale));
+        return groupSize * (1 - minScale);
+      };
+
       resizeRef.current = {
         isResizing: true,
         handleId: handle.id,
@@ -308,6 +325,8 @@ export default function GroupResizeHandles({
         },
         startElementBounds: resizableElementBounds,
         nonResizableElementBounds: nonResizableElementBounds,
+        maxShrinkX: getMaxShrink(resizableElementBounds, groupData.width, "x"),
+        maxShrinkY: getMaxShrink(resizableElementBounds, groupData.height, "y"),
         handle,
       };
 
@@ -323,6 +342,8 @@ export default function GroupResizeHandles({
           startGroupBounds,
           startElementBounds,
           nonResizableElementBounds,
+          maxShrinkX,
+          maxShrinkY,
         } = resizeRef.current;
 
         // 마우스 이동량 계산 (줌 보정)
@@ -332,8 +353,28 @@ export default function GroupResizeHandles({
         const snapDelta = (delta) =>
           Math.round(delta / RESIZE_SNAP_SIZE) * RESIZE_SNAP_SIZE;
 
-        const snappedDeltaX = handle.dx !== 0 ? snapDelta(rawDeltaX) : 0;
-        const snappedDeltaY = handle.dy !== 0 ? snapDelta(rawDeltaY) : 0;
+        const clampShrinkDelta = (delta, handleDir, maxShrink) => {
+          if (!Number.isFinite(maxShrink) || maxShrink <= 0) return delta;
+          const maxSnapped =
+            Math.floor(maxShrink / RESIZE_SNAP_SIZE) * RESIZE_SNAP_SIZE;
+          if (handleDir === -1) {
+            return Math.min(delta, maxSnapped);
+          }
+          if (handleDir === 1) {
+            return Math.max(delta, -maxSnapped);
+          }
+          return delta;
+        };
+
+        let snappedDeltaX = handle.dx !== 0 ? snapDelta(rawDeltaX) : 0;
+        let snappedDeltaY = handle.dy !== 0 ? snapDelta(rawDeltaY) : 0;
+
+        if (handle.dx !== 0) {
+          snappedDeltaX = clampShrinkDelta(snappedDeltaX, handle.dx, maxShrinkX);
+        }
+        if (handle.dy !== 0) {
+          snappedDeltaY = clampShrinkDelta(snappedDeltaY, handle.dy, maxShrinkY);
+        }
 
         // 새 그룹 bounds 계산
         let newGroupX = startGroupBounds.x;
@@ -392,7 +433,7 @@ export default function GroupResizeHandles({
             ? newGroupHeight / startGroupBounds.height
             : 1;
 
-        // 각 리사이즈 가능한 요소의 새 위치/크기 계산 (개별 요소에도 스냅 적용)
+        // 각 리사이즈 가능한 요소의 새 위치/크기 계산 (그룹 스케일만 적용)
         const newElementBounds = startElementBounds.map(
           ({ element, bounds }) => {
             // 그룹 내에서의 상대 위치
@@ -405,21 +446,7 @@ export default function GroupResizeHandles({
             let newWidth = bounds.width * scaleX;
             let newHeight = bounds.height * scaleY;
 
-            // 개별 요소에도 스냅 적용 (그리드에 맞게)
-            // - 절대좌표 스냅은 드래그 시작 순간에도 값이 바뀌는 문제가 있어 "변화량(delta)"만 스냅
-            // - 드래그하지 않는 축까지 스냅하면 1~2px 정도 틀어지는 현상이 발생할 수 있음
-            if (handle.dx !== 0) {
-              newX = bounds.x + snapDelta(newX - bounds.x);
-              newWidth = bounds.width + snapDelta(newWidth - bounds.width);
-            }
-            if (handle.dy !== 0) {
-              newY = bounds.y + snapDelta(newY - bounds.y);
-              newHeight = bounds.height + snapDelta(newHeight - bounds.height);
-            }
-
-            // 최소 크기 보장
-            newWidth = Math.max(MIN_SIZE, newWidth);
-            newHeight = Math.max(MIN_SIZE, newHeight);
+            // 내부 요소는 스케일만 적용해 비율을 유지한다. (스냅은 그룹 bounds에서만 처리)
 
             return {
               element,
