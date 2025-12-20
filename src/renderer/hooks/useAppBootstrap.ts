@@ -6,7 +6,7 @@ import {
 } from "@stores/useSettingsStore";
 import { applyCounterSnapshot, setKeyCounter } from "@stores/keyCounterSignals";
 import { getUndoRedoInProgress } from "@api/pluginDisplayElements";
-import type { SettingsDiff } from "@src/types/settings";
+import { DEFAULT_GRID_SETTINGS, type SettingsDiff } from "@src/types/settings";
 import type { OverlayResizeAnchor } from "@src/types/settings";
 import type { CustomJs, JsPlugin } from "@src/types/js";
 
@@ -166,6 +166,7 @@ export function useAppBootstrap() {
           (bootstrap.settings as any).developerModeEnabled ?? false,
         overlayResizeAnchor: bootstrap.settings.overlayResizeAnchor,
         keyCounterEnabled: bootstrap.settings.keyCounterEnabled,
+        gridSettings: bootstrap.settings.gridSettings ?? DEFAULT_GRID_SETTINGS,
       });
       useKeyStore.setState((state) => ({
         ...state,
