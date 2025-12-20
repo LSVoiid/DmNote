@@ -706,6 +706,14 @@ impl AppState {
             .build()
             .context("failed to create overlay window")?;
 
+        // macOS에서 오버레이 창이 앱 포커스를 빼앗지 않도록 설정
+        #[cfg(target_os = "macos")]
+        {
+            if let Err(err) = window.set_focusable(false) {
+                log::warn!("failed to set overlay non-focusable on macOS: {err}");
+            }
+        }
+
         // Windows에서 오버레이 창이 포커스를 받지 않도록 설정
         #[cfg(target_os = "windows")]
         {
@@ -1087,7 +1095,14 @@ fn show_overlay_window(window: &WebviewWindow) -> Result<()> {
         }
         Ok(())
     }
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(target_os = "macos")]
+    {
+        // Ensure the overlay does not become key/main window when shown.
+        let _ = window.set_focusable(false);
+        window.show()?;
+        Ok(())
+    }
+    #[cfg(all(not(target_os = "windows"), not(target_os = "macos")))]
     {
         window.show()?;
         Ok(())
