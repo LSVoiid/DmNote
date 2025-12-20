@@ -18,17 +18,21 @@ export function useSmartGuidesElements() {
 
   /**
    * 특정 요소를 제외한 모든 요소의 bounds를 반환
-   * @param excludeId 제외할 요소의 ID
+   * @param excludeIds 제외할 요소의 ID (단일 문자열 또는 문자열 배열)
    */
   const getOtherElements = useCallback(
-    (excludeId: string): ElementBounds[] => {
+    (excludeIds: string | string[]): ElementBounds[] => {
       const bounds: ElementBounds[] = [];
+      // 배열로 정규화
+      const excludeSet = new Set(
+        Array.isArray(excludeIds) ? excludeIds : [excludeIds]
+      );
 
       // 키 요소 bounds
       const keyPositions = positions[selectedKeyType] || [];
       keyPositions.forEach((pos, index) => {
         const id = `key-${index}`;
-        if (id !== excludeId) {
+        if (!excludeSet.has(id)) {
           bounds.push(
             calculateBounds(
               pos.dx,
@@ -47,7 +51,11 @@ export function useSmartGuidesElements() {
         // tabId가 있으면 현재 선택된 탭과 일치해야 함
         const belongsToCurrentTab = !el.tabId || el.tabId === selectedKeyType;
 
-        if (el.fullId !== excludeId && el.measuredSize && belongsToCurrentTab) {
+        if (
+          !excludeSet.has(el.fullId) &&
+          el.measuredSize &&
+          belongsToCurrentTab
+        ) {
           bounds.push(
             calculateBounds(
               el.position.x,

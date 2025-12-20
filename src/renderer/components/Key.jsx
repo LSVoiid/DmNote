@@ -12,6 +12,7 @@ import {
 import { toCssRgba } from "@utils/colorUtils";
 import { useSmartGuidesElements } from "@hooks/Grid";
 import { useSmartGuidesStore } from "@stores/useSmartGuidesStore";
+import { useSettingsStore } from "@stores/useSettingsStore";
 import {
   calculateBounds,
   calculateSnapPoints,
@@ -137,6 +138,12 @@ export default function DraggableKey({
           const newX = startDx + rawDeltaX;
           const newY = startDy + rawDeltaY;
 
+          // gridSettings에서 정렬/간격 가이드 활성화 여부 확인
+          const gridSettings = useSettingsStore.getState().gridSettings;
+          const alignmentGuidesEnabled =
+            gridSettings?.alignmentGuides !== false;
+          const spacingGuidesEnabled = gridSettings?.spacingGuides !== false;
+
           // 스마트 가이드 계산 (현재 키 기준으로 다른 비선택 요소들과 스냅)
           const otherElements = getOtherElements(elementId);
 
@@ -192,29 +199,52 @@ export default function DraggableKey({
             groupBounds = calculateGroupBounds(selectedBoundsArray);
           }
 
-          const snapResult = calculateSnapPoints(
-            draggedBounds,
-            nonSelectedElements,
-            undefined,
-            { groupBounds }
-          );
+          // 다중 선택 시 그룹 바운딩 박스를 스냅 기준으로 사용
+          const snapTargetBounds =
+            selectedElements.length > 1 && groupBounds
+              ? groupBounds
+              : draggedBounds;
+
+          const snapResult = alignmentGuidesEnabled
+            ? calculateSnapPoints(
+                snapTargetBounds,
+                nonSelectedElements,
+                undefined,
+                {
+                  groupBounds,
+                  disableSpacing: !spacingGuidesEnabled,
+                }
+              )
+            : null;
 
           let finalX = newX;
           let finalY = newY;
 
           // 스마트 가이드 스냅 적용
-          if (snapResult.didSnapX) {
-            finalX = snapResult.snappedX;
+          if (snapResult?.didSnapX) {
+            // 다중 선택 시: 그룹 바운딩 박스의 스냅 이동량을 개별 요소에 적용
+            if (selectedElements.length > 1 && groupBounds) {
+              const groupSnapDeltaX = snapResult.snappedX - groupBounds.left;
+              finalX = newX + groupSnapDeltaX;
+            } else {
+              finalX = snapResult.snappedX;
+            }
           } else {
-            // 그리드 스냅 (5px)
-            finalX = Math.round(newX / 5) * 5;
+            // 그리드 스냅
+            finalX = Math.round(newX / GRID_SNAP) * GRID_SNAP;
           }
 
-          if (snapResult.didSnapY) {
-            finalY = snapResult.snappedY;
+          if (snapResult?.didSnapY) {
+            // 다중 선택 시: 그룹 바운딩 박스의 스냅 이동량을 개별 요소에 적용
+            if (selectedElements.length > 1 && groupBounds) {
+              const groupSnapDeltaY = snapResult.snappedY - groupBounds.top;
+              finalY = newY + groupSnapDeltaY;
+            } else {
+              finalY = snapResult.snappedY;
+            }
           } else {
-            // 그리드 스냅 (5px)
-            finalY = Math.round(newY / 5) * 5;
+            // 그리드 스냅
+            finalY = Math.round(newY / GRID_SNAP) * GRID_SNAP;
           }
 
           // 스냅된 delta 계산
@@ -222,16 +252,43 @@ export default function DraggableKey({
           const snappedDeltaY = Math.round(finalY - startDy);
 
           // 가이드라인 업데이트
-          if (snapResult.didSnapX || snapResult.didSnapY) {
-            const snappedBounds = calculateBounds(
-              finalX,
-              finalY,
-              currentWidth,
-              currentHeight,
-              elementId
-            );
-            smartGuidesStore.setDraggedBounds(snappedBounds);
+          if (snapResult && (snapResult.didSnapX || snapResult.didSnapY)) {
+            // 다중 선택 시 그룹 바운딩 박스를 표시
+            const displayBounds =
+              selectedElements.length > 1 && groupBounds
+                ? calculateBounds(
+                    groupBounds.left +
+                      (snapResult.didSnapX
+                        ? snapResult.snappedX - groupBounds.left
+                        : 0),
+                    groupBounds.top +
+                      (snapResult.didSnapY
+                        ? snapResult.snappedY - groupBounds.top
+                        : 0),
+                    groupBounds.width,
+                    groupBounds.height,
+                    "group"
+                  )
+                : calculateBounds(
+                    finalX,
+                    finalY,
+                    currentWidth,
+                    currentHeight,
+                    elementId
+                  );
+            smartGuidesStore.setDraggedBounds(displayBounds);
             smartGuidesStore.setActiveGuides(snapResult.guides);
+
+            // 간격 가이드도 업데이트
+            if (
+              spacingGuidesEnabled &&
+              snapResult.spacingGuides &&
+              snapResult.spacingGuides.length > 0
+            ) {
+              smartGuidesStore.setSpacingGuides(snapResult.spacingGuides);
+            } else {
+              smartGuidesStore.setSpacingGuides([]);
+            }
           } else {
             smartGuidesStore.clearGuides();
           }

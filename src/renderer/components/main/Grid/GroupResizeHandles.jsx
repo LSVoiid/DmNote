@@ -1,6 +1,13 @@
 import React, { useCallback, useRef, useState } from "react";
 import { usePluginDisplayElementStore } from "@stores/usePluginDisplayElementStore";
+import { useSmartGuidesStore } from "@stores/useSmartGuidesStore";
+import { useSettingsStore } from "@stores/useSettingsStore";
 import { RESIZE_SNAP } from "@hooks/Grid/constants";
+import {
+  calculateBounds,
+  calculateSnapPoints,
+  calculateSizeSnap,
+} from "@utils/smartGuides";
 
 /**
  * 다중 선택 시 그룹 전체를 감싸는 리사이즈 핸들을 표시하는 컴포넌트
@@ -234,6 +241,7 @@ export default function GroupResizeHandles({
   onGroupResizeStart,
   onGroupResize,
   onGroupResizeEnd,
+  getOtherElements,
 }) {
   const resizeRef = useRef({
     isResizing: false,
@@ -426,9 +434,159 @@ export default function GroupResizeHandles({
           );
         }
 
-        // 그룹 스냅은 위에서 delta 기반으로 처리됨
-
         // 최소 크기 보장
+        newGroupWidth = Math.max(MIN_SIZE, newGroupWidth);
+        newGroupHeight = Math.max(MIN_SIZE, newGroupHeight);
+
+        // === 스마트 가이드 스냅 적용 (그룹 바운딩 박스 기준) ===
+        const smartGuidesStore = useSmartGuidesStore.getState();
+        const gridSettings = useSettingsStore.getState().gridSettings;
+        const alignmentGuidesEnabled = gridSettings?.alignmentGuides !== false;
+        const spacingGuidesEnabled = gridSettings?.spacingGuides !== false;
+        const sizeMatchGuidesEnabled = gridSettings?.sizeMatchGuides !== false;
+
+        // 선택된 요소들의 ID 수집 (스마트 가이드에서 제외)
+        const selectedIds = selectedElements.map((el) =>
+          el.type === "key" ? `key-${el.index}` : el.id
+        );
+
+        if (getOtherElements && alignmentGuidesEnabled) {
+          const otherElements = getOtherElements(selectedIds);
+
+          // 그룹 바운딩 박스를 기준으로 스냅 계산
+          const groupBoundsForSnap = calculateBounds(
+            newGroupX,
+            newGroupY,
+            newGroupWidth,
+            newGroupHeight,
+            "group"
+          );
+
+          const snapResult = calculateSnapPoints(
+            groupBoundsForSnap,
+            otherElements,
+            undefined,
+            { disableSpacing: !spacingGuidesEnabled }
+          );
+
+          // X축 스냅 적용
+          if (
+            snapResult.didSnapX &&
+            !(snapResult.didSpacingSnapX && !spacingGuidesEnabled)
+          ) {
+            if (handle.dx === -1) {
+              // 왼쪽 핸들: 왼쪽 가장자리 스냅
+              const widthDiff = newGroupX - snapResult.snappedX;
+              newGroupX = snapResult.snappedX;
+              newGroupWidth = newGroupWidth + widthDiff;
+            } else if (handle.dx === 1) {
+              // 오른쪽 핸들: 오른쪽 가장자리 스냅
+              const snappedRight =
+                snapResult.snappedX + groupBoundsForSnap.width;
+              newGroupWidth = snappedRight - newGroupX;
+            } else if (handle.dx === 0) {
+              // 수직 핸들 (상/하): 중앙 정렬 스냅
+              newGroupX = snapResult.snappedX;
+            }
+          }
+
+          // Y축 스냅 적용
+          if (
+            snapResult.didSnapY &&
+            !(snapResult.didSpacingSnapY && !spacingGuidesEnabled)
+          ) {
+            if (handle.dy === -1) {
+              // 위쪽 핸들: 위쪽 가장자리 스냅
+              const heightDiff = newGroupY - snapResult.snappedY;
+              newGroupY = snapResult.snappedY;
+              newGroupHeight = newGroupHeight + heightDiff;
+            } else if (handle.dy === 1) {
+              // 아래쪽 핸들: 아래쪽 가장자리 스냅
+              const snappedBottom =
+                snapResult.snappedY + groupBoundsForSnap.height;
+              newGroupHeight = snappedBottom - newGroupY;
+            } else if (handle.dy === 0) {
+              // 수평 핸들 (좌/우): 중앙 정렬 스냅
+              newGroupY = snapResult.snappedY;
+            }
+          }
+
+          // Size Matching: 다른 요소와 동일한 크기로 스냅
+          let sizeSnapResult = null;
+          if (sizeMatchGuidesEnabled) {
+            sizeSnapResult = calculateSizeSnap(
+              newGroupWidth,
+              newGroupHeight,
+              otherElements,
+              "group"
+            );
+
+            if (sizeSnapResult.didSnapWidth) {
+              if (handle.dx === -1) {
+                newGroupX =
+                  newGroupX - (sizeSnapResult.snappedWidth - newGroupWidth);
+              }
+              newGroupWidth = sizeSnapResult.snappedWidth;
+            }
+
+            if (sizeSnapResult.didSnapHeight) {
+              if (handle.dy === -1) {
+                newGroupY =
+                  newGroupY - (sizeSnapResult.snappedHeight - newGroupHeight);
+              }
+              newGroupHeight = sizeSnapResult.snappedHeight;
+            }
+          }
+
+          // 가이드라인 업데이트
+          const hasAlignSnap =
+            (snapResult.didSnapX &&
+              !(snapResult.didSpacingSnapX && !spacingGuidesEnabled)) ||
+            (snapResult.didSnapY &&
+              !(snapResult.didSpacingSnapY && !spacingGuidesEnabled));
+          const hasSizeSnap =
+            sizeSnapResult &&
+            (sizeSnapResult.didSnapWidth || sizeSnapResult.didSnapHeight);
+
+          if (hasAlignSnap || hasSizeSnap) {
+            const snappedBounds = calculateBounds(
+              newGroupX,
+              newGroupY,
+              newGroupWidth,
+              newGroupHeight,
+              "group"
+            );
+            smartGuidesStore.setDraggedBounds(snappedBounds);
+
+            if (hasAlignSnap) {
+              smartGuidesStore.setActiveGuides(snapResult.guides);
+              if (
+                spacingGuidesEnabled &&
+                snapResult.spacingGuides &&
+                snapResult.spacingGuides.length > 0
+              ) {
+                smartGuidesStore.setSpacingGuides(snapResult.spacingGuides);
+              } else {
+                smartGuidesStore.setSpacingGuides([]);
+              }
+            } else {
+              smartGuidesStore.setActiveGuides([]);
+              smartGuidesStore.setSpacingGuides([]);
+            }
+
+            if (hasSizeSnap) {
+              smartGuidesStore.setSizeMatchGuides(
+                sizeSnapResult.sizeMatchGuides
+              );
+            } else {
+              smartGuidesStore.setSizeMatchGuides([]);
+            }
+          } else {
+            smartGuidesStore.clearGuides();
+          }
+        }
+
+        // 최소 크기 재보장 (스마트 가이드 스냅 후)
         newGroupWidth = Math.max(MIN_SIZE, newGroupWidth);
         newGroupHeight = Math.max(MIN_SIZE, newGroupHeight);
 
@@ -499,6 +657,8 @@ export default function GroupResizeHandles({
 
       const handleMouseUp = () => {
         resizeRef.current.isResizing = false;
+        // 스마트 가이드 클리어
+        useSmartGuidesStore.getState().clearGuides();
         document.removeEventListener("mousemove", handleMouseMove);
         document.removeEventListener("mouseup", handleMouseUp);
         window.removeEventListener("blur", handleMouseUp);
@@ -514,10 +674,12 @@ export default function GroupResizeHandles({
       positions,
       selectedKeyType,
       pluginElements,
+      selectedElements,
       zoom,
       onGroupResizeStart,
       onGroupResize,
       onGroupResizeEnd,
+      getOtherElements,
     ]
   );
 

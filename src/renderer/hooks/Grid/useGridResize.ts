@@ -129,7 +129,14 @@ export function useGridResize({
           elementId
         );
 
-        const snapResult = calculateSnapPoints(draggedBounds, otherElements);
+        const snapResult = calculateSnapPoints(
+          draggedBounds,
+          otherElements,
+          undefined,
+          {
+            disableSpacing: !spacingGuidesEnabled,
+          }
+        );
         const handle = newBounds.handle;
 
         if (handle) {
@@ -329,7 +336,14 @@ export function useGridResize({
           fullId
         );
 
-        const snapResult = calculateSnapPoints(draggedBounds, otherElements);
+        const snapResult = calculateSnapPoints(
+          draggedBounds,
+          otherElements,
+          undefined,
+          {
+            disableSpacing: !spacingGuidesEnabled,
+          }
+        );
         const handle = newBounds.handle;
 
         if (handle) {

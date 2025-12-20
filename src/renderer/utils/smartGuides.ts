@@ -165,6 +165,9 @@ export const CANVAS_CENTER_Y = 195;
 export interface SnapPointsOptions {
   /** 그룹 선택 시 전체 그룹의 bounds (캔버스 중앙 스냅에 사용) */
   groupBounds?: ElementBounds | null;
+
+  /** 간격(Spacing) 가이드/스냅 계산을 비활성화 */
+  disableSpacing?: boolean;
 }
 
 /**
@@ -443,7 +446,20 @@ export function calculateSnapPoints(
       )
   );
 
-  // 간격 가이드 계산
+  // 간격 가이드 계산 (옵션으로 비활성화 가능)
+  if (options?.disableSpacing) {
+    return {
+      snappedX,
+      snappedY,
+      guides: uniqueGuides,
+      spacingGuides: [],
+      didSnapX,
+      didSnapY,
+      didSpacingSnapX: false,
+      didSpacingSnapY: false,
+    };
+  }
+
   const spacingResult = calculateSpacingGuides(
     {
       ...draggedBounds,

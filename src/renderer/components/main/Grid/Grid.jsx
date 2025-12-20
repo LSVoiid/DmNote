@@ -701,6 +701,7 @@ export default function Grid({
           onGroupResizeStart={handleResizeStart}
           onGroupResize={handleGroupResize}
           onGroupResizeEnd={handleGroupResizeComplete}
+          getOtherElements={getOtherElements}
         />
       )}
       {/* 우클릭 리스트 팝업 */}

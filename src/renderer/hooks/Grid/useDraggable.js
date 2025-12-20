@@ -222,7 +222,9 @@ export const useDraggable = ({
 
             const snapResult = calculateSnapPoints(
               draggedBounds,
-              otherElements
+              otherElements,
+              undefined,
+              { disableSpacing: !spacingGuidesEnabled }
             );
 
             if (snapResult.didSnapX || snapResult.didSnapY) {
