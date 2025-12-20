@@ -5,6 +5,7 @@ mod commands;
 mod defaults;
 mod keyboard;
 mod keyboard_daemon;
+#[cfg(target_os = "windows")]
 mod keyboard_labels;
 mod ipc;
 mod models;
@@ -13,7 +14,10 @@ mod store;
 
 use anyhow::Result;
 use log::LevelFilter;
-use std::{fs, path::PathBuf, thread, time::Duration};
+use std::{thread, time::Duration};
+
+#[cfg(target_os = "windows")]
+use std::{fs, path::PathBuf};
 
 use tauri::{ipc::CapabilityBuilder, LogicalSize, Manager, PhysicalPosition, Position};
 

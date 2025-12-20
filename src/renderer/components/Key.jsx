@@ -1,4 +1,5 @@
 import React, { memo, useMemo, useCallback, useRef, useEffect } from "react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getKeySignal } from "@stores/keySignals";
 import { getKeyCounterSignal } from "@stores/keyCounterSignals";
 import { useSignals } from "@preact/signals-react/runtime";
@@ -663,11 +664,24 @@ export const Key = memo(
       );
     };
 
+    // macOS 용 오버레이 드래그 핸들러
+    const handleKeyMouseDown = useCallback((e) => {
+      const isMacOS =
+        typeof navigator !== "undefined" && /Mac/i.test(navigator.platform);
+      if (!isMacOS) return;
+
+      if (e.buttons === 1) {
+        getCurrentWindow().startDragging();
+      }
+    }, []);
+
     return (
       <div
+        data-tauri-drag-region
         className={`absolute ${className || ""}`}
         style={keyStyle}
         data-state={active ? "active" : "inactive"}
+        onMouseDown={handleKeyMouseDown}
       >
         {currentImage ? (
           <img src={currentImage} alt="" style={imageStyle} draggable={false} />

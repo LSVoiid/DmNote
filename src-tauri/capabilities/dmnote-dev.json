@@ -4,7 +4,11 @@
   "local": true,
   "windows": ["main", "overlay"],
   "webviews": ["main", "overlay"],
-  "permissions": ["dmnote-allow-all", "core:default"],
+  "permissions": [
+    "dmnote-allow-all",
+    "core:default",
+    "core:window:allow-start-dragging"
+  ],
   "remote": {
     "urls": [
       "http://localhost:3400/**",

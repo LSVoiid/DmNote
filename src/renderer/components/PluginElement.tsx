@@ -6,6 +6,7 @@ import React, {
   useCallback,
 } from "react";
 import { createPortal } from "react-dom";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
   PluginDisplayElementInternal,
   ElementResizeAnchor,
@@ -1441,6 +1442,20 @@ export const PluginElement: React.FC<PluginElementProps> = ({
     return null;
   };
 
+  // macOS용 오버레이 드래그 핸들러
+  const handleOverlayDrag = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      const isMacOS =
+        typeof navigator !== "undefined" && /Mac/i.test(navigator.platform);
+      if (!isMacOS) return;
+
+      if (windowType === "overlay" && e.buttons === 1 && !isSelectionMode) {
+        getCurrentWindow().startDragging();
+      }
+    },
+    [windowType, isSelectionMode]
+  );
+
   return (
     <>
       <div
@@ -1450,8 +1465,15 @@ export const PluginElement: React.FC<PluginElementProps> = ({
         style={elementStyle}
         data-plugin-element={element.fullId}
         data-plugin-id={element.pluginId}
+        data-tauri-drag-region={windowType === "overlay" ? true : undefined}
         onClick={handleClick}
-        onMouseDown={isSelectionMode ? handleSelectionDragMouseDown : undefined}
+        onMouseDown={
+          isSelectionMode
+            ? handleSelectionDragMouseDown
+            : windowType === "overlay"
+            ? handleOverlayDrag
+            : undefined
+        }
         onContextMenu={handleContextMenu}
       >
         {element.scoped && shadowRoot
