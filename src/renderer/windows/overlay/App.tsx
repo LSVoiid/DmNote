@@ -71,6 +71,7 @@ export default function App() {
   useCustomJsInjection();
   useAppBootstrap();
   useBlockBrowserShortcuts();
+  const macOS = isMac();
   const developerModeEnabled = useSettingsStore(
     (state) => state.developerModeEnabled
   );
@@ -482,8 +483,16 @@ export default function App() {
       style={{
         backgroundColor:
           backgroundColor === "transparent" ? "transparent" : backgroundColor,
-        willChange: "contents",
-        contain: "layout style paint",
+        ...(macOS
+          ? {
+              // macOS(WebKit)에서 투명 전환 시 'contents' will-change + 강한 contain 조합이
+              // 레이어 재구성을 유발해 반영이 늦어지는 케이스가 있어 완화.
+              willChange: "background-color",
+            }
+          : {
+              willChange: "contents",
+              contain: "layout style paint",
+            }),
       }}
       onMouseDown={handleOverlayMouseDown}
     >
