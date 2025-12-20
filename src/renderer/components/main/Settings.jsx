@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useLenis } from "@hooks/useLenis";
 import { useTranslation } from "@contexts/I18nContext";
 import { useSettingsStore } from "@stores/useSettingsStore";
@@ -10,6 +10,7 @@ import { PluginManagerModal } from "@components/main/Modal/content/PluginManager
 import { PluginDataDeleteModal } from "@components/main/Modal/content/PluginDataDeleteModal";
 import { applyCounterSnapshot } from "@stores/keyCounterSignals";
 import { extractPluginId } from "@utils/pluginUtils";
+import { isMac } from "@utils/platform";
 import { useUpdateCheck } from "@hooks/useUpdateCheck";
 
 // 설정 미리보기 영상
@@ -32,6 +33,7 @@ const PREVIEW_SOURCES = {
 
 export default function Settings({ showAlert, showConfirm }) {
   const { t, i18n } = useTranslation();
+  const isMacOS = isMac();
   const {
     hardwareAcceleration,
     setHardwareAcceleration,
@@ -91,6 +93,17 @@ export default function Settings({ showAlert, showConfirm }) {
     { value: "d3d9", label: "Direct3D 9" },
     { value: "gl", label: "OpenGL" },
   ];
+
+  const macAngleOptions = useMemo(
+    () => [{ value: "metal", label: "Metal" }],
+    []
+  );
+
+  useEffect(() => {
+    if (isMacOS && angleMode !== "metal") {
+      setAngleMode("metal");
+    }
+  }, [isMacOS, angleMode, setAngleMode]);
 
   const LANGUAGE_OPTIONS = [
     { value: "ko", label: "한국어" },
@@ -380,6 +393,7 @@ export default function Settings({ showAlert, showConfirm }) {
   };
 
   const handleAngleModeChangeSelect = (val) => {
+    if (isMacOS) return;
     const apply = async () => {
       setAngleMode(val);
       try {
@@ -714,10 +728,11 @@ export default function Settings({ showAlert, showConfirm }) {
                   {t("settings.graphicsOption")}
                 </p>
                 <Dropdown
-                  options={ANGLE_OPTIONS}
-                  value={angleMode}
+                  options={isMacOS ? macAngleOptions : ANGLE_OPTIONS}
+                  value={isMacOS ? "metal" : angleMode}
                   onChange={handleAngleModeChangeSelect}
                   placeholder={t("settings.renderMode")}
+                  disabled={isMacOS}
                 />
               </div>
               <div

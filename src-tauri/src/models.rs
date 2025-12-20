@@ -498,7 +498,11 @@ impl Default for AppStoreData {
             note_settings: NoteSettings::default(),
             selected_key_type: "4key".to_string(),
             custom_tabs: Vec::new(),
-            angle_mode: "d3d11".to_string(),
+            angle_mode: if cfg!(target_os = "macos") {
+                "metal".to_string()
+            } else {
+                "d3d11".to_string()
+            },
             language: "ko".to_string(),
             laboratory_enabled: false,
             developer_mode_enabled: false,
@@ -583,7 +587,11 @@ impl Default for SettingsState {
             overlay_locked: false,
             note_effect: false,
             note_settings: NoteSettings::default(),
-            angle_mode: "d3d11".to_string(),
+            angle_mode: if cfg!(target_os = "macos") {
+                "metal".to_string()
+            } else {
+                "d3d11".to_string()
+            },
             language: "ko".to_string(),
             laboratory_enabled: false,
             developer_mode_enabled: false,

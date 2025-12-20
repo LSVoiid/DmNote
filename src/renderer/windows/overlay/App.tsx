@@ -8,6 +8,7 @@ import React, {
   useCallback,
 } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { isMac } from "@utils/platform";
 import { Key } from "@components/Key";
 import { DEFAULT_NOTE_SETTINGS } from "@constants/overlayConfig";
 import { useCustomCssInjection } from "@hooks/useCustomCssInjection";
@@ -464,9 +465,7 @@ export default function App() {
   // macOS용 오버레이 드래그 핸들러
   const handleOverlayMouseDown = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
-      const isMacOS =
-        typeof navigator !== "undefined" && /Mac/i.test(navigator.platform);
-      if (!isMacOS) return;
+      if (!isMac()) return;
 
       // 기본 (왼쪽) 버튼에서만 드래그 시작
       if (e.buttons === 1) {

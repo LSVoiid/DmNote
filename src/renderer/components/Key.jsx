@@ -3,6 +3,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getKeySignal } from "@stores/keySignals";
 import { getKeyCounterSignal } from "@stores/keyCounterSignals";
 import { useSignals } from "@preact/signals-react/runtime";
+import { isMac } from "@utils/platform";
 import { useDraggable } from "@hooks/Grid";
 import { getKeyInfoByGlobalKey } from "@utils/KeyMaps";
 import { GRID_SNAP } from "@hooks/Grid/constants";
@@ -666,9 +667,7 @@ export const Key = memo(
 
     // macOS 용 오버레이 드래그 핸들러
     const handleKeyMouseDown = useCallback((e) => {
-      const isMacOS =
-        typeof navigator !== "undefined" && /Mac/i.test(navigator.platform);
-      if (!isMacOS) return;
+      if (!isMac()) return;
 
       if (e.buttons === 1) {
         getCurrentWindow().startDragging();

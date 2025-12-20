@@ -7,6 +7,7 @@ import React, {
 } from "react";
 import { createPortal } from "react-dom";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { isMac } from "@utils/platform";
 import {
   PluginDisplayElementInternal,
   ElementResizeAnchor,
@@ -1445,9 +1446,7 @@ export const PluginElement: React.FC<PluginElementProps> = ({
   // macOS용 오버레이 드래그 핸들러
   const handleOverlayDrag = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
-      const isMacOS =
-        typeof navigator !== "undefined" && /Mac/i.test(navigator.platform);
-      if (!isMacOS) return;
+      if (!isMac()) return;
 
       if (windowType === "overlay" && e.buttons === 1 && !isSelectionMode) {
         getCurrentWindow().startDragging();

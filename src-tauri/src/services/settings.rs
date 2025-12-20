@@ -72,7 +72,15 @@ fn normalize_patch(patch: &SettingsPatchInput, current: &SettingsState) -> Setti
         normalized.note_settings = Some(apply_note_patch(current.note_settings.clone(), value));
     }
     if let Some(value) = patch.angle_mode.as_ref() {
-        normalized.angle_mode = Some(value.clone());
+        #[cfg(target_os = "macos")]
+        {
+            let _ = value;
+            normalized.angle_mode = Some("metal".to_string());
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            normalized.angle_mode = Some(value.clone());
+        }
     }
     if let Some(value) = patch.language.as_ref() {
         normalized.language = Some(value.clone());
