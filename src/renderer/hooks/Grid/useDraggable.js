@@ -4,6 +4,7 @@ import { useSmartGuidesStore } from "@stores/useSmartGuidesStore";
 import { useGridSelectionStore } from "@stores/useGridSelectionStore";
 import { useSettingsStore } from "@stores/useSettingsStore";
 import { calculateBounds, calculateSnapPoints } from "@utils/smartGuides";
+import { GRID_SNAP, DRAG_THRESHOLD } from "./constants";
 
 // 위치 클램핑 함수
 const clampPosition = (value) => {
@@ -12,7 +13,7 @@ const clampPosition = (value) => {
 
 // 줌 레벨에 따른 동적 그리드 스냅 크기 계산
 // 화면상 일정한 드래그 거리를 유지하면서 최소 1px 보장
-const BASE_GRID_SIZE = 5;
+const BASE_GRID_SIZE = GRID_SNAP;
 const MIN_GRID_SIZE = 1;
 
 const calculateDynamicGridSize = (zoom) => {
@@ -44,7 +45,7 @@ export const useDraggable = ({
   // 마지막 스냅 좌표를 ref로 보관 (mouseup 시 커밋)
   const lastSnappedRef = useRef({ dx: initialX, dy: initialY });
   // 드래그 감지를 위한 최소 거리 임계값
-  const dragThresholdRef = useRef(5);
+  const dragThresholdRef = useRef(DRAG_THRESHOLD);
 
   // 줌/팬 값을 ref로 저장 (드래그 중 최신 값 참조)
   const zoomRef = useRef(zoom);

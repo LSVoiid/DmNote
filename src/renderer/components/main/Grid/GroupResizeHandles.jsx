@@ -1,5 +1,6 @@
 import React, { useCallback, useRef, useState } from "react";
 import { usePluginDisplayElementStore } from "@stores/usePluginDisplayElementStore";
+import { RESIZE_SNAP } from "@hooks/Grid/constants";
 
 /**
  * 다중 선택 시 그룹 전체를 감싸는 리사이즈 핸들을 표시하는 컴포넌트
@@ -12,7 +13,7 @@ const EDGE_HANDLE_WIDTH = 8; // 상하좌우 핸들의 두께 (픽셀)
 const EDGE_HANDLE_LENGTH = 18; // 상하좌우 핸들의 길이 (픽셀)
 const HANDLE_HIT_SIZE = 18; // 핸들의 클릭 가능 영역 크기 (픽셀)
 const MIN_SIZE = 10; // 최소 크기 (픽셀)
-const RESIZE_SNAP_SIZE = 5; // 리사이즈 시 스냅 단위 (픽셀)
+const RESIZE_SNAP_SIZE = RESIZE_SNAP; // 리사이즈 시 스냅 단위 (픽셀)
 const GROUP_BORDER_WIDTH = 3; // 그룹 테두리 두께 (픽셀)
 // ================================
 
@@ -370,10 +371,18 @@ export default function GroupResizeHandles({
         let snappedDeltaY = handle.dy !== 0 ? snapDelta(rawDeltaY) : 0;
 
         if (handle.dx !== 0) {
-          snappedDeltaX = clampShrinkDelta(snappedDeltaX, handle.dx, maxShrinkX);
+          snappedDeltaX = clampShrinkDelta(
+            snappedDeltaX,
+            handle.dx,
+            maxShrinkX
+          );
         }
         if (handle.dy !== 0) {
-          snappedDeltaY = clampShrinkDelta(snappedDeltaY, handle.dy, maxShrinkY);
+          snappedDeltaY = clampShrinkDelta(
+            snappedDeltaY,
+            handle.dy,
+            maxShrinkY
+          );
         }
 
         // 새 그룹 bounds 계산

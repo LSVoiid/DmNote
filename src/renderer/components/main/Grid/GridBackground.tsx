@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import { GRID_SNAP } from "@hooks/Grid/constants";
 
 interface GridBackgroundProps {
   gridSize?: number;
@@ -14,7 +15,7 @@ interface GridBackgroundProps {
  * 줌/팬에 맞춰 정확하게 그리드가 표시됩니다.
  */
 export const GridBackground: React.FC<GridBackgroundProps> = ({
-  gridSize = 5,
+  gridSize = GRID_SNAP,
   zoom = 1,
   panX = 0,
   panY = 0,

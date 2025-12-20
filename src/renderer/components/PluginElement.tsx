@@ -15,6 +15,7 @@ import { useHistoryStore } from "@stores/useHistoryStore";
 import { useKeyStore as useKeyStoreForHistory } from "@stores/useKeyStore";
 import { useSmartGuidesElements } from "@hooks/Grid";
 import { useSmartGuidesStore } from "@stores/useSmartGuidesStore";
+import { GRID_SNAP } from "@hooks/Grid/constants";
 import {
   calculateBounds,
   calculateSnapPoints,
@@ -425,7 +426,7 @@ export const PluginElement: React.FC<PluginElementProps> = ({
 
   // 드래그 지원 (main 윈도우에서만)
   const draggable = useDraggable({
-    gridSize: 5,
+    gridSize: GRID_SNAP,
     initialX: calculatedPosition.x,
     initialY: calculatedPosition.y,
     onDragStart: saveToHistory, // 드래그 시작 시 히스토리 저장

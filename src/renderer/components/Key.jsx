@@ -4,6 +4,7 @@ import { getKeyCounterSignal } from "@stores/keyCounterSignals";
 import { useSignals } from "@preact/signals-react/runtime";
 import { useDraggable } from "@hooks/Grid";
 import { getKeyInfoByGlobalKey } from "@utils/KeyMaps";
+import { GRID_SNAP } from "@hooks/Grid/constants";
 import {
   createDefaultCounterSettings,
   normalizeCounterSettings,
@@ -60,7 +61,7 @@ export default function DraggableKey({
   const isSelectionMode = isSelected;
 
   const draggable = useDraggable({
-    gridSize: 5,
+    gridSize: GRID_SNAP,
     initialX: dx,
     initialY: dy,
     onPositionChange: (newDx, newDy) => {
