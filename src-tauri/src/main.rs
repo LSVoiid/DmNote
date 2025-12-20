@@ -270,8 +270,14 @@ fn apply_main_window_configuration(
         log::debug!("failed to hide main window before configuration: {err}");
     }
 
-    if let Err(err) = window.set_decorations(false) {
-        log::warn!("failed to disable decorations: {err}");
+    if cfg!(target_os = "windows") {
+        if let Err(err) = window.set_decorations(false) {
+            log::warn!("failed to disable decorations: {err}");
+        }
+    } else if cfg!(target_os = "macos") {
+        if let Err(err) = window.set_decorations(true) {
+            log::warn!("failed to enable decorations: {err}");
+        }
     }
     if let Err(err) = window.set_resizable(false) {
         log::warn!("failed to disable resizing: {err}");

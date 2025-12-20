@@ -22,7 +22,7 @@ https://github.com/user-attachments/assets/20fb118d-3982-4925-9004-9ce0936590c2
 ## 🌟 Overview
 
 **DM Note** is a key viewer built for DJMAX RESPECT V. Built with Electron and React, powered by [node-global-key-listener-extended](https://github.com/lee-sihun/node-global-key-listener) for global keyboard hooks.
-Set it up in minutes and visualize your keystrokes for streams or gameplay captures. Windows only for now, and it works with non-rhythm games too
+Set it up in minutes and visualize your keystrokes for streams or gameplay captures. Windows and macOS are supported, and it works with non-rhythm games too
 
 [Download DM NOTE v1.2.1](https://github.com/lee-sihun/DmNote/releases/download/1.2.1/DM.NOTE.v.1.2.1.zip)
 
