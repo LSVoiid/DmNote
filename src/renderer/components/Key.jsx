@@ -42,6 +42,7 @@ export default function DraggableKey({
   panY = 0,
   zIndex = 0,
 }) {
+  const macOS = isMac();
   const { displayName } = getKeyInfoByGlobalKey(keyName);
   const {
     dx,
@@ -352,7 +353,8 @@ export default function DraggableKey({
 
   const handleClick = (e) => {
     // Ctrl+클릭으로 선택 토글 (선택 모드에서도 동작해야 함 - 선택 해제용)
-    if (e.ctrlKey && onCtrlClick) {
+    const isPrimaryModifierPressed = macOS ? e.metaKey : e.ctrlKey;
+    if (isPrimaryModifierPressed && onCtrlClick) {
       e.stopPropagation();
       onCtrlClick(e);
       return;

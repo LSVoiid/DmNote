@@ -7,6 +7,7 @@ import {
   clampZoom,
 } from "@stores/useGridViewStore";
 import { useGridSelectionStore } from "@stores/useGridSelectionStore";
+import { isMac } from "@utils/platform";
 
 interface UseGridZoomPanOptions {
   mode: string;
@@ -27,6 +28,8 @@ export function useGridZoomPan({
   const { getViewState, setZoom, setPan, resetView } = useGridViewStore();
   const viewState = getViewState(mode);
   const { zoom, panX, panY } = viewState;
+
+  const macOS = isMac();
 
   // 휠 이벤트 누적 방지용 ref
   const isWheelProcessingRef = useRef(false);
@@ -140,19 +143,28 @@ export function useGridZoomPan({
         isWheelProcessingRef.current = false;
       });
 
-      if (e.ctrlKey) {
-        // Ctrl + 휠: 줌
+      const isWheelZoomModifierPressed = macOS
+        ? e.metaKey || e.ctrlKey // macOS: Cmd+휠, 그리고 트랙패드 핀치(ctrlKey=true)도 줌으로 유지
+        : e.ctrlKey; // Windows/Linux: Ctrl+휠
+
+      if (isWheelZoomModifierPressed) {
+        // (Ctrl/Cmd) + 휠: 줌
         const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
         zoomAtPoint(e.clientX, e.clientY, zoom + delta);
-      } else if (e.shiftKey) {
-        // Shift + 휠: 수평 스크롤
-        pan(-e.deltaY, 0);
       } else {
-        // 휠: 수직 스크롤
-        pan(0, -e.deltaY);
+        // 휠/트랙패드 2손가락: 패닝
+        // - 트랙패드는 deltaX/deltaY가 같이 들어오므로 수평/대각 이동 지원
+        // - 일부 마우스 휠은 deltaX=0만 오기 때문에 기존 Shift+휠 수평 패닝도 유지
+        const hasHorizontalDelta = Math.abs(e.deltaX) > 0.01;
+
+        if (e.shiftKey && !hasHorizontalDelta) {
+          pan(-e.deltaY, 0);
+        } else {
+          pan(-e.deltaX, -e.deltaY);
+        }
       }
     },
-    [zoom, zoomAtPoint, pan]
+    [macOS, zoom, zoomAtPoint, pan]
   );
 
   /**
@@ -170,28 +182,30 @@ export function useGridZoomPan({
         return;
       }
 
-      // Ctrl+0: 줌 리셋
-      if (e.ctrlKey && e.key === "0") {
+      const isPrimaryModifierPressed = macOS ? e.metaKey : e.ctrlKey;
+
+      // (Ctrl/Cmd)+0: 줌 리셋
+      if (isPrimaryModifierPressed && e.key === "0") {
         e.preventDefault();
         resetZoom();
         return;
       }
 
-      // Ctrl++: 줌 인 (= 또는 + 키)
-      if (e.ctrlKey && (e.key === "+" || e.key === "=")) {
+      // (Ctrl/Cmd)++: 줌 인 (= 또는 + 키)
+      if (isPrimaryModifierPressed && (e.key === "+" || e.key === "=")) {
         e.preventDefault();
         zoomIn();
         return;
       }
 
-      // Ctrl+-: 줌 아웃
-      if (e.ctrlKey && e.key === "-") {
+      // (Ctrl/Cmd)+-: 줌 아웃
+      if (isPrimaryModifierPressed && e.key === "-") {
         e.preventDefault();
         zoomOut();
         return;
       }
     },
-    [resetZoom, zoomIn, zoomOut]
+    [macOS, resetZoom, zoomIn, zoomOut]
   );
 
   /**

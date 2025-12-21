@@ -1292,7 +1292,10 @@ export const PluginElement: React.FC<PluginElementProps> = ({
     if (e.button !== 0) return;
 
     // Ctrl+클릭으로 선택 토글 (메인 윈도우에서만) - 선택 모드에서도 동작해야 함 (선택 해제용)
-    if (e.ctrlKey && windowType === "main") {
+    const macOS = isMac();
+    const isPrimaryModifierPressed = macOS ? e.metaKey : e.ctrlKey;
+
+    if (isPrimaryModifierPressed && windowType === "main") {
       e.stopPropagation();
       useGridSelectionStore.getState().toggleSelection({
         type: "plugin",
