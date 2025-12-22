@@ -2,6 +2,7 @@
 
 mod app_state;
 mod commands;
+mod cursor;
 mod defaults;
 mod keyboard;
 mod keyboard_daemon;
@@ -138,6 +139,7 @@ fn main() {
             commands::system::app_open_external,
             commands::system::app_restart,
             commands::system::window_open_devtools_all,
+            commands::system::get_cursor_settings,
         ])
         .run(context)
         .expect("error while running tauri application");

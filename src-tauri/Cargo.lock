@@ -894,6 +894,8 @@ dependencies = [
  "log",
  "notify",
  "notify-debouncer-mini",
+ "objc",
+ "objc-foundation",
  "once_cell",
  "open",
  "parking_lot",
