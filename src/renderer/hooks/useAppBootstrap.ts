@@ -8,6 +8,7 @@ import { applyCounterSnapshot, setKeyCounter } from "@stores/keyCounterSignals";
 import { getUndoRedoInProgress } from "@api/pluginDisplayElements";
 import { DEFAULT_GRID_SETTINGS, type SettingsDiff } from "@src/types/settings";
 import type { OverlayResizeAnchor } from "@src/types/settings";
+import { initializeCursorSystem } from "@utils/cursorUtils";
 import type { CustomJs, JsPlugin } from "@src/types/js";
 
 function clonePlugins(source?: CustomJs | null): JsPlugin[] {
@@ -176,6 +177,12 @@ export function useAppBootstrap() {
         selectedKeyType: bootstrap.selectedKeyType,
       }));
       applyCounterSnapshot(bootstrap.keyCounters);
+
+      // macOS 커서 시스템 초기화 (시스템 설정 반영)
+      initializeCursorSystem().catch((err) => {
+        console.warn("[Bootstrap] Failed to initialize cursor system:", err);
+      });
+
       finalizeBootstrap();
     })();
 

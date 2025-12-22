@@ -1,5 +1,6 @@
 import React, { useCallback, useRef, useState } from "react";
 import { RESIZE_SNAP } from "@hooks/Grid/constants";
+import { getCursor } from "@utils/cursorUtils";
 
 /**
  * 8방향 리사이즈 핸들을 표시하는 컴포넌트
@@ -95,6 +96,9 @@ function Handle({ handle, centerX, centerY, onMouseDown }) {
   const hitX = centerX - HANDLE_HIT_HALF;
   const hitY = centerY - HANDLE_HIT_HALF;
 
+  // 플랫폼에 따른 커서 스타일 적용 (macOS는 커스텀 SVG, Windows/Linux는 기본 CSS)
+  const cursorStyle = getCursor(handle.cursor);
+
   return (
     <div
       style={{
@@ -103,7 +107,7 @@ function Handle({ handle, centerX, centerY, onMouseDown }) {
         top: hitY,
         width: HANDLE_HIT_SIZE,
         height: HANDLE_HIT_SIZE,
-        cursor: handle.cursor,
+        cursor: cursorStyle,
         zIndex: 21,
         backgroundColor: "transparent",
         display: "flex",
