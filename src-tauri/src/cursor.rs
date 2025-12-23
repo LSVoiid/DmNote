@@ -153,6 +153,7 @@ pub fn get_macos_cursor_settings() -> MacOSCursorSettings {
     }
 }
 
+#[cfg(target_os = "macos")]
 unsafe fn read_color_from_prefs_keys(
     prefs: *mut Object,
     keys: &[&str],
