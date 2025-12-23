@@ -8,7 +8,7 @@ import { applyCounterSnapshot, setKeyCounter } from "@stores/keyCounterSignals";
 import { getUndoRedoInProgress } from "@api/pluginDisplayElements";
 import { DEFAULT_GRID_SETTINGS, type SettingsDiff } from "@src/types/settings";
 import type { OverlayResizeAnchor } from "@src/types/settings";
-import { initializeCursorSystem } from "@utils/cursorUtils";
+import { initializeCursorSystem, refreshCursorSettings } from "@utils/cursorUtils";
 import type { CustomJs, JsPlugin } from "@src/types/js";
 
 function clonePlugins(source?: CustomJs | null): JsPlugin[] {
@@ -261,6 +261,14 @@ export function useAppBootstrap() {
         }
       }),
     ];
+
+    const handleWindowFocus = () => {
+      refreshCursorSettings().catch((err) => {
+        console.warn("[Cursor] Failed to refresh cursor settings:", err);
+      });
+    };
+    window.addEventListener("focus", handleWindowFocus);
+    unsubscribers.push(() => window.removeEventListener("focus", handleWindowFocus));
 
     return () => {
       disposed = true;

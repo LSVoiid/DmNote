@@ -276,3 +276,8 @@ input[type="number"]::-webkit-outer-spin-button {
 .settings-content-scroll.show-scrollbar::-webkit-scrollbar-thumb:active {
   background: #5a5963;
 }
+
+body.dmn-custom-cursor,
+body.dmn-custom-cursor * {
+  cursor: none !important;
+}

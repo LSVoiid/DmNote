@@ -1,6 +1,11 @@
 import React, { useCallback, useRef, useState } from "react";
 import { RESIZE_SNAP } from "@hooks/Grid/constants";
-import { getCursor } from "@utils/cursorUtils";
+import {
+  getCursor,
+  lockCustomCursor,
+  setCustomCursorHover,
+  unlockCustomCursor,
+} from "@utils/cursorUtils";
 
 /**
  * 8방향 리사이즈 핸들을 표시하는 컴포넌트
@@ -115,8 +120,14 @@ function Handle({ handle, centerX, centerY, onMouseDown }) {
         justifyContent: "center",
       }}
       onMouseDown={(e) => onMouseDown(e, handle)}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      onMouseEnter={(e) => {
+        setIsHovered(true);
+        setCustomCursorHover(handle.cursor, e);
+      }}
+      onMouseLeave={(e) => {
+        setIsHovered(false);
+        setCustomCursorHover(null, e);
+      }}
     >
       {/* 시각적 핸들 (히트 영역 중앙에 배치) */}
       <div style={getHandleStyle(handle.type, isHovered)} />
@@ -148,6 +159,7 @@ export default function ResizeHandles({
     (e, handle) => {
       e.preventDefault();
       e.stopPropagation();
+      lockCustomCursor(handle.cursor, e);
 
       resizeRef.current = {
         isResizing: true,
@@ -227,6 +239,7 @@ export default function ResizeHandles({
         document.removeEventListener("mousemove", handleMouseMove);
         document.removeEventListener("mouseup", handleMouseUp);
         window.removeEventListener("blur", handleMouseUp);
+        unlockCustomCursor();
         onResizeEnd?.();
       };
 
