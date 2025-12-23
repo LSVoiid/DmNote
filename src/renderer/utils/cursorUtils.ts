@@ -33,6 +33,42 @@ let cachedSettings: CursorSettings | null = null;
 let cachedCursors: Map<CursorType, string> | null = null;
 /** 초기화 Promise */
 let initPromise: Promise<void> | null = null;
+const CURSOR_VAR_PREFIX = "--dmn-cursor-";
+const CURSOR_BODY_CLASS = "dmn-custom-cursor";
+const CURSOR_OVERLAY_ID = "dmn-cursor-overlay";
+const DEFAULT_CURSOR_BASE_SIZE = 24;
+
+interface CursorOverlayState {
+  hoverType: CursorType | null;
+  lockedType: CursorType | null;
+  activeType: CursorType | null;
+  renderKey: string | null;
+  hotspot: number;
+  root: HTMLDivElement | null;
+  lastPointer: { x: number; y: number } | null;
+  rafId: number | null;
+  listenerAttached: boolean;
+}
+
+const overlayState: CursorOverlayState = {
+  hoverType: null,
+  lockedType: null,
+  activeType: null,
+  renderKey: null,
+  hotspot: 0,
+  root: null,
+  lastPointer: null,
+  rafId: null,
+  listenerAttached: false,
+};
+
+const getDefaultCursorSettings = (): CursorSettings => ({
+  size: 1.0,
+  base_size: DEFAULT_CURSOR_BASE_SIZE,
+  fill_color: "#000000",
+  outline_color: "#FFFFFF",
+  is_macos: isMac(),
+});
 
 /**
  * 시스템 커서 설정을 Tauri에서 가져옵니다.
@@ -42,34 +78,32 @@ export async function fetchCursorSettings(): Promise<CursorSettings> {
     const settings = await invoke<CursorSettings>("get_cursor_settings");
     return settings;
   } catch (error) {
-    console.warn(
-      "[Cursor] Failed to fetch cursor settings, using defaults:",
-      error
-    );
-    return {
-      size: 1.0,
-      base_size: 24,
-      fill_color: "#000000",
-      outline_color: "#FFFFFF",
-      is_macos: isMac(),
-    };
+    return getDefaultCursorSettings();
   }
 }
 
 /**
  * apple_cursor 원본 SVG 커서를 생성합니다.
  * https://github.com/ful1e5/apple_cursor
+ *
+ * 커서 크기는 시스템 설정에 따라 동적으로 변합니다.
+ * SVG의 viewBox 스케일링으로 어떤 크기에서도 선명하게 렌더링됩니다.
  */
-function createCursorSvg(type: CursorType, settings: CursorSettings): string {
+function createCursorSvgMarkup(
+  type: CursorType,
+  settings: CursorSettings
+): { svg: string; cursorSize: number; hotspot: number } {
   const { fill_color, outline_color, size, base_size } = settings;
 
   // 실제 커서 크기 (기본 24px * 크기 배율)
-  const cursorSize = Math.round(base_size * size);
+  // 브라우저 최대 지원 크기는 128px이므로 제한
+  const cursorSize = Math.min(128, Math.round(base_size * size));
   const hotspot = Math.round(cursorSize / 2);
-
-  // 그림자 설정
-  const shadowBlur = Math.max(1, 2 * size).toFixed(1);
-  const shadowOpacity = 0.25;
+  const shadowLayers = [
+    { dy: 4, opacity: 0.18 },
+    { dy: 8, opacity: 0.12 },
+    { dy: 12, opacity: 0.06 },
+  ];
 
   let outlinePath: string;
   let fillPath: string;
@@ -100,11 +134,164 @@ function createCursorSvg(type: CursorType, settings: CursorSettings): string {
       break;
   }
 
-  // SVG 생성 - 257x257 viewBox (apple_cursor 원본)
-  const svg = `<svg width="${cursorSize}" height="${cursorSize}" viewBox="0 0 257 257" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><filter id="s" x="-25%" y="-25%" width="150%" height="150%"><feDropShadow dx="0" dy="2" stdDeviation="${shadowBlur}" flood-color="#000" flood-opacity="${shadowOpacity}"/></filter></defs><g filter="url(#s)"><path fill-rule="evenodd" clip-rule="evenodd" d="${outlinePath}" fill="${outline_color}"/><path fill-rule="evenodd" clip-rule="evenodd" d="${fillPath}" fill="${fill_color}"/></g></svg>`;
+  const shadowPaths = shadowLayers
+    .map(
+      (layer) =>
+        `<path fill-rule="evenodd" clip-rule="evenodd" d="${outlinePath}" fill="#000000" fill-opacity="${layer.opacity}" transform="translate(0 ${layer.dy})"/>`
+    )
+    .join("");
 
+  // SVG 생성 - 동적 크기, 257x257 viewBox로 선명도 유지 (apple_cursor 원본)
+  const svg = `<svg width="${cursorSize}" height="${cursorSize}" viewBox="0 0 257 257" fill="none" xmlns="http://www.w3.org/2000/svg" shape-rendering="geometricPrecision"><g>${shadowPaths}<path fill-rule="evenodd" clip-rule="evenodd" d="${outlinePath}" fill="${outline_color}"/><path fill-rule="evenodd" clip-rule="evenodd" d="${fillPath}" fill="${fill_color}"/></g></svg>`;
+  return { svg, cursorSize, hotspot };
+}
+
+function createCursorSvg(type: CursorType, settings: CursorSettings): string {
+  const { svg, hotspot } = createCursorSvgMarkup(type, settings);
   const encoded = encodeURIComponent(svg);
   return `url("data:image/svg+xml,${encoded}") ${hotspot} ${hotspot}, ${type}`;
+}
+
+function cursorVarName(type: CursorType): string {
+  return `${CURSOR_VAR_PREFIX}${type}`;
+}
+
+function applyCursorCssVariables(cursors: Map<CursorType, string>): void {
+  if (typeof document === "undefined") return;
+  const rootStyle = document.documentElement.style;
+  for (const [type, value] of cursors.entries()) {
+    rootStyle.setProperty(cursorVarName(type), value);
+  }
+}
+
+function ensureOverlayRoot(): HTMLDivElement | null {
+  if (typeof document === "undefined") return null;
+  if (overlayState.root) return overlayState.root;
+
+  const root = document.createElement("div");
+  root.id = CURSOR_OVERLAY_ID;
+  root.setAttribute("aria-hidden", "true");
+  root.style.position = "fixed";
+  root.style.left = "0";
+  root.style.top = "0";
+  root.style.width = "0";
+  root.style.height = "0";
+  root.style.pointerEvents = "none";
+  root.style.zIndex = "2147483647";
+  root.style.transform = "translate3d(0, 0, 0)";
+  root.style.willChange = "transform";
+  root.style.display = "none";
+
+  document.body?.appendChild(root);
+  overlayState.root = root;
+  return root;
+}
+
+function setBodyCursorHidden(hidden: boolean): void {
+  if (typeof document === "undefined") return;
+  const body = document.body;
+  if (!body) return;
+  body.classList.toggle(CURSOR_BODY_CLASS, hidden);
+}
+
+function applyOverlayPosition(): void {
+  const root = overlayState.root;
+  const pointer = overlayState.lastPointer;
+  if (!root || !pointer) return;
+
+  const x = Math.round(pointer.x - overlayState.hotspot);
+  const y = Math.round(pointer.y - overlayState.hotspot);
+  root.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+}
+
+function scheduleOverlayPosition(): void {
+  if (overlayState.rafId !== null) return;
+  overlayState.rafId = window.requestAnimationFrame(() => {
+    overlayState.rafId = null;
+    applyOverlayPosition();
+  });
+}
+
+function handlePointerMove(event: MouseEvent): void {
+  overlayState.lastPointer = { x: event.clientX, y: event.clientY };
+  scheduleOverlayPosition();
+}
+
+function handleWindowBlur(): void {
+  overlayState.hoverType = null;
+  overlayState.lockedType = null;
+  updateOverlay();
+}
+
+function attachPointerListener(): void {
+  if (overlayState.listenerAttached || typeof document === "undefined") return;
+  document.addEventListener("mousemove", handlePointerMove, { passive: true });
+  window.addEventListener("blur", handleWindowBlur);
+  overlayState.listenerAttached = true;
+}
+
+function detachPointerListener(): void {
+  if (!overlayState.listenerAttached || typeof document === "undefined") return;
+  document.removeEventListener("mousemove", handlePointerMove);
+  window.removeEventListener("blur", handleWindowBlur);
+  overlayState.listenerAttached = false;
+  if (overlayState.rafId !== null) {
+    window.cancelAnimationFrame(overlayState.rafId);
+    overlayState.rafId = null;
+  }
+}
+
+function updateOverlay(event?: MouseEvent | PointerEvent): void {
+  if (!isMac()) return;
+
+  const desiredType = overlayState.lockedType ?? overlayState.hoverType;
+  if (!desiredType) {
+    const root = overlayState.root;
+    if (root) {
+      root.style.display = "none";
+    }
+    overlayState.activeType = null;
+    setBodyCursorHidden(false);
+    detachPointerListener();
+    return;
+  }
+
+  const root = ensureOverlayRoot();
+  if (!root) return;
+
+  const settings = cachedSettings ?? getDefaultCursorSettings();
+  const renderKey = `${desiredType}|${settings.size}|${settings.base_size}|${settings.fill_color}|${settings.outline_color}`;
+
+  if (overlayState.renderKey !== renderKey) {
+    const { svg, cursorSize, hotspot } = createCursorSvgMarkup(
+      desiredType,
+      settings
+    );
+    root.innerHTML = svg;
+    root.style.width = `${cursorSize}px`;
+    root.style.height = `${cursorSize}px`;
+    overlayState.hotspot = hotspot;
+    overlayState.renderKey = renderKey;
+  }
+
+  overlayState.activeType = desiredType;
+  root.style.display = "block";
+  setBodyCursorHidden(true);
+  attachPointerListener();
+
+  if (event) {
+    overlayState.lastPointer = { x: event.clientX, y: event.clientY };
+    applyOverlayPosition();
+  } else {
+    scheduleOverlayPosition();
+  }
+}
+
+function refreshOverlayAppearance(): void {
+  if (!overlayState.hoverType && !overlayState.lockedType) {
+    return;
+  }
+  updateOverlay();
 }
 
 /**
@@ -136,12 +323,9 @@ export async function initializeCursorSystem(): Promise<void> {
       const cursorUrl = createCursorSvg(type, cachedSettings);
       cachedCursors.set(type, cursorUrl);
     }
+    applyCursorCssVariables(cachedCursors);
+    refreshOverlayAppearance();
 
-    console.log("[Cursor] System initialized with settings:", {
-      size: cachedSettings.size,
-      fillColor: cachedSettings.fill_color,
-      outlineColor: cachedSettings.outline_color,
-    });
   })();
 
   return initPromise;
@@ -157,6 +341,39 @@ export async function refreshCursorSettings(): Promise<void> {
 }
 
 /**
+ * macOS 커스텀 커서 오버레이를 호버 상태로 표시합니다.
+ */
+export function setCustomCursorHover(
+  cursorType: CursorType | null,
+  event?: MouseEvent | PointerEvent
+): void {
+  if (!isMac()) return;
+  overlayState.hoverType = cursorType;
+  updateOverlay(event);
+}
+
+/**
+ * macOS 커스텀 커서를 잠금(드래그 중) 상태로 고정합니다.
+ */
+export function lockCustomCursor(
+  cursorType: CursorType,
+  event?: MouseEvent | PointerEvent
+): void {
+  if (!isMac()) return;
+  overlayState.lockedType = cursorType;
+  updateOverlay(event);
+}
+
+/**
+ * macOS 커스텀 커서 잠금을 해제합니다.
+ */
+export function unlockCustomCursor(event?: MouseEvent | PointerEvent): void {
+  if (!isMac()) return;
+  overlayState.lockedType = null;
+  updateOverlay(event);
+}
+
+/**
  * 플랫폼에 맞는 커서 스타일을 반환합니다.
  * - macOS: 시스템 설정을 반영한 커스텀 SVG 커서
  * - Windows/Linux: 기본 CSS 커서
@@ -166,12 +383,7 @@ export function getCursor(cursorType: CursorType): string {
     return cursorType;
   }
 
-  // 초기화 전이면 기본 fallback 반환
-  if (!cachedCursors) {
-    return cursorType;
-  }
-
-  return cachedCursors.get(cursorType) || cursorType;
+  return `var(${cursorVarName(cursorType)}, ${cursorType})`;
 }
 
 /**

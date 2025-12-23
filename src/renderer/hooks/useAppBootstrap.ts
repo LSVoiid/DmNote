@@ -179,9 +179,7 @@ export function useAppBootstrap() {
       applyCounterSnapshot(bootstrap.keyCounters);
 
       // macOS 커서 시스템 초기화 (시스템 설정 반영)
-      initializeCursorSystem().catch((err) => {
-        console.warn("[Bootstrap] Failed to initialize cursor system:", err);
-      });
+      initializeCursorSystem().catch(() => {});
 
       finalizeBootstrap();
     })();
@@ -263,9 +261,7 @@ export function useAppBootstrap() {
     ];
 
     const handleWindowFocus = () => {
-      refreshCursorSettings().catch((err) => {
-        console.warn("[Cursor] Failed to refresh cursor settings:", err);
-      });
+      refreshCursorSettings().catch(() => {});
     };
     window.addEventListener("focus", handleWindowFocus);
     unsubscribers.push(() => window.removeEventListener("focus", handleWindowFocus));
