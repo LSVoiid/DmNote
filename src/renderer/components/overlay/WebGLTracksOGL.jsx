@@ -156,8 +156,9 @@ const fragmentShader = `
   varying float vNoteBottomY;
 
   void main() {
-    // gl_FragCoord is in physical pixels when DPR > 1 (e.g., macOS Retina).
+    // gl_FragCoord is in physical pixels on high-DPI displays (DPR > 1, e.g., macOS Retina).
     // Convert to CSS pixels so it matches DOM-based track coordinates.
+    // max(uDpr, 1.0) also guards against uDpr being 0.0 or an invalid value.
     float currentDOMY = uScreenHeight - (gl_FragCoord.y / max(uDpr, 1.0));
     float trackHeight = max(vTrackBottomY - vTrackTopY, 0.0001);
     float gradientRatio = clamp((currentDOMY - vTrackTopY) / trackHeight, 0.0, 1.0);
