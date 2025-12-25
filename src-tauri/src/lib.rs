@@ -1,8 +1,10 @@
 pub mod app_state;
 pub mod commands;
+pub mod cursor;
 pub mod defaults;
 pub mod keyboard;
 pub mod keyboard_daemon;
+#[cfg(target_os = "windows")]
 pub mod keyboard_labels;
 pub mod ipc;
 pub mod models;

@@ -1,7 +1,9 @@
 import React, { memo, useMemo, useCallback, useRef, useEffect } from "react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getKeySignal } from "@stores/keySignals";
 import { getKeyCounterSignal } from "@stores/keyCounterSignals";
 import { useSignals } from "@preact/signals-react/runtime";
+import { isMac } from "@utils/platform";
 import { useDraggable } from "@hooks/Grid";
 import { getKeyInfoByGlobalKey } from "@utils/KeyMaps";
 import { GRID_SNAP } from "@hooks/Grid/constants";
@@ -40,6 +42,7 @@ export default function DraggableKey({
   panY = 0,
   zIndex = 0,
 }) {
+  const macOS = isMac();
   const { displayName } = getKeyInfoByGlobalKey(keyName);
   const {
     dx,
@@ -350,7 +353,8 @@ export default function DraggableKey({
 
   const handleClick = (e) => {
     // Ctrl+클릭으로 선택 토글 (선택 모드에서도 동작해야 함 - 선택 해제용)
-    if (e.ctrlKey && onCtrlClick) {
+    const isPrimaryModifierPressed = macOS ? e.metaKey : e.ctrlKey;
+    if (isPrimaryModifierPressed && onCtrlClick) {
       e.stopPropagation();
       onCtrlClick(e);
       return;
@@ -663,11 +667,22 @@ export const Key = memo(
       );
     };
 
+    // macOS 용 오버레이 드래그 핸들러
+    const handleKeyMouseDown = useCallback((e) => {
+      if (!isMac()) return;
+
+      if (e.buttons === 1) {
+        getCurrentWindow().startDragging();
+      }
+    }, []);
+
     return (
       <div
+        data-tauri-drag-region
         className={`absolute ${className || ""}`}
         style={keyStyle}
         data-state={active ? "active" : "inactive"}
+        onMouseDown={handleKeyMouseDown}
       >
         {currentImage ? (
           <img src={currentImage} alt="" style={imageStyle} draggable={false} />

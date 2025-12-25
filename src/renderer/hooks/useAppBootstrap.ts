@@ -6,8 +6,9 @@ import {
 } from "@stores/useSettingsStore";
 import { applyCounterSnapshot, setKeyCounter } from "@stores/keyCounterSignals";
 import { getUndoRedoInProgress } from "@api/pluginDisplayElements";
-import type { SettingsDiff } from "@src/types/settings";
+import { DEFAULT_GRID_SETTINGS, type SettingsDiff } from "@src/types/settings";
 import type { OverlayResizeAnchor } from "@src/types/settings";
+import { initializeCursorSystem, refreshCursorSettings } from "@utils/cursorUtils";
 import type { CustomJs, JsPlugin } from "@src/types/js";
 
 function clonePlugins(source?: CustomJs | null): JsPlugin[] {
@@ -166,6 +167,7 @@ export function useAppBootstrap() {
           (bootstrap.settings as any).developerModeEnabled ?? false,
         overlayResizeAnchor: bootstrap.settings.overlayResizeAnchor,
         keyCounterEnabled: bootstrap.settings.keyCounterEnabled,
+        gridSettings: bootstrap.settings.gridSettings ?? DEFAULT_GRID_SETTINGS,
       });
       useKeyStore.setState((state) => ({
         ...state,
@@ -175,6 +177,10 @@ export function useAppBootstrap() {
         selectedKeyType: bootstrap.selectedKeyType,
       }));
       applyCounterSnapshot(bootstrap.keyCounters);
+
+      // macOS 커서 시스템 초기화 (시스템 설정 반영)
+      initializeCursorSystem().catch(() => {});
+
       finalizeBootstrap();
     })();
 
@@ -253,6 +259,12 @@ export function useAppBootstrap() {
         }
       }),
     ];
+
+    const handleWindowFocus = () => {
+      refreshCursorSettings().catch(() => {});
+    };
+    window.addEventListener("focus", handleWindowFocus);
+    unsubscribers.push(() => window.removeEventListener("focus", handleWindowFocus));
 
     return () => {
       disposed = true;

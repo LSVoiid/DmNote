@@ -61,6 +61,17 @@ impl AppStore {
             store.persist_locked(&snapshot)?;
         }
 
+        // macOS: WKWebView uses Metal; keep the setting explicit in store.json.
+        #[cfg(target_os = "macos")]
+        {
+            let should_force = store.state.read().angle_mode != "metal";
+            if should_force {
+                store.update(|state| {
+                    state.angle_mode = "metal".to_string();
+                })?;
+            }
+        }
+
         Ok(store)
     }
 

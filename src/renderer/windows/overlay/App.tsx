@@ -7,6 +7,8 @@ import React, {
   useRef,
   useCallback,
 } from "react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { isMac } from "@utils/platform";
 import { Key } from "@components/Key";
 import { DEFAULT_NOTE_SETTINGS } from "@constants/overlayConfig";
 import { useCustomCssInjection } from "@hooks/useCustomCssInjection";
@@ -69,6 +71,7 @@ export default function App() {
   useCustomJsInjection();
   useAppBootstrap();
   useBlockBrowserShortcuts();
+  const macOS = isMac();
   const developerModeEnabled = useSettingsStore(
     (state) => state.developerModeEnabled
   );
@@ -460,15 +463,38 @@ export default function App() {
       });
   }, [bounds, trackHeight, overlayAnchor]);
 
+  // macOS용 오버레이 드래그 핸들러
+  const handleOverlayMouseDown = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (!isMac()) return;
+
+      // 기본 (왼쪽) 버튼에서만 드래그 시작
+      if (e.buttons === 1) {
+        getCurrentWindow().startDragging();
+      }
+    },
+    []
+  );
+
   return (
     <div
+      data-tauri-drag-region
       className="relative w-full h-screen m-0 overflow-hidden [app-region:drag]"
       style={{
         backgroundColor:
           backgroundColor === "transparent" ? "transparent" : backgroundColor,
-        willChange: "contents",
-        contain: "layout style paint",
+        ...(macOS
+          ? {
+              // macOS(WebKit)에서 투명 전환 시 'contents' will-change + 강한 contain 조합이
+              // 레이어 재구성을 유발해 반영이 늦어지는 케이스가 있어 완화.
+              willChange: "background-color",
+            }
+          : {
+              willChange: "contents",
+              contain: "layout style paint",
+            }),
       }}
+      onMouseDown={handleOverlayMouseDown}
     >
       {noteEffect && (
         <Suspense fallback={null}>

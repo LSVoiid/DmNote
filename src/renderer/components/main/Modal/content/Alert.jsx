@@ -42,7 +42,11 @@ export default function Alert({
   }, []);
 
   // Lenis smooth scroll 적용 (onScroll 콜백으로 그림자 업데이트)
-  const { scrollContainerRef: scrollRef, wrapperElement } = useLenis({
+  const {
+    scrollContainerRef: scrollRef,
+    wrapperElement,
+    scrollbarWidth,
+  } = useLenis({
     onScroll: () => updateScrollState(wrapperElement),
   });
 
@@ -53,6 +57,10 @@ export default function Alert({
       return () => clearTimeout(timer);
     }
   }, [isCustom, message, wrapperElement, updateScrollState]);
+
+  const hasOverflow =
+    !!wrapperElement &&
+    wrapperElement.scrollHeight > wrapperElement.clientHeight + 1;
 
   return (
     <Modal onClick={onCancel}>
@@ -73,6 +81,20 @@ export default function Alert({
             <div
               ref={scrollRef}
               className="max-h-[244px] overflow-y-auto modal-content-scroll pr-[14px] text-center text-[#FFFFFF]"
+              style={{
+                width:
+                  hasOverflow && scrollbarWidth > 0
+                    ? `calc(100% + ${scrollbarWidth}px)`
+                    : undefined,
+                transform:
+                  hasOverflow && scrollbarWidth > 0
+                    ? `translateX(-${scrollbarWidth}px)`
+                    : undefined,
+                paddingLeft:
+                  hasOverflow && scrollbarWidth > 0
+                    ? `${scrollbarWidth}px`
+                    : undefined,
+              }}
               dangerouslySetInnerHTML={{ __html: message }}
             />
 

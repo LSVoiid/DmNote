@@ -5,3 +5,4 @@ dist
 AGENTS.md
 copilot-instructions.md
 src-tauri/target
+.DS_Store

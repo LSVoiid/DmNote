@@ -2,9 +2,11 @@
 
 mod app_state;
 mod commands;
+mod cursor;
 mod defaults;
 mod keyboard;
 mod keyboard_daemon;
+#[cfg(target_os = "windows")]
 mod keyboard_labels;
 mod ipc;
 mod models;
@@ -13,7 +15,10 @@ mod store;
 
 use anyhow::Result;
 use log::LevelFilter;
-use std::{fs, path::PathBuf, thread, time::Duration};
+use std::{thread, time::Duration};
+
+#[cfg(target_os = "windows")]
+use std::{fs, path::PathBuf};
 
 use tauri::{ipc::CapabilityBuilder, LogicalSize, Manager, PhysicalPosition, Position};
 
@@ -134,6 +139,7 @@ fn main() {
             commands::system::app_open_external,
             commands::system::app_restart,
             commands::system::window_open_devtools_all,
+            commands::system::get_cursor_settings,
         ])
         .run(context)
         .expect("error while running tauri application");
@@ -270,8 +276,14 @@ fn apply_main_window_configuration(
         log::debug!("failed to hide main window before configuration: {err}");
     }
 
-    if let Err(err) = window.set_decorations(false) {
-        log::warn!("failed to disable decorations: {err}");
+    if cfg!(target_os = "windows") {
+        if let Err(err) = window.set_decorations(false) {
+            log::warn!("failed to disable decorations: {err}");
+        }
+    } else if cfg!(target_os = "macos") {
+        if let Err(err) = window.set_decorations(true) {
+            log::warn!("failed to enable decorations: {err}");
+        }
     }
     if let Err(err) = window.set_resizable(false) {
         log::warn!("failed to disable resizing: {err}");

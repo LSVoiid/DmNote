@@ -91,6 +91,7 @@ const UnifiedKeySetting: React.FC<UnifiedKeySettingProps> = ({
     hasTopShadow: false,
     hasBottomShadow: false,
   });
+  const [hasOverflow, setHasOverflow] = React.useState(false);
   // 탭 전환 시 그림자 애니메이션 스킵 여부 (깜빡임 방지)
   const [skipShadowTransition, setSkipShadowTransition] = React.useState(false);
   // 컨테이너 높이 (애니메이션용)
@@ -122,6 +123,7 @@ const UnifiedKeySetting: React.FC<UnifiedKeySettingProps> = ({
     scrollContainerRef: scrollRef,
     wrapperElement,
     lenisInstance,
+    scrollbarWidth,
   } = useLenis({
     onScroll: () => updateScrollState(wrapperElement),
   });
@@ -163,6 +165,10 @@ const UnifiedKeySetting: React.FC<UnifiedKeySettingProps> = ({
         const contentHeight = contentEl.scrollHeight;
         const maxHeight = 195;
         setContainerHeight(Math.min(contentHeight, maxHeight));
+        const nextHasOverflow = contentHeight > maxHeight;
+        setHasOverflow((prev) =>
+          prev === nextHasOverflow ? prev : nextHasOverflow
+        );
       }
     };
 
@@ -282,7 +288,9 @@ const UnifiedKeySetting: React.FC<UnifiedKeySettingProps> = ({
         <div className="relative">
           {/* 상단 그림자 */}
           <div
-            className={`absolute top-0 left-0 right-[14px] h-[10px] bg-gradient-to-b from-[#1A191E] to-transparent pointer-events-none z-10 ${
+            className={`absolute top-0 left-0 ${
+              hasOverflow ? "right-[14px]" : "right-0"
+            } h-[10px] bg-gradient-to-b from-[#1A191E] to-transparent pointer-events-none z-10 ${
               skipShadowTransition ? "" : "transition-opacity duration-150"
             } ${scrollState.hasTopShadow ? "opacity-100" : "opacity-0"}`}
           />
@@ -294,6 +302,18 @@ const UnifiedKeySetting: React.FC<UnifiedKeySettingProps> = ({
               height:
                 containerHeight !== null ? `${containerHeight}px` : "auto",
               maxHeight: "195px",
+              width:
+                hasOverflow && scrollbarWidth > 0
+                  ? `calc(100% + ${scrollbarWidth}px)`
+                  : undefined,
+              transform:
+                hasOverflow && scrollbarWidth > 0
+                  ? `translateX(-${scrollbarWidth}px)`
+                  : undefined,
+              paddingLeft:
+                hasOverflow && scrollbarWidth > 0
+                  ? `${scrollbarWidth}px`
+                  : undefined,
               transition: isFirstRender.current
                 ? "none"
                 : "height 100ms ease-in-out",
@@ -304,7 +324,9 @@ const UnifiedKeySetting: React.FC<UnifiedKeySettingProps> = ({
 
           {/* 하단 그림자 */}
           <div
-            className={`absolute bottom-0 left-0 right-[14px] h-[10px] bg-gradient-to-t from-[#1A191E] to-transparent pointer-events-none z-10 ${
+            className={`absolute bottom-0 left-0 ${
+              hasOverflow ? "right-[14px]" : "right-0"
+            } h-[10px] bg-gradient-to-t from-[#1A191E] to-transparent pointer-events-none z-10 ${
               skipShadowTransition ? "" : "transition-opacity duration-150"
             } ${scrollState.hasBottomShadow ? "opacity-100" : "opacity-0"}`}
           />

@@ -12,6 +12,7 @@
           "window_minimize",
           "window_close",
           "window_open_devtools_all",
+          "get_cursor_settings",
           "settings_get",
           "settings_update",
           "overlay_get",

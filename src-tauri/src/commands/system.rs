@@ -1,6 +1,7 @@
 use tauri::{AppHandle, Manager, State};
 
 use crate::app_state::AppState;
+use crate::cursor::{get_macos_cursor_settings, rgb_to_hex};
 
 #[tauri::command(permission = "dmnote-allow-all")]
 pub fn window_minimize(app: AppHandle) -> Result<(), String> {
@@ -48,4 +49,44 @@ pub fn window_open_devtools_all(app: AppHandle) -> Result<(), String> {
         let _ = overlay.show();
     }
     Ok(())
+}
+
+/// macOS 시스템 커서 설정 반환 (크기, 색상)
+/// 비-macOS 플랫폼에서는 기본값 반환
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct CursorSettingsResponse {
+    /// 커서 크기 배율 (1.0 ~ 4.0)
+    pub size: f64,
+    /// 커서 기본 픽셀 크기 (24px - macOS 기본 커서 크기)
+    pub base_size: u32,
+    /// 커서 채우기 색상 (HEX)
+    pub fill_color: String,
+    /// 커서 테두리 색상 (HEX)
+    pub outline_color: String,
+    /// macOS 플랫폼 여부
+    pub is_macos: bool,
+}
+
+#[tauri::command(permission = "dmnote-allow-all")]
+pub fn get_cursor_settings() -> CursorSettingsResponse {
+    let settings = get_macos_cursor_settings();
+    
+    let fill_color = settings.fill_color
+        .map(rgb_to_hex)
+        .unwrap_or_else(|| "#000000".to_string());
+    
+    let outline_color = settings.outline_color
+        .map(rgb_to_hex)
+        .unwrap_or_else(|| "#FFFFFF".to_string());
+    
+    CursorSettingsResponse {
+        size: settings.size,
+        base_size: 24,
+        fill_color,
+        outline_color,
+        #[cfg(target_os = "macos")]
+        is_macos: true,
+        #[cfg(not(target_os = "macos"))]
+        is_macos: false,
+    }
 }

@@ -8,6 +8,12 @@ import {
   calculateSnapPoints,
   calculateSizeSnap,
 } from "@utils/smartGuides";
+import {
+  getCursor,
+  lockCustomCursor,
+  setCustomCursorHover,
+  unlockCustomCursor,
+} from "@utils/cursorUtils";
 
 /**
  * 다중 선택 시 그룹 전체를 감싸는 리사이즈 핸들을 표시하는 컴포넌트
@@ -102,6 +108,9 @@ function Handle({ handle, centerX, centerY, onMouseDown }) {
   const hitX = centerX - HANDLE_HIT_HALF;
   const hitY = centerY - HANDLE_HIT_HALF;
 
+  // 플랫폼에 따른 커서 스타일 적용 (macOS는 커스텀 SVG, Windows/Linux는 기본 CSS)
+  const cursorStyle = getCursor(handle.cursor);
+
   return (
     <div
       style={{
@@ -110,7 +119,7 @@ function Handle({ handle, centerX, centerY, onMouseDown }) {
         top: hitY,
         width: HANDLE_HIT_SIZE,
         height: HANDLE_HIT_SIZE,
-        cursor: handle.cursor,
+        cursor: cursorStyle,
         zIndex: 25,
         backgroundColor: "transparent",
         display: "flex",
@@ -118,8 +127,14 @@ function Handle({ handle, centerX, centerY, onMouseDown }) {
         justifyContent: "center",
       }}
       onMouseDown={(e) => onMouseDown(e, handle)}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      onMouseEnter={(e) => {
+        setIsHovered(true);
+        setCustomCursorHover(handle.cursor, e);
+      }}
+      onMouseLeave={(e) => {
+        setIsHovered(false);
+        setCustomCursorHover(null, e);
+      }}
     >
       <div style={getHandleStyle(handle.type, isHovered)} />
     </div>
@@ -282,6 +297,7 @@ export default function GroupResizeHandles({
     (e, handle) => {
       e.preventDefault();
       e.stopPropagation();
+      lockCustomCursor(handle.cursor, e);
 
       if (!groupData) return;
 
@@ -662,6 +678,7 @@ export default function GroupResizeHandles({
         document.removeEventListener("mousemove", handleMouseMove);
         document.removeEventListener("mouseup", handleMouseUp);
         window.removeEventListener("blur", handleMouseUp);
+        unlockCustomCursor();
         onGroupResizeEnd?.();
       };
 

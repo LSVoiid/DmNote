@@ -137,6 +137,7 @@ const fragmentShader = `
   precision highp float;
 
   uniform float uScreenHeight;
+  uniform float uDpr;
   uniform float uFadePosition;
 
   varying vec4 vColorTop;
@@ -155,7 +156,10 @@ const fragmentShader = `
   varying float vNoteBottomY;
 
   void main() {
-    float currentDOMY = uScreenHeight - gl_FragCoord.y;
+    // gl_FragCoord is in physical pixels on high-DPI displays (DPR > 1, e.g., macOS Retina).
+    // Convert to CSS pixels so it matches DOM-based track coordinates.
+    // max(uDpr, 1.0) also guards against uDpr being 0.0 or an invalid value.
+    float currentDOMY = uScreenHeight - (gl_FragCoord.y / max(uDpr, 1.0));
     float trackHeight = max(vTrackBottomY - vTrackTopY, 0.0001);
     float gradientRatio = clamp((currentDOMY - vTrackTopY) / trackHeight, 0.0, 1.0);
     float trackRelativeY = gradientRatio;
@@ -345,6 +349,7 @@ export const WebGLTracksOGL = memo(
           uTime: { value: 0 },
           uFlowSpeed: { value: noteSettings.speed || 180 },
           uScreenHeight: { value: window.innerHeight },
+          uDpr: { value: window.devicePixelRatio || 1 },
           uTrackHeight: { value: noteSettings.trackHeight || 150 },
           uReverse: { value: noteSettings.reverse ? 1.0 : 0.0 },
           uFadePosition: {
@@ -459,6 +464,9 @@ export const WebGLTracksOGL = memo(
       const handleResize = () => {
         const width = window.innerWidth;
         const height = window.innerHeight;
+        const dpr = window.devicePixelRatio || 1;
+        // Keep renderer/program in sync when moving between monitors with different DPR.
+        renderer.dpr = dpr;
         renderer.setSize(width, height);
         if (cameraRef.current) {
           cameraRef.current.left = 0;
@@ -469,6 +477,7 @@ export const WebGLTracksOGL = memo(
         }
         if (programRef.current) {
           programRef.current.uniforms.uScreenHeight.value = height;
+          programRef.current.uniforms.uDpr.value = dpr;
         }
       };
 

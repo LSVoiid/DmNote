@@ -214,7 +214,7 @@ export default function App() {
       }
       // 모달이 열려있으면 탭 전환 차단
       const hasModal = document.querySelector(
-        ".fixed.top-\\[31px\\].left-\\[1px\\]"
+        "[data-dmn-modal-backdrop='true']"
       );
       if (hasModal) return;
 

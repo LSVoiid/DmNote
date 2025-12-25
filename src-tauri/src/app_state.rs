@@ -21,7 +21,6 @@ use tauri::{
 use tauri_runtime_wry::wry::dpi::{LogicalPosition, LogicalSize};
 
 use crate::{
-    ipc,
     keyboard::KeyboardManager,
     models::{
         overlay_resize_anchor_from_str, BootstrapOverlayState, BootstrapPayload, KeyCounters,
@@ -364,7 +363,7 @@ impl AppState {
             use std::sync::mpsc;
             let (tx, rx) = mpsc::channel();
             std::thread::spawn(move || {
-                match ipc::pipe_server_create("dmnote_keys_v1") {
+                match crate::ipc::pipe_server_create("dmnote_keys_v1") {
                     Ok(f) => { let _ = tx.send(Some(f)); }
                     Err(err) => { warn!("failed to create named pipe: {err}"); let _ = tx.send(None); }
                 }
@@ -372,7 +371,7 @@ impl AppState {
             Some(rx)
         };
         #[cfg(not(target_os = "windows"))]
-        let pipe_receiver: Option<std::sync::mpsc::Receiver<Option<std::fs::File>>> = None;
+        let _pipe_receiver: Option<std::sync::mpsc::Receiver<Option<std::fs::File>>> = None;
         let mut child = Command::new(current_exe)
             .arg("--keyboard-daemon")
             .stdin(Stdio::null())
@@ -680,25 +679,40 @@ impl AppState {
             bounds_are_logical = true;
         }
 
-        let window = WebviewWindowBuilder::new(
-            app,
-            OVERLAY_LABEL,
-            WebviewUrl::App("overlay/index.html".into()),
-        )
-        .title("DM Note - Overlay")
-        .decorations(false)
-        .resizable(false)
-        .maximizable(false)
-        .transparent(true)
-        .always_on_top(true)
-        .skip_taskbar(false)
-        .visible(true)
-        .inner_size(bounds.width, bounds.height)
-        .position(bounds.x, bounds.y)
-        .shadow(false)
-        .devtools(true)
-        .build()
-        .context("failed to create overlay window")?;
+        let window_builder = {
+            let window_builder = WebviewWindowBuilder::new(
+                app,
+                OVERLAY_LABEL,
+                WebviewUrl::App("overlay/index.html".into()),
+            )
+            .title("DM Note - Overlay")
+            .decorations(false)
+            .resizable(false)
+            .maximizable(false);
+
+            let window_builder = window_builder.transparent(true);
+
+            window_builder
+        };
+
+        let window = window_builder
+            .always_on_top(true)
+            .skip_taskbar(false)
+            .visible(true)
+            .inner_size(bounds.width, bounds.height)
+            .position(bounds.x, bounds.y)
+            .shadow(false)
+            .devtools(true)
+            .build()
+            .context("failed to create overlay window")?;
+
+        // macOS에서 오버레이 창이 앱 포커스를 빼앗지 않도록 설정
+        #[cfg(target_os = "macos")]
+        {
+            if let Err(err) = window.set_focusable(false) {
+                log::warn!("failed to set overlay non-focusable on macOS: {err}");
+            }
+        }
 
         // Windows에서 오버레이 창이 포커스를 받지 않도록 설정
         #[cfg(target_os = "windows")]
@@ -1081,7 +1095,14 @@ fn show_overlay_window(window: &WebviewWindow) -> Result<()> {
         }
         Ok(())
     }
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(target_os = "macos")]
+    {
+        // Ensure the overlay does not become key/main window when shown.
+        let _ = window.set_focusable(false);
+        window.show()?;
+        Ok(())
+    }
+    #[cfg(all(not(target_os = "windows"), not(target_os = "macos")))]
     {
         window.show()?;
         Ok(())

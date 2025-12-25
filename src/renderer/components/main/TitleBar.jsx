@@ -2,8 +2,10 @@ import React from "react";
 import Close from "@assets/svgs/close.svg";
 import Minimize from "@assets/svgs/minimize.svg";
 import Logo from "@assets/svgs/logo.svg";
+import { isMac } from "@utils/platform";
 
 export default function TitleBar() {
+  const isMacOS = isMac();
   const handleMinimize = () => {
     window.api.window.minimize();
   };
@@ -24,24 +26,26 @@ export default function TitleBar() {
           DM NOTE
         </div>
       </div>
-      <div
-        data-tauri-drag-region="false"
-        className="absolute right-0 flex h-full [app-region:no-drag]"
-        style={{ WebkitAppRegion: "no-drag" }}
-      >
-        <button
-          onClick={handleMinimize}
-          className="w-[36px] h-full flex justify-center items-center hover:bg-[#21232B] active:bg-[#282B35] transition-colors"
+      {!isMacOS && (
+        <div
+          data-tauri-drag-region="false"
+          className="absolute right-0 flex h-full [app-region:no-drag]"
+          style={{ WebkitAppRegion: "no-drag" }}
         >
-          <Minimize className="scale-[0.8] pointer-events-none" />
-        </button>
-        <button
-          onClick={handleClose}
-          className="w-[36px] h-full flex justify-center items-center hover:bg-[#501D1E] active:bg-[#5A2829] transition-colors rounded-tr-[6px]"
-        >
-          <Close className="scale-[0.7] pointer-events-none" />
-        </button>
-      </div>
+          <button
+            onClick={handleMinimize}
+            className="w-[36px] h-full flex justify-center items-center hover:bg-[#21232B] active:bg-[#282B35] transition-colors"
+          >
+            <Minimize className="scale-[0.8] pointer-events-none" />
+          </button>
+          <button
+            onClick={handleClose}
+            className="w-[36px] h-full flex justify-center items-center hover:bg-[#501D1E] active:bg-[#5A2829] transition-colors rounded-tr-[6px]"
+          >
+            <Close className="scale-[0.7] pointer-events-none" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

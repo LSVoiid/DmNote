@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
-use notify_debouncer_mini::{new_debouncer, DebouncedEventKind, Debouncer};
+use notify_debouncer_mini::{new_debouncer, Debouncer};
 use notify::RecommendedWatcher;
 use parking_lot::RwLock;
 use tauri::{AppHandle, Emitter};
@@ -102,10 +102,17 @@ impl CssWatcher {
                 match res {
                     Ok(events) => {
                         for event in events {
-                            if event.kind == DebouncedEventKind::Any {
-                                if let Err(err) = handle_css_change(&store, &app, &event.path) {
-                                    log::error!("Failed to handle CSS change: {}", err);
-                                }
+                            // 플랫폼/에디터에 따라 이벤트 kind가 Any가 아닐 수 있습니다.
+                            // (예: Write/Create/Rename 등) Any만 처리하면 macOS/Windows에서
+                            // 핫리로딩이 누락되는 케이스가 생길 수 있어 kind 필터를 두지 않습니다.
+                            log::debug!(
+                                "[CssWatcher] Debounced event: kind={:?}, path={:?}",
+                                event.kind,
+                                event.path
+                            );
+
+                            if let Err(err) = handle_css_change(&store, &app, &event.path) {
+                                log::error!("Failed to handle CSS change: {}", err);
                             }
                         }
                     }

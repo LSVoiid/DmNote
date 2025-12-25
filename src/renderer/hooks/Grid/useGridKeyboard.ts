@@ -13,6 +13,7 @@ import {
   type SelectedElement,
 } from "@stores/useGridSelectionStore";
 import { ARROW_KEY_HISTORY_DELAY } from "./constants";
+import { isMac } from "@utils/platform";
 
 interface UseGridKeyboardParams {
   selectedElements: SelectedElement[];
@@ -51,6 +52,7 @@ export function useGridKeyboard({
   onMoveBackward,
 }: UseGridKeyboardParams): void {
   const lastArrowKeyTime = useRef(0);
+  const macOS = isMac();
 
   // 선택 요소 키보드 조작
   useEffect(() => {
@@ -65,8 +67,10 @@ export function useGridKeyboard({
         return;
       }
 
+      const isPrimaryModifierPressed = macOS ? e.metaKey : e.ctrlKey;
+
       // Ctrl+C: 복사 (선택된 요소가 있을 때)
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "c") {
+      if (isPrimaryModifierPressed && e.key.toLowerCase() === "c") {
         if (selectedElements.length > 0) {
           e.preventDefault();
           copySelectedElements();
@@ -75,7 +79,7 @@ export function useGridKeyboard({
       }
 
       // Ctrl+V: 붙여넣기 (스토어에서 직접 클립보드 확인)
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "v") {
+      if (isPrimaryModifierPressed && e.key.toLowerCase() === "v") {
         const currentClipboard = useGridSelectionStore.getState().clipboard;
         if (currentClipboard.length > 0) {
           e.preventDefault();
@@ -174,15 +178,25 @@ export function useGridKeyboard({
         return;
       }
 
+      const isPrimaryModifierPressed = macOS ? e.metaKey : e.ctrlKey;
+
       // Ctrl+Z: Undo
-      if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === "z") {
+      if (
+        isPrimaryModifierPressed &&
+        !e.shiftKey &&
+        e.key.toLowerCase() === "z"
+      ) {
         e.preventDefault();
         if (canUndo && typeof onUndo === "function") {
           onUndo();
         }
       }
       // Ctrl+Shift+Z: Redo
-      else if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "z") {
+      else if (
+        isPrimaryModifierPressed &&
+        e.shiftKey &&
+        e.key.toLowerCase() === "z"
+      ) {
         e.preventDefault();
         if (canRedo && typeof onRedo === "function") {
           onRedo();
@@ -192,5 +206,5 @@ export function useGridKeyboard({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [canUndo, canRedo, onUndo, onRedo]);
+  }, [macOS, canUndo, canRedo, onUndo, onRedo]);
 }
