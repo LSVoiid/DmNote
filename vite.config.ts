@@ -17,6 +17,9 @@ export default defineConfig(() => {
     // Vite 개발 서버 루트: /main/index.html, /overlay/index.html 경로로 접근 가능
     root: windowsRoot,
     base: "./",
+    define: {
+      __APP_VERSION__: JSON.stringify(pkg.version),
+    },
     plugins: [
       preact(),
       svgr({
@@ -81,9 +84,6 @@ export default defineConfig(() => {
           overlay: path.resolve(windowsRoot, "overlay/index.html"),
         },
       },
-    },
-    define: {
-      __APP_VERSION__: JSON.stringify(pkg.version),
     },
   };
 });

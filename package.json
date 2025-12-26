@@ -10,7 +10,9 @@
     "type-check:watch": "tsc --noEmit --watch",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
-    "tauri:build:mac:universal": "tauri build --target universal-apple-darwin"
+    "tauri:build:mac:universal": "tauri build --target universal-apple-darwin",
+    "sync-version": "node scripts/sync-version.js",
+    "version": "npm run sync-version && git add src-tauri/tauri.conf.json src-tauri/Cargo.toml"
   },
   "authors": [
     {
