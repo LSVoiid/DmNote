@@ -123,6 +123,11 @@ dmn.plugin.defineElement({
     } = state;
     const safeMax = maxval > 0 ? maxval : 1;
     const graphColor = settings.graphColor || "#86EFAC";
+    const showMetrics = !!(
+      settings.showKps ||
+      settings.showAvg ||
+      settings.showMax
+    );
 
     // 그래프 렌더링
     const renderGraphContent = () => {
@@ -139,7 +144,9 @@ dmn.plugin.defineElement({
           ></div>`;
         });
         return html`<div
-          style="display: flex; align-items: flex-end; flex: 1; min-height: 50px; margin-top: 8px; padding: 4px; background: rgba(0, 0, 0, 0.3); border-radius: 4px; gap: 1px;"
+          style="display: flex; align-items: flex-end; flex: 1; min-height: 50px; margin-top: ${showMetrics
+            ? "4px"
+            : "0px"}; padding: 4px; background: rgba(0, 0, 0, 0.3); border-radius: 4px; gap: 1px;"
         >
           ${bars}
         </div>`;
@@ -168,7 +175,9 @@ dmn.plugin.defineElement({
 
         return html`
           <div
-            style="display: flex; align-items: flex-end; justify-content: space-between; flex: 1; min-height: 50px; margin-top: 8px; padding: 4px; background: rgba(0, 0, 0, 0.3); border-radius: 4px; gap: 1px; position: relative;"
+            style="display: flex; align-items: flex-end; justify-content: space-between; flex: 1; min-height: 50px; margin-top: ${showMetrics
+              ? "4px"
+              : "0px"}; padding: 4px; background: rgba(0, 0, 0, 0.3); border-radius: 4px; gap: 1px; position: relative;"
           >
             <svg
               width="100%"
@@ -247,54 +256,58 @@ dmn.plugin.defineElement({
         rel="stylesheet"
       />
       <div
-        style="background: rgba(17, 17, 20, 0.9); color: #fff; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 8px; width: 100%; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; backdrop-filter: blur(4px); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35); cursor: pointer; user-select: none; font-family: Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', sans-serif;"
+        style="background: rgba(17, 17, 20, 0.9); color: #fff; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 8px; width: 100%; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; cursor: pointer; user-select: none; font-family: Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', sans-serif;"
       >
-        <div
-          style="display: grid; width: 100%; grid-template-columns: 1fr auto; gap: 4px 8px; font-size: 12px; line-height: 1.3; flex-shrink: 0;"
-        >
-          ${settings.showKps
-            ? html`
-                <div style="display: contents;">
-                  <div style="color: #cbd5e1; white-space: nowrap;">
-                    ${t("metrics.kps")}
-                  </div>
-                  <div
-                    style="color: ${graphColor}; text-align: right; font-weight: 700;"
-                  >
-                    ${kps}
-                  </div>
-                </div>
-              `
-            : ""}
-          ${settings.showAvg
-            ? html`
-                <div style="display: contents;">
-                  <div style="color: #cbd5e1; white-space: nowrap;">
-                    ${t("metrics.avg")}
-                  </div>
-                  <div
-                    style="color: ${graphColor}; text-align: right; font-weight: 700;"
-                  >
-                    ${avg}
-                  </div>
-                </div>
-              `
-            : ""}
-          ${settings.showMax
-            ? html`
-                <div style="display: contents;">
-                  <div style="color: #cbd5e1; white-space: nowrap;">
-                    ${t("metrics.max")}
-                  </div>
-                  <div
-                    style="color: ${graphColor}; text-align: right; font-weight: 700;"
-                  >
-                    ${max}
-                  </div>
-                </div>
-              `
-            : ""}
-        </div>
+        ${showMetrics
+          ? html`
+              <div
+                style="display: grid; width: 100%; grid-template-columns: 1fr auto; gap: 4px 8px; font-size: 12px; line-height: 1.3; flex-shrink: 0;"
+              >
+                ${settings.showKps
+                  ? html`
+                      <div style="display: contents;">
+                        <div style="color: #cbd5e1; white-space: nowrap;">
+                          ${t("metrics.kps")}
+                        </div>
+                        <div
+                          style="color: ${graphColor}; text-align: right; font-weight: 700;"
+                        >
+                          ${kps}
+                        </div>
+                      </div>
+                    `
+                  : ""}
+                ${settings.showAvg
+                  ? html`
+                      <div style="display: contents;">
+                        <div style="color: #cbd5e1; white-space: nowrap;">
+                          ${t("metrics.avg")}
+                        </div>
+                        <div
+                          style="color: ${graphColor}; text-align: right; font-weight: 700;"
+                        >
+                          ${avg}
+                        </div>
+                      </div>
+                    `
+                  : ""}
+                ${settings.showMax
+                  ? html`
+                      <div style="display: contents;">
+                        <div style="color: #cbd5e1; white-space: nowrap;">
+                          ${t("metrics.max")}
+                        </div>
+                        <div
+                          style="color: ${graphColor}; text-align: right; font-weight: 700;"
+                        >
+                          ${max}
+                        </div>
+                      </div>
+                    `
+                  : ""}
+              </div>
+            `
+          : ""}
         ${renderGraphContent()}
       </div>
     `;
