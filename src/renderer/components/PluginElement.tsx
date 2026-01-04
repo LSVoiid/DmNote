@@ -427,6 +427,11 @@ export const PluginElement: React.FC<PluginElementProps> = ({
   // 선택된 상태면 선택 모드 활성화
   const isSelectionMode = isSelected;
 
+  // 드래그/리사이즈 중인 상태 (CSS 애니메이션 비활성화용, main 윈도우에서만)
+  const isDraggingOrResizing = useGridSelectionStore(
+    (state) => (windowType === "main" ? state.isDraggingOrResizing : false)
+  );
+
   // 드래그 지원 (main 윈도우에서만)
   const draggable = useDraggable({
     gridSize: GRID_SNAP,
@@ -475,6 +480,9 @@ export const PluginElement: React.FC<PluginElementProps> = ({
 
       // 드래그 시작 전 기존 스마트 가이드 클리어 (이전 드래그가 정상 종료되지 않은 경우 대비)
       useSmartGuidesStore.getState().clearGuides();
+
+      // 드래그 시작 시 애니메이션 비활성화
+      useGridSelectionStore.getState().setDraggingOrResizing(true);
 
       // 드래그 시작 시 히스토리 저장
       onMultiDragStart?.();
@@ -703,6 +711,8 @@ export const PluginElement: React.FC<PluginElementProps> = ({
         window.removeEventListener("blur", handleMouseUp);
         // 스마트 가이드 클리어
         useSmartGuidesStore.getState().clearGuides();
+        // 드래그 종료 시 애니메이션 복원
+        useGridSelectionStore.getState().setDraggingOrResizing(false);
         // 드래그 종료 시 오버레이 동기화
         onMultiDragEnd?.();
       };
@@ -1468,6 +1478,7 @@ export const PluginElement: React.FC<PluginElementProps> = ({
         data-plugin-element={element.fullId}
         data-plugin-id={element.pluginId}
         data-tauri-drag-region={windowType === "overlay" ? true : undefined}
+        data-editing={isDraggingOrResizing ? "true" : undefined}
         onClick={handleClick}
         onMouseDown={
           isSelectionMode

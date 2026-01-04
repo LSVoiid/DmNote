@@ -15,6 +15,7 @@ import { toCssRgba } from "@utils/colorUtils";
 import { useSmartGuidesElements } from "@hooks/Grid";
 import { useSmartGuidesStore } from "@stores/useSmartGuidesStore";
 import { useSettingsStore } from "@stores/useSettingsStore";
+import { useGridSelectionStore } from "@stores/useGridSelectionStore";
 import {
   calculateBounds,
   calculateSnapPoints,
@@ -57,6 +58,11 @@ export default function DraggableKey({
   // 스마트 가이드를 위한 다른 요소들의 bounds 가져오기
   const { getOtherElements } = useSmartGuidesElements();
 
+  // 드래그/리사이즈 중인 상태 (CSS 애니메이션 비활성화용)
+  const isDraggingOrResizing = useGridSelectionStore(
+    (state) => state.isDraggingOrResizing
+  );
+
   // 다중 선택 드래그 상태
   const multiDragRef = useRef({ isDragging: false, startX: 0, startY: 0 });
   const nodeRef = useRef(null);
@@ -96,6 +102,9 @@ export default function DraggableKey({
 
       // 드래그 시작 전 기존 스마트 가이드 클리어 (이전 드래그가 정상 종료되지 않은 경우 대비)
       useSmartGuidesStore.getState().clearGuides();
+
+      // 드래그 시작 시 애니메이션 비활성화
+      useGridSelectionStore.getState().setDraggingOrResizing(true);
 
       // 드래그 시작 시 히스토리 저장
       onMultiDragStart?.();
@@ -326,6 +335,8 @@ export default function DraggableKey({
         window.removeEventListener("blur", handleMouseUp);
         // 스마트 가이드 클리어
         useSmartGuidesStore.getState().clearGuides();
+        // 드래그 종료 시 애니메이션 복원
+        useGridSelectionStore.getState().setDraggingOrResizing(false);
         // 드래그 종료 시 오버레이 동기화
         onMultiDragEnd?.();
       };
@@ -449,6 +460,7 @@ export default function DraggableKey({
       } ${className || ""}`}
       style={keyStyle}
       data-state="inactive"
+      data-editing={isDraggingOrResizing ? "true" : undefined}
       onClick={handleClick}
       onMouseDown={isSelectionMode ? handleSelectionDragMouseDown : undefined}
       onContextMenu={handleContextMenu}

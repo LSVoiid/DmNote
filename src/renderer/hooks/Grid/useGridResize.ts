@@ -10,6 +10,7 @@ import {
   calculateSizeSnap,
 } from "@utils/smartGuides";
 import type { SelectedElement } from "@stores/useGridSelectionStore";
+import { useGridSelectionStore } from "@stores/useGridSelectionStore";
 import type { KeyPositions } from "@src/types/keys";
 import type { ElementBounds } from "@utils/smartGuides";
 
@@ -81,6 +82,9 @@ export function useGridResize({
 
     // 기존 스마트 가이드 클리어
     useSmartGuidesStore.getState().clearGuides();
+
+    // 리사이즈 시작 시 애니메이션 비활성화
+    useGridSelectionStore.getState().setDraggingOrResizing(true);
 
     const currentPositions = useKeyStore.getState().positions;
     const currentPluginElements =
@@ -525,6 +529,9 @@ export function useGridResize({
     // 스마트 가이드 클리어
     useSmartGuidesStore.getState().clearGuides();
 
+    // 리사이즈 종료 시 애니메이션 복원
+    useGridSelectionStore.getState().setDraggingOrResizing(false);
+
     // 최종 bounds를 실제 요소에 적용
     const finalBounds = finalBoundsRef.current;
     if (finalBounds && selectedElements.length === 1) {
@@ -591,6 +598,9 @@ export function useGridResize({
 
     // 스마트 가이드 클리어
     useSmartGuidesStore.getState().clearGuides();
+
+    // 리사이즈 종료 시 애니메이션 복원
+    useGridSelectionStore.getState().setDraggingOrResizing(false);
 
     const finalData = finalGroupBoundsRef.current;
     if (finalData && finalData.elementBounds.length > 0) {

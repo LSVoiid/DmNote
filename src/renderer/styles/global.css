@@ -281,3 +281,15 @@ body.dmn-custom-cursor,
 body.dmn-custom-cursor * {
   cursor: none !important;
 }
+
+/* 
+ * 드래그/리사이즈 중 애니메이션 비활성화
+ * 커스텀 CSS에서 transition이나 animation이 적용된 경우,
+ * 메인 창 그리드에서 키/플러그인 요소를 드래그하거나 크기 조절할 때
+ * 애니메이션이 적용되어 흐물흐물하게 움직이는 것을 방지
+ */
+[data-editing="true"],
+[data-editing="true"] * {
+  transition: none !important;
+  animation: none !important;
+}

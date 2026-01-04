@@ -40,6 +40,9 @@ interface GridSelectionState {
   // 미들 버튼 드래그 상태
   isMiddleButtonDragging: boolean;
 
+  // 드래그/리사이즈 중인 상태 (CSS 애니메이션 비활성화용)
+  isDraggingOrResizing: boolean;
+
   // Actions
   selectElement: (element: SelectedElement, addToSelection?: boolean) => void;
   toggleSelection: (element: SelectedElement) => void;
@@ -60,6 +63,9 @@ interface GridSelectionState {
   // 미들 버튼 드래그 Actions
   setMiddleButtonDragging: (isDragging: boolean) => void;
 
+  // 드래그/리사이즈 상태 설정
+  setDraggingOrResizing: (isDragging: boolean) => void;
+
   // 선택된 요소들 일괄 이동
   moveSelectedElements: (deltaX: number, deltaY: number) => void;
 }
@@ -71,6 +77,7 @@ export const useGridSelectionStore = create<GridSelectionState>((set, get) => ({
   marqueeStart: null,
   marqueeEnd: null,
   isMiddleButtonDragging: false,
+  isDraggingOrResizing: false,
 
   selectElement: (element, addToSelection = false) => {
     set((state) => {
@@ -166,6 +173,10 @@ export const useGridSelectionStore = create<GridSelectionState>((set, get) => ({
 
   setMiddleButtonDragging: (isDragging) => {
     set({ isMiddleButtonDragging: isDragging });
+  },
+
+  setDraggingOrResizing: (isDragging) => {
+    set({ isDraggingOrResizing: isDragging });
   },
 
   moveSelectedElements: (_deltaX, _deltaY) => {

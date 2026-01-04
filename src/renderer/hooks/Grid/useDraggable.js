@@ -160,6 +160,8 @@ export const useDraggable = ({
           // 실제 드래그가 시작될 때만 최적화 적용
           node.style.pointerEvents = "none";
           node.style.userSelect = "none";
+          // 드래그 시작 시 애니메이션 비활성화
+          useGridSelectionStore.getState().setDraggingOrResizing(true);
           // 드래그 시작 콜백 호출 (히스토리 저장용)
           onDragStart?.();
 
@@ -333,6 +335,8 @@ export const useDraggable = ({
           node.style.cursor = "grab";
           node.style.pointerEvents = "auto";
           node.style.userSelect = "auto";
+          // 드래그 종료 시 애니메이션 복원
+          useGridSelectionStore.getState().setDraggingOrResizing(false);
 
           // 최종 위치만 부모에 커밋
           const { dx: finalDx, dy: finalDy } = lastSnappedRef.current;
