@@ -487,6 +487,7 @@ export default function GroupResizeHandles({
 
           // X축 스냅 적용
           if (
+            handle.dx !== 0 &&
             snapResult.didSnapX &&
             !(snapResult.didSpacingSnapX && !spacingGuidesEnabled)
           ) {
@@ -508,6 +509,7 @@ export default function GroupResizeHandles({
 
           // Y축 스냅 적용
           if (
+            handle.dy !== 0 &&
             snapResult.didSnapY &&
             !(snapResult.didSpacingSnapY && !spacingGuidesEnabled)
           ) {
@@ -556,9 +558,11 @@ export default function GroupResizeHandles({
 
           // 가이드라인 업데이트
           const hasAlignSnap =
-            (snapResult.didSnapX &&
+            (handle.dx !== 0 &&
+              snapResult.didSnapX &&
               !(snapResult.didSpacingSnapX && !spacingGuidesEnabled)) ||
-            (snapResult.didSnapY &&
+            (handle.dy !== 0 &&
+              snapResult.didSnapY &&
               !(snapResult.didSpacingSnapY && !spacingGuidesEnabled));
           const hasSizeSnap =
             sizeSnapResult &&
@@ -581,7 +585,57 @@ export default function GroupResizeHandles({
                 snapResult.spacingGuides &&
                 snapResult.spacingGuides.length > 0
               ) {
-                smartGuidesStore.setSpacingGuides(snapResult.spacingGuides);
+                // 핸들 방향에 따라 간격 가이드 필터링
+                const filteredSpacingGuides = snapResult.spacingGuides.filter(
+                  (guide) => {
+                    // 수평 방향 간격 가이드 (좌우 간격)
+                    if (guide.direction === "horizontal") {
+                      // 좌우 핸들이 아니면 표시 안 함
+                      if (handle.dx === 0) return false;
+                      
+                      // 드래그 중인 요소와 관련된 가이드만 표시
+                      const isDraggedElement = 
+                        guide.fromElementId === "group" || 
+                        guide.toElementId === "group";
+                      
+                      if (!isDraggedElement) return false;
+                      
+                      // 왼쪽 핸들(dx: -1): 왼쪽 간격만 표시
+                      if (handle.dx === -1) {
+                        return guide.toElementId === "group";
+                      }
+                      // 오른쪽 핸들(dx: 1): 오른쪽 간격만 표시
+                      if (handle.dx === 1) {
+                        return guide.fromElementId === "group";
+                      }
+                    }
+                    
+                    // 수직 방향 간격 가이드 (상하 간격)
+                    if (guide.direction === "vertical") {
+                      // 상하 핸들이 아니면 표시 안 함
+                      if (handle.dy === 0) return false;
+                      
+                      // 드래그 중인 요소와 관련된 가이드만 표시
+                      const isDraggedElement = 
+                        guide.fromElementId === "group" || 
+                        guide.toElementId === "group";
+                      
+                      if (!isDraggedElement) return false;
+                      
+                      // 위쪽 핸들(dy: -1): 위쪽 간격만 표시
+                      if (handle.dy === -1) {
+                        return guide.toElementId === "group";
+                      }
+                      // 아래쪽 핸들(dy: 1): 아래쪽 간격만 표시
+                      if (handle.dy === 1) {
+                        return guide.fromElementId === "group";
+                      }
+                    }
+                    
+                    return false;
+                  }
+                );
+                smartGuidesStore.setSpacingGuides(filteredSpacingGuides);
               } else {
                 smartGuidesStore.setSpacingGuides([]);
               }
