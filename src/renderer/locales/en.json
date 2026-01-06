@@ -333,6 +333,7 @@
     "className": "Class",
     "displayText": "Display Text",
     "displayTextPlaceholder": "Custom text",
+    "fontStyle": "Font Style",
     "openPanel": "Open Properties Panel",
     "closePanel": "Close Properties Panel"
   }

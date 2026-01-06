@@ -301,6 +301,103 @@ const SectionDivider: React.FC = () => (
 );
 
 // ============================================================================
+// 글꼴 스타일 아이콘
+// ============================================================================
+
+const BoldIcon: React.FC = () => (
+  <svg width="10" height="12" viewBox="0 0 10 12" fill="none">
+    <path d="M1 1H5.5C7.433 1 9 2.343 9 4C9 5.657 7.433 6 5.5 6H1V1Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
+    <path d="M1 6H6C8.209 6 9.5 7.343 9.5 9C9.5 10.657 8.209 11 6 11H1V6Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
+  </svg>
+);
+
+const ItalicIcon: React.FC = () => (
+  <svg width="8" height="12" viewBox="0 0 8 12" fill="none">
+    <line x1="3" y1="1" x2="7" y2="1" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+    <line x1="1" y1="11" x2="5" y2="11" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+    <line x1="5.5" y1="1" x2="2.5" y2="11" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+  </svg>
+);
+
+const UnderlineIcon: React.FC = () => (
+  <svg width="12" height="14" viewBox="0 0 12 14" fill="none">
+    <path d="M2 1V6C2 8.209 3.791 10 6 10C8.209 10 10 8.209 10 6V1" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+    <line x1="1" y1="13" x2="11" y2="13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+  </svg>
+);
+
+const StrikethroughIcon: React.FC = () => (
+  <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+    <path d="M3 3C3 1.895 4.343 1 6 1C7.657 1 9 1.895 9 3C9 4 8 4.5 6 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+    <path d="M6 7C8 7.5 9 8 9 9C9 10.105 7.657 11 6 11C4.343 11 3 10.105 3 9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+    <line x1="1" y1="6" x2="11" y2="6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+  </svg>
+);
+
+// 글꼴 스타일 토글 버튼 그룹
+interface FontStyleToggleProps {
+  isBold: boolean;
+  isItalic: boolean;
+  isUnderline: boolean;
+  isStrikethrough: boolean;
+  onBoldChange: (value: boolean) => void;
+  onItalicChange: (value: boolean) => void;
+  onUnderlineChange: (value: boolean) => void;
+  onStrikethroughChange: (value: boolean) => void;
+}
+
+const FontStyleToggle: React.FC<FontStyleToggleProps> = ({
+  isBold,
+  isItalic,
+  isUnderline,
+  isStrikethrough,
+  onBoldChange,
+  onItalicChange,
+  onUnderlineChange,
+  onStrikethroughChange,
+}) => {
+  const buttonClass = (active: boolean) =>
+    `w-[26px] h-[23px] flex items-center justify-center rounded-[5px] transition-colors ${
+      active
+        ? "bg-[#459BF8] text-white"
+        : "bg-[#2A2A30] text-[#6B6D75] hover:bg-[#32323A] hover:text-[#97999E]"
+    }`;
+
+  return (
+    <div className="flex items-center gap-[2px] bg-[#1F1F24] rounded-[7px] p-[2px] border border-[#3A3943]">
+      <button
+        onClick={() => onBoldChange(!isBold)}
+        className={buttonClass(isBold)}
+        title="Bold"
+      >
+        <BoldIcon />
+      </button>
+      <button
+        onClick={() => onItalicChange(!isItalic)}
+        className={buttonClass(isItalic)}
+        title="Italic"
+      >
+        <ItalicIcon />
+      </button>
+      <button
+        onClick={() => onUnderlineChange(!isUnderline)}
+        className={buttonClass(isUnderline)}
+        title="Underline"
+      >
+        <UnderlineIcon />
+      </button>
+      <button
+        onClick={() => onStrikethroughChange(!isStrikethrough)}
+        className={buttonClass(isStrikethrough)}
+        title="Strikethrough"
+      >
+        <StrikethroughIcon />
+      </button>
+    </div>
+  );
+};
+
+// ============================================================================
 // 아이콘 컴포넌트
 // ============================================================================
 
@@ -934,6 +1031,20 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                 value={singleKeyPosition.fontColor || "#717171"}
                 onChange={(color) => handleStyleChange("fontColor", color)}
                 onChangeComplete={(color) => handleStyleChangeComplete("fontColor", color)}
+              />
+            </PropertyRow>
+
+            {/* 글꼴 스타일 */}
+            <PropertyRow label={t("propertiesPanel.fontStyle") || "글꼴 스타일"}>
+              <FontStyleToggle
+                isBold={(singleKeyPosition.fontWeight ?? 700) >= 700}
+                isItalic={singleKeyPosition.fontItalic ?? false}
+                isUnderline={singleKeyPosition.fontUnderline ?? false}
+                isStrikethrough={singleKeyPosition.fontStrikethrough ?? false}
+                onBoldChange={(value) => handleStyleChangeComplete("fontWeight", value ? 700 : 400)}
+                onItalicChange={(value) => handleStyleChangeComplete("fontItalic", value)}
+                onUnderlineChange={(value) => handleStyleChangeComplete("fontUnderline", value)}
+                onStrikethroughChange={(value) => handleStyleChangeComplete("fontStrikethrough", value)}
               />
             </PropertyRow>
 

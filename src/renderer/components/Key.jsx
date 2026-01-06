@@ -63,6 +63,11 @@ export default function DraggableKey({
     imageFit,
     useInlineStyles,
     displayText,
+    // 글꼴 스타일 속성들
+    fontWeight,
+    fontItalic,
+    fontUnderline,
+    fontStrikethrough,
   } = position;
 
   // 표시할 텍스트: displayText가 있으면 사용, 없으면 기본 displayName
@@ -452,15 +457,25 @@ export default function DraggableKey({
   );
 
   const textStyle = useMemo(
-    () => ({
-      willChange: "auto",
-      contain: "layout style paint",
-      color: useInline && fontColor
-        ? fontColor
-        : `var(--key-text-color, ${fontColor || "#717171"})`,
-      fontSize: fontSize ? `${fontSize}px` : undefined,
-    }),
-    [useInline, fontColor, fontSize]
+    () => {
+      // text-decoration 조합
+      const textDecorations = [];
+      if (fontUnderline) textDecorations.push("underline");
+      if (fontStrikethrough) textDecorations.push("line-through");
+
+      return {
+        willChange: "auto",
+        contain: "layout style paint",
+        color: useInline && fontColor
+          ? fontColor
+          : `var(--key-text-color, ${fontColor || "#717171"})`,
+        fontSize: fontSize ? `${fontSize}px` : undefined,
+        fontWeight: fontWeight ?? 700,
+        fontStyle: fontItalic ? "italic" : "normal",
+        textDecoration: textDecorations.length > 0 ? textDecorations.join(" ") : "none",
+      };
+    },
+    [useInline, fontColor, fontSize, fontWeight, fontItalic, fontUnderline, fontStrikethrough]
   );
 
   const attachRef = (node) => {
@@ -528,6 +543,11 @@ export const Key = memo(
       imageFit,
       useInlineStyles,
       displayText,
+      // 글꼴 스타일 속성들
+      fontWeight,
+      fontItalic,
+      fontUnderline,
+      fontStrikethrough,
     } = position;
 
     // 표시할 텍스트: displayText가 있으면 사용, 없으면 기본 keyName
@@ -637,12 +657,22 @@ export const Key = memo(
     );
 
     const textStyle = useMemo(
-      () => ({
-        willChange: "auto",
-        contain: "layout style paint",
-        fontSize: fontSize ? `${fontSize}px` : undefined,
-      }),
-      [fontSize]
+      () => {
+        // text-decoration 조합
+        const textDecorations = [];
+        if (fontUnderline) textDecorations.push("underline");
+        if (fontStrikethrough) textDecorations.push("line-through");
+
+        return {
+          willChange: "auto",
+          contain: "layout style paint",
+          fontSize: fontSize ? `${fontSize}px` : undefined,
+          fontWeight: fontWeight ?? 700,
+          fontStyle: fontItalic ? "italic" : "normal",
+          textDecoration: textDecorations.length > 0 ? textDecorations.join(" ") : "none",
+        };
+      },
+      [fontSize, fontWeight, fontItalic, fontUnderline, fontStrikethrough]
     );
 
     // 텍스트 표시 조건: 현재 상태에 사용할 이미지가 없을 때만 텍스트를 표시
@@ -823,6 +853,11 @@ export const Key = memo(
       prevProps.position.imageFit === nextProps.position.imageFit &&
       prevProps.position.useInlineStyles === nextProps.position.useInlineStyles &&
       prevProps.position.displayText === nextProps.position.displayText &&
+      // 글꼴 스타일 속성 비교
+      prevProps.position.fontWeight === nextProps.position.fontWeight &&
+      prevProps.position.fontItalic === nextProps.position.fontItalic &&
+      prevProps.position.fontUnderline === nextProps.position.fontUnderline &&
+      prevProps.position.fontStrikethrough === nextProps.position.fontStrikethrough &&
       // 카운터 설정 비교
       prevProps.position.counter?.enabled ===
         nextProps.position.counter?.enabled &&

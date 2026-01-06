@@ -333,6 +333,7 @@
     "className": "클래스",
     "displayText": "표시 텍스트",
     "displayTextPlaceholder": "커스텀 텍스트",
+    "fontStyle": "글꼴 스타일",
     "openPanel": "속성 패널 열기",
     "closePanel": "속성 패널 닫기"
   }

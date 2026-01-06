@@ -126,6 +126,18 @@ pub struct KeyPosition {
     /// 키에 표시할 커스텀 텍스트 (None이면 기본 키 이름 표시)
     #[serde(default)]
     pub display_text: Option<String>,
+    /// 글꼴 굵기 (CSS font-weight 값, 예: 400, 700)
+    #[serde(default)]
+    pub font_weight: Option<u32>,
+    /// 이탤릭체 여부
+    #[serde(default)]
+    pub font_italic: Option<bool>,
+    /// 밑줄 여부
+    #[serde(default)]
+    pub font_underline: Option<bool>,
+    /// 취소선 여부
+    #[serde(default)]
+    pub font_strikethrough: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
