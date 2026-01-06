@@ -297,9 +297,12 @@ export default function Grid({
             setIsContextOpen(false);
             setContextPosition(null);
           }
-          setSelectedKey({ key: keyMappings[selectedKeyType][index], index });
+          // 단일 선택: 기존 선택을 해제하고 이 키만 선택
+          clearSelection();
+          toggleSelection({ type: "key", id: `key-${index}`, index });
         }}
         onCtrlClick={() => {
+          // 다중 선택: 기존 선택 유지하면서 추가/제거
           toggleSelection({ type: "key", id: `key-${index}`, index });
         }}
         isSelected={selectedElements.some(

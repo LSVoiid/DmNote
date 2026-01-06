@@ -335,6 +335,10 @@
     "displayTextPlaceholder": "Custom text",
     "fontStyle": "Font Style",
     "openPanel": "Open Properties Panel",
-    "closePanel": "Close Properties Panel"
+    "closePanel": "Close Properties Panel",
+    "tabStyle": "Style",
+    "tabNote": "Note",
+    "tabCounter": "Counter",
+    "batchEditMode": "Batch Edit Mode"
   }
 }

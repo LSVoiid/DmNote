@@ -381,9 +381,9 @@ export default function DraggableKey({
   );
 
   const handleClick = (e) => {
-    // Ctrl+클릭으로 선택 토글 (선택 모드에서도 동작해야 함 - 선택 해제용)
+    // 선택된 상태에서 Ctrl+클릭으로 선택 해제
     const isPrimaryModifierPressed = macOS ? e.metaKey : e.ctrlKey;
-    if (isPrimaryModifierPressed && onCtrlClick) {
+    if (isSelectionMode && isPrimaryModifierPressed && onCtrlClick) {
       e.stopPropagation();
       onCtrlClick(e);
       return;
@@ -399,7 +399,20 @@ export default function DraggableKey({
       onEraserClick?.();
       return;
     }
-    if (!draggable.wasMoved) onClick(e);
+
+    // 드래그 중이 아니었을 때만 선택 처리
+    if (!draggable.wasMoved) {
+      // Ctrl+클릭이면 다중 선택 (추가/제거 토글)
+      if (isPrimaryModifierPressed && onCtrlClick) {
+        e.stopPropagation();
+        onCtrlClick(e);
+        return;
+      }
+      // 일반 클릭이면 단일 선택 (기존 선택 대체)
+      if (onClick) {
+        onClick(e);
+      }
+    }
   };
 
   const handleContextMenu = (e) => {

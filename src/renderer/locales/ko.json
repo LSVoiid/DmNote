@@ -335,6 +335,10 @@
     "displayTextPlaceholder": "커스텀 텍스트",
     "fontStyle": "글꼴 스타일",
     "openPanel": "속성 패널 열기",
-    "closePanel": "속성 패널 닫기"
+    "closePanel": "속성 패널 닫기",
+    "tabStyle": "스타일",
+    "tabNote": "노트",
+    "tabCounter": "카운터",
+    "batchEditMode": "일괄 편집 모드"
   }
 }
