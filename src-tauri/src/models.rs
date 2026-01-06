@@ -105,6 +105,27 @@ pub struct KeyPosition {
     pub z_index: Option<i32>,
     #[serde(default)]
     pub counter: KeyCounterSettings,
+    // 스타일 관련 속성들
+    #[serde(default)]
+    pub background_color: Option<String>,
+    #[serde(default)]
+    pub border_color: Option<String>,
+    #[serde(default)]
+    pub border_width: Option<f64>,
+    #[serde(default)]
+    pub border_radius: Option<f64>,
+    #[serde(default)]
+    pub font_size: Option<f64>,
+    #[serde(default)]
+    pub font_color: Option<String>,
+    #[serde(default)]
+    pub image_fit: Option<ImageFit>,
+    /// 인라인 스타일 우선 여부 (true: 속성 패널 스타일 우선, false: 커스텀 CSS 우선)
+    #[serde(default)]
+    pub use_inline_styles: Option<bool>,
+    /// 키에 표시할 커스텀 텍스트 (None이면 기본 키 이름 표시)
+    #[serde(default)]
+    pub display_text: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -218,6 +239,22 @@ pub enum FadePosition {
     Auto,
     Top,
     Bottom,
+}
+
+/// 이미지 맞춤 설정 (CSS object-fit과 동일)
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "kebab-case")]
+pub enum ImageFit {
+    Cover,
+    Contain,
+    Fill,
+    None,
+}
+
+impl Default for ImageFit {
+    fn default() -> Self {
+        ImageFit::Cover
+    }
 }
 
 impl Default for NoteSettings {

@@ -53,7 +53,20 @@ export default function DraggableKey({
     activeImage,
     inactiveImage,
     className,
+    // 스타일 속성들
+    backgroundColor,
+    borderColor,
+    borderWidth,
+    borderRadius,
+    fontSize,
+    fontColor,
+    imageFit,
+    useInlineStyles,
+    displayText,
   } = position;
+
+  // 표시할 텍스트: displayText가 있으면 사용, 없으면 기본 displayName
+  const labelText = displayText || displayName;
 
   // 스마트 가이드를 위한 다른 요소들의 bounds 가져오기
   const { getOtherElements } = useSmartGuidesElements();
@@ -396,18 +409,23 @@ export default function DraggableKey({
   const renderDx = draggable.dx;
   const renderDy = draggable.dy;
 
+  // 인라인 스타일 우선 여부에 따라 CSS 변수 또는 직접 값 사용
+  const useInline = useInlineStyles === true;
+
   const keyStyle = useMemo(
     () => ({
       width: `${width}px`,
       height: `${height}px`,
       transform: `translate3d(calc(${renderDx}px + var(--key-offset-x, 0px)), calc(${renderDy}px + var(--key-offset-y, 0px)), 0)`,
-      backgroundColor: `var(--key-bg, ${
-        inactiveImage ? "transparent" : "rgba(46, 46, 47, 0.9)"
-      })`,
-      borderRadius: `var(--key-radius, ${inactiveImage ? "0" : "10px"})`,
-      border: `var(--key-border, ${
-        inactiveImage ? "none" : "3px solid rgba(113, 113, 113, 0.9)"
-      })`,
+      backgroundColor: useInline && backgroundColor
+        ? backgroundColor
+        : `var(--key-bg, ${inactiveImage ? "transparent" : (backgroundColor || "rgba(46, 46, 47, 0.9)")})`,
+      borderRadius: useInline && borderRadius != null
+        ? `${borderRadius}px`
+        : `var(--key-radius, ${inactiveImage ? "0" : (borderRadius != null ? `${borderRadius}px` : "10px")})`,
+      border: useInline && (borderColor || borderWidth != null)
+        ? `${borderWidth ?? 3}px solid ${borderColor || "rgba(113, 113, 113, 0.9)"}`
+        : `var(--key-border, ${inactiveImage ? "none" : `${borderWidth ?? 3}px solid ${borderColor || "rgba(113, 113, 113, 0.9)"}`})`,
       overflow: inactiveImage ? "visible" : "hidden",
       willChange: "transform",
       backfaceVisibility: "hidden",
@@ -418,28 +436,31 @@ export default function DraggableKey({
       boxSizing: "border-box",
       zIndex: position.zIndex ?? zIndex,
     }),
-    [renderDx, renderDy, width, height, inactiveImage, zIndex, position.zIndex]
+    [renderDx, renderDy, width, height, inactiveImage, zIndex, position.zIndex, useInline, backgroundColor, borderColor, borderWidth, borderRadius]
   );
 
   const imageStyle = useMemo(
     () => ({
       width: "100%",
       height: "100%",
-      objectFit: "cover",
+      objectFit: imageFit || "cover",
       display: "block",
       pointerEvents: "none",
       userSelect: "none",
     }),
-    []
+    [imageFit]
   );
 
   const textStyle = useMemo(
     () => ({
       willChange: "auto",
       contain: "layout style paint",
-      color: "var(--key-text-color, #717171)",
+      color: useInline && fontColor
+        ? fontColor
+        : `var(--key-text-color, ${fontColor || "#717171"})`,
+      fontSize: fontSize ? `${fontSize}px` : undefined,
     }),
-    []
+    [useInline, fontColor, fontSize]
   );
 
   const attachRef = (node) => {
@@ -473,7 +494,7 @@ export default function DraggableKey({
           className="flex items-center justify-center h-full font-bold"
           style={textStyle}
         >
-          {displayName}
+          {labelText}
         </div>
       )}
     </div>
@@ -497,7 +518,23 @@ export const Key = memo(
       activeTransparent = false,
       idleTransparent = false,
       className, // 단일 클래스 네임으로 통일
+      // 스타일 속성들
+      backgroundColor,
+      borderColor,
+      borderWidth,
+      borderRadius,
+      fontSize,
+      fontColor,
+      imageFit,
+      useInlineStyles,
+      displayText,
     } = position;
+
+    // 표시할 텍스트: displayText가 있으면 사용, 없으면 기본 keyName
+    const labelText = displayText || keyName;
+
+    // 인라인 스타일 우선 여부
+    const useInline = useInlineStyles === true;
 
     // 투명화 옵션 체크
     const isTransparent = active ? activeTransparent : idleTransparent;
@@ -516,39 +553,55 @@ export const Key = memo(
         : null;
 
     const keyStyle = useMemo(
-      () => ({
-        width: `${width}px`,
-        height: `${height}px`,
-        transform: `translate3d(calc(${dx}px + var(--key-offset-x, 0px)), calc(${dy}px + var(--key-offset-y, 0px)), 0)`,
-        backgroundColor: `var(--key-bg, ${
-          currentImage
-            ? "transparent"
-            : active
-            ? "rgba(121, 121, 121, 0.9)"
-            : "rgba(46, 46, 47, 0.9)"
-        })`,
-        borderRadius: `var(--key-radius, ${currentImage ? "0" : "10px"})`,
-        border: `var(--key-border, ${
-          currentImage
+      () => {
+        // 기본 배경색 계산
+        const defaultBgColor = currentImage
+          ? "transparent"
+          : active
+          ? "rgba(121, 121, 121, 0.9)"
+          : "rgba(46, 46, 47, 0.9)";
+        
+        // 기본 테두리색 계산
+        const defaultBorderColor = active
+          ? "rgba(255, 255, 255, 0.9)"
+          : "rgba(113, 113, 113, 0.9)";
+        
+        // 기본 텍스트 색상 계산
+        const defaultTextColor = active && !activeImage
+          ? "#FFFFFF"
+          : "rgba(121, 121, 121, 0.9)";
+
+        return {
+          width: `${width}px`,
+          height: `${height}px`,
+          transform: `translate3d(calc(${dx}px + var(--key-offset-x, 0px)), calc(${dy}px + var(--key-offset-y, 0px)), 0)`,
+          backgroundColor: useInline && backgroundColor
+            ? backgroundColor
+            : `var(--key-bg, ${backgroundColor || defaultBgColor})`,
+          borderRadius: useInline && borderRadius != null
+            ? `${borderRadius}px`
+            : `var(--key-radius, ${currentImage ? "0" : (borderRadius != null ? `${borderRadius}px` : "10px")})`,
+          border: currentImage
             ? "none"
-            : active
-            ? "3px solid rgba(255, 255, 255, 0.9)"
-            : "3px solid rgba(113, 113, 113, 0.9)"
-        })`,
-        color: `var(--key-text-color, ${
-          active && !activeImage ? "#FFFFFF" : "rgba(121, 121, 121, 0.9)"
-        })`,
-        overflow: currentImage ? "visible" : "hidden",
-        // GPU 가속 최적화: active 상태 변경 시에만 willChange 적용
-        willChange: active ? "transform, background-color" : "transform",
-        backfaceVisibility: "hidden",
-        transformStyle: "preserve-3d",
-        contain: "layout style paint",
-        imageRendering: "auto",
-        isolation: "isolate",
-        boxSizing: "border-box",
-        zIndex: position.zIndex,
-      }),
+            : useInline && (borderColor || borderWidth != null)
+              ? `${borderWidth ?? 3}px solid ${borderColor || defaultBorderColor}`
+              : `var(--key-border, ${borderWidth ?? 3}px solid ${borderColor || defaultBorderColor})`,
+          color: useInline && fontColor
+            ? fontColor
+            : `var(--key-text-color, ${fontColor || defaultTextColor})`,
+          fontSize: fontSize ? `${fontSize}px` : undefined,
+          overflow: currentImage ? "visible" : "hidden",
+          // GPU 가속 최적화: active 상태 변경 시에만 willChange 적용
+          willChange: active ? "transform, background-color" : "transform",
+          backfaceVisibility: "hidden",
+          transformStyle: "preserve-3d",
+          contain: "layout style paint",
+          imageRendering: "auto",
+          isolation: "isolate",
+          boxSizing: "border-box",
+          zIndex: position.zIndex,
+        };
+      },
       [
         active,
         activeImage,
@@ -559,6 +612,13 @@ export const Key = memo(
         height,
         currentImage,
         position.zIndex,
+        useInline,
+        backgroundColor,
+        borderColor,
+        borderWidth,
+        borderRadius,
+        fontSize,
+        fontColor,
       ]
     );
 
@@ -566,22 +626,23 @@ export const Key = memo(
       () => ({
         width: "100%",
         height: "100%",
-        objectFit: "cover",
+        objectFit: imageFit || "cover",
         display: "block",
         pointerEvents: "none",
         userSelect: "none",
         position: "relative",
         zIndex: 0,
       }),
-      []
+      [imageFit]
     );
 
     const textStyle = useMemo(
       () => ({
         willChange: "auto",
         contain: "layout style paint",
+        fontSize: fontSize ? `${fontSize}px` : undefined,
       }),
-      []
+      [fontSize]
     );
 
     // 텍스트 표시 조건: 현재 상태에 사용할 이미지가 없을 때만 텍스트를 표시
@@ -650,7 +711,7 @@ export const Key = memo(
           className="font-bold text-[14px] pointer-events-none select-none"
           style={textStyle}
         >
-          {keyName}
+          {labelText}
         </span>
       );
 
@@ -706,7 +767,7 @@ export const Key = memo(
               className="flex items-center justify-center h-full font-bold"
               style={textStyle}
             >
-              {keyName}
+              {labelText}
             </div>
           )
         ) : null}
@@ -752,6 +813,17 @@ export const Key = memo(
         nextProps.position.idleTransparent &&
       prevProps.position.zIndex === nextProps.position.zIndex &&
       prevProps.position.className === nextProps.position.className &&
+      // 스타일 속성 비교
+      prevProps.position.backgroundColor === nextProps.position.backgroundColor &&
+      prevProps.position.borderColor === nextProps.position.borderColor &&
+      prevProps.position.borderWidth === nextProps.position.borderWidth &&
+      prevProps.position.borderRadius === nextProps.position.borderRadius &&
+      prevProps.position.fontSize === nextProps.position.fontSize &&
+      prevProps.position.fontColor === nextProps.position.fontColor &&
+      prevProps.position.imageFit === nextProps.position.imageFit &&
+      prevProps.position.useInlineStyles === nextProps.position.useInlineStyles &&
+      prevProps.position.displayText === nextProps.position.displayText &&
+      // 카운터 설정 비교
       prevProps.position.counter?.enabled ===
         nextProps.position.counter?.enabled &&
       prevProps.position.counter?.placement ===

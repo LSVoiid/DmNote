@@ -14,6 +14,7 @@ import NoteSettingModal from "@components/main/Modal/content/NoteSetting";
 import LaboratoryModal from "@components/main/Modal/content/Laboratory";
 import GridSettingsModal from "@components/main/Modal/content/GridSettingsModal";
 import UpdateModal from "@components/main/Modal/content/UpdateModal";
+import PropertiesPanel from "@components/main/Grid/PropertiesPanel";
 import { useSettingsStore } from "@stores/useSettingsStore";
 import FloatingPopup from "@components/main/Modal/FloatingPopup";
 import Palette from "@components/main/Modal/content/Palette";
@@ -94,6 +95,8 @@ export default function App() {
     handlePositionChange,
     handleKeyUpdate,
     handleKeyPreview,
+    handleKeyStyleUpdate,
+    handleKeyMappingChange,
     handleNoteColorUpdate,
     handleNoteColorPreview,
     handleCounterSettingsUpdate,
@@ -432,44 +435,55 @@ export default function App() {
   return (
     <div className="bg-[#111012] w-full h-full flex flex-col overflow-hidden rounded-[7px] border border-[rgba(255,255,255,0.1)]">
       <TitleBar />
-      <div className="flex-1 bg-[#2A2A31] overflow-hidden">
+      <div className="flex-1 bg-[#2A2A31] overflow-hidden flex">
         {isSettingsOpen ? (
-          <div className="h-full overflow-y-auto">
+          <div className="h-full w-full overflow-y-auto">
             <SettingTab showAlert={showAlert} showConfirm={showConfirm} />
           </div>
         ) : (
-          <Grid
-            selectedKey={selectedKey}
-            setSelectedKey={setSelectedKey}
-            keyMappings={keyMappings}
-            positions={positions}
-            onPositionChange={handlePositionChange}
-            onKeyUpdate={handleKeyUpdate}
-            onKeyPreview={handleKeyPreview}
-            onNoteColorUpdate={handleNoteColorUpdate}
-            onNoteColorPreview={handleNoteColorPreview}
-            onCounterUpdate={handleCounterSettingsUpdate}
-            onCounterPreview={handleCounterSettingsPreview}
-            onKeyDelete={handleDeleteKey}
-            onAddKeyAt={handleAddKeyAt}
-            onKeyDuplicate={handleDuplicateKey}
-            onMoveToFront={handleMoveToFront}
-            onMoveToBack={handleMoveToBack}
-            onMoveForward={handleMoveForward}
-            onMoveBackward={handleMoveBackward}
-            color={color}
-            activeTool={activeTool}
-            showConfirm={showConfirm}
-            showAlert={showAlert}
-            shouldSkipModalAnimation={skipModalAnimationOnReturn}
-            onModalAnimationConsumed={() =>
-              setSkipModalAnimationOnReturn(false)
-            }
-            onUndo={handleUndo}
-            onRedo={handleRedo}
-            canUndo={canUndo}
-            canRedo={canRedo}
-          />
+          <div className="flex-1 h-full overflow-hidden relative">
+            <Grid
+              selectedKey={selectedKey}
+              setSelectedKey={setSelectedKey}
+              keyMappings={keyMappings}
+              positions={positions}
+              onPositionChange={handlePositionChange}
+              onKeyUpdate={handleKeyUpdate}
+              onKeyPreview={handleKeyPreview}
+              onNoteColorUpdate={handleNoteColorUpdate}
+              onNoteColorPreview={handleNoteColorPreview}
+              onCounterUpdate={handleCounterSettingsUpdate}
+              onCounterPreview={handleCounterSettingsPreview}
+              onKeyDelete={handleDeleteKey}
+              onAddKeyAt={handleAddKeyAt}
+              onKeyDuplicate={handleDuplicateKey}
+              onMoveToFront={handleMoveToFront}
+              onMoveToBack={handleMoveToBack}
+              onMoveForward={handleMoveForward}
+              onMoveBackward={handleMoveBackward}
+              color={color}
+              activeTool={activeTool}
+              showConfirm={showConfirm}
+              showAlert={showAlert}
+              shouldSkipModalAnimation={skipModalAnimationOnReturn}
+              onModalAnimationConsumed={() =>
+                setSkipModalAnimationOnReturn(false)
+              }
+              onUndo={handleUndo}
+              onRedo={handleRedo}
+              canUndo={canUndo}
+              canRedo={canRedo}
+            />
+            <PropertiesPanel
+              onPositionChange={handlePositionChange}
+              onKeyUpdate={(data) => {
+                const { index, ...updates } = data;
+                handleKeyStyleUpdate(index, updates);
+              }}
+              onKeyPreview={handleKeyPreview}
+              onKeyMappingChange={handleKeyMappingChange}
+            />
+          </div>
         )}
       </div>
       <ToolBar

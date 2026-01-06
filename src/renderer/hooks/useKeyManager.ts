@@ -9,6 +9,7 @@ import type {
   KeyPositions,
   NoteColor,
   KeyCounterSettings,
+  ImageFit,
 } from "@src/types/keys";
 import {
   createDefaultCounterSettings,
@@ -428,21 +429,27 @@ export function useKeyManager() {
     });
   };
 
-  // Ű ���� �̸����� (�̹���/ȸ��/ũ��/Ÿ����)
+  // 키 설정 미리보기 (이미지/회전/크기/스타일)
   const handleKeyPreview = (
     index: number,
-    updates: Partial<
-      Pick<
-        KeyUpdatePayload,
-        | "activeImage"
-        | "inactiveImage"
-        | "activeTransparent"
-        | "idleTransparent"
-        | "width"
-        | "height"
-        | "className"
-      >
-    >
+    updates: Partial<{
+      activeImage: string;
+      inactiveImage: string;
+      activeTransparent: boolean;
+      idleTransparent: boolean;
+      width: number;
+      height: number;
+      className: string;
+      backgroundColor: string;
+      borderColor: string;
+      borderWidth: number;
+      borderRadius: number;
+      fontSize: number;
+      fontColor: string;
+      imageFit: ImageFit;
+      useInlineStyles: boolean;
+      displayText: string;
+    }>
   ) => {
     const state = useKeyStore.getState();
     const mode = state.selectedKeyType || selectedKeyType;
@@ -486,6 +493,43 @@ export function useKeyManager() {
                 updates.className !== undefined
                   ? updates.className
                   : pos.className ?? "",
+              // 새 스타일 속성들
+              backgroundColor:
+                updates.backgroundColor !== undefined
+                  ? updates.backgroundColor
+                  : pos.backgroundColor,
+              borderColor:
+                updates.borderColor !== undefined
+                  ? updates.borderColor
+                  : pos.borderColor,
+              borderWidth:
+                updates.borderWidth !== undefined
+                  ? updates.borderWidth
+                  : pos.borderWidth,
+              borderRadius:
+                updates.borderRadius !== undefined
+                  ? updates.borderRadius
+                  : pos.borderRadius,
+              fontSize:
+                updates.fontSize !== undefined
+                  ? updates.fontSize
+                  : pos.fontSize,
+              fontColor:
+                updates.fontColor !== undefined
+                  ? updates.fontColor
+                  : pos.fontColor,
+              imageFit:
+                updates.imageFit !== undefined
+                  ? updates.imageFit
+                  : pos.imageFit,
+              useInlineStyles:
+                updates.useInlineStyles !== undefined
+                  ? updates.useInlineStyles
+                  : pos.useInlineStyles,
+              displayText:
+                updates.displayText !== undefined
+                  ? updates.displayText
+                  : pos.displayText,
             }
           : pos
       ),
@@ -1057,6 +1101,54 @@ export function useKeyManager() {
     setPluginElements,
   ]);
 
+  // 속성 패널에서 키 매핑 변경 (인덱스로 키 코드 업데이트)
+  const handleKeyMappingChange = useCallback(
+    (index: number, newKey: string) => {
+      saveToHistory();
+
+      const mapping = keyMappings[selectedKeyType] || [];
+      const updatedMappings: KeyMappings = {
+        ...keyMappings,
+        [selectedKeyType]: mapping.map((key, i) =>
+          i === index ? newKey : key
+        ),
+      };
+
+      setKeyMappings(updatedMappings);
+      window.api.keys.update(updatedMappings).catch((error) => {
+        console.error("Failed to update key mapping", error);
+      });
+    },
+    [selectedKeyType, keyMappings, saveToHistory, setKeyMappings]
+  );
+
+  // 속성 패널에서 인덱스로 키 속성 업데이트 (히스토리 포함)
+  const handleKeyStyleUpdate = useCallback(
+    (index: number, updates: Partial<KeyPositions[string][number]>) => {
+      const state = useKeyStore.getState();
+      const mode = state.selectedKeyType || selectedKeyType;
+      const currentPositions = state.positions;
+      const current = currentPositions[mode] || [];
+      if (!current[index]) return;
+
+      // 히스토리에 현재 상태 저장
+      saveToHistory();
+
+      const updatedPositions: KeyPositions = {
+        ...currentPositions,
+        [mode]: current.map((pos, i) =>
+          i === index ? { ...pos, ...updates } : pos
+        ),
+      };
+
+      setPositions(updatedPositions);
+      window.api.keys.updatePositions(updatedPositions).catch((error) => {
+        console.error("Failed to update key style", error);
+      });
+    },
+    [selectedKeyType, saveToHistory, setPositions]
+  );
+
   return {
     selectedKey,
     setSelectedKey,
@@ -1065,6 +1157,8 @@ export function useKeyManager() {
     handlePositionChange,
     handleKeyUpdate,
     handleKeyPreview,
+    handleKeyStyleUpdate,
+    handleKeyMappingChange,
     handleNoteColorUpdate,
     handleNoteColorPreview,
     handleCounterSettingsUpdate,

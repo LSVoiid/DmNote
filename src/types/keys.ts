@@ -120,6 +120,15 @@ export const noteColorSchema = z.union([z.string(), gradientNoteColorSchema]);
 export type GradientNoteColor = z.infer<typeof gradientNoteColorSchema>;
 export type NoteColor = z.infer<typeof noteColorSchema>;
 
+// 이미지 맞춤 설정 (CSS object-fit과 동일)
+export const imageFitSchema = z.union([
+  z.literal("cover"),
+  z.literal("contain"),
+  z.literal("fill"),
+  z.literal("none"),
+]);
+export type ImageFit = z.infer<typeof imageFitSchema>;
+
 export const keyPositionSchema = z.object({
   dx: z.number(),
   dy: z.number(),
@@ -144,6 +153,18 @@ export const keyPositionSchema = z.object({
     .any()
     .transform((value) => normalizeCounterSettings(value))
     .default(createDefaultCounterSettings()),
+  // 스타일 관련 속성들
+  backgroundColor: z.string().optional(),
+  borderColor: z.string().optional(),
+  borderWidth: z.number().optional(),
+  borderRadius: z.number().optional(),
+  fontSize: z.number().optional(),
+  fontColor: z.string().optional(),
+  imageFit: imageFitSchema.optional(),
+  // 인라인 스타일 우선 여부 (true: 속성 패널 스타일 우선, false: 커스텀 CSS 우선)
+  useInlineStyles: z.boolean().optional(),
+  // 키에 표시할 커스텀 텍스트 (없으면 기본 키 이름 표시)
+  displayText: z.string().optional(),
 });
 
 export type KeyPosition = z.infer<typeof keyPositionSchema>;
