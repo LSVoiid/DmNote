@@ -127,7 +127,6 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
 
   // overlay scrollbar thumb refs (직접 DOM 조작으로 리렌더링 방지)
   const batchThumbRef = useRef<HTMLDivElement | null>(null);
-  const accordionThumbRef = useRef<HTMLDivElement | null>(null);
   const singleThumbRef = useRef<HTMLDivElement | null>(null);
 
   const calculateThumb = useCallback((el: HTMLDivElement): ScrollThumbState => {
@@ -161,7 +160,6 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
 
   // 스크롤 엘리먼트 refs (thumb 계산용)
   const batchScrollElementRef = useRef<HTMLDivElement | null>(null);
-  const accordionScrollElementRef = useRef<HTMLDivElement | null>(null);
   const singleScrollElementRef = useRef<HTMLDivElement | null>(null);
 
   // Lenis 스크롤 적용 (직접 DOM 조작으로 thumb 업데이트)
@@ -171,15 +169,6 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   } = useLenis({
     onScroll: useCallback(() => {
       updateThumbDOM(batchThumbRef.current, batchScrollElementRef.current);
-    }, [updateThumbDOM]),
-  });
-
-  const {
-    scrollContainerRef: accordionLenisRef,
-    wrapperElement: accordionScrollElement,
-  } = useLenis({
-    onScroll: useCallback(() => {
-      updateThumbDOM(accordionThumbRef.current, accordionScrollElementRef.current);
     }, [updateThumbDOM]),
   });
 
@@ -198,10 +187,6 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   }, [batchScrollElement]);
 
   useEffect(() => {
-    accordionScrollElementRef.current = accordionScrollElement;
-  }, [accordionScrollElement]);
-
-  useEffect(() => {
     singleScrollElementRef.current = singleScrollElement;
   }, [singleScrollElement]);
 
@@ -211,11 +196,6 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     batchLenisRef(node);
   }, [batchLenisRef]);
 
-  const accordionScrollRef = useCallback((node: HTMLDivElement | null) => {
-    accordionScrollElementRef.current = node;
-    accordionLenisRef(node);
-  }, [accordionLenisRef]);
-
   const singleScrollRef = useCallback((node: HTMLDivElement | null) => {
     singleScrollElementRef.current = node;
     singleLenisRef(node);
@@ -223,26 +203,17 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
 
   const updateThumbs = useCallback(() => {
     updateThumbDOM(batchThumbRef.current, batchScrollElementRef.current);
-    updateThumbDOM(accordionThumbRef.current, accordionScrollElementRef.current);
     updateThumbDOM(singleThumbRef.current, singleScrollElementRef.current);
   }, [updateThumbDOM]);
 
   // 탭 상태
   const [activeTab, setActiveTab] = useState<TabType>(TABS.STYLE);
 
-  // 다중 선택 모드 상태
-  const [isBatchEditMode, setIsBatchEditMode] = useState(true);
-  const [expandedAccordionIndex, setExpandedAccordionIndex] = useState<
-    number | null
-  >(null);
-
   useEffect(() => {
     updateThumbs();
   }, [
     updateThumbs,
     activeTab,
-    isBatchEditMode,
-    expandedAccordionIndex,
     selectedElements.length,
   ]);
 
@@ -306,7 +277,6 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   useEffect(() => {
     if (selectedKeyElements.length > 1) {
       setIsPanelVisible(true);
-      setExpandedAccordionIndex(null);
     }
   }, [selectedKeyElements.length]);
 
@@ -1013,56 +983,40 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
         </div>
 
         {/* 일괄 편집 모드 체크박스 */}
-        <div className="px-[12px] py-[10px] border-b border-[#3A3943]">
-          <label className="flex items-center gap-[8px] cursor-pointer">
-            <Checkbox
-              checked={isBatchEditMode}
-              onChange={() => {
-                setIsBatchEditMode(!isBatchEditMode);
-                setExpandedAccordionIndex(null);
-              }}
-            />
-            <span className="text-[#DBDEE8] text-style-2">
-              {t("propertiesPanel.batchEditMode") || "일괄 편집 모드"}
-            </span>
-          </label>
-        </div>
-
         {/* 일괄 편집 모드 */}
-        {isBatchEditMode ? (
-          <>
-            {/* 스크롤 가능한 속성 영역 */}
-            <div className="flex-1 properties-panel-overlay-scroll">
-              <div
-                ref={batchScrollRef}
-                className="properties-panel-overlay-viewport"
-              >
-                <div className="p-[12px] flex flex-col gap-[12px]">
-                  {/* 스타일 탭 (위치/크기 제외) */}
-                  {activeTab === TABS.STYLE && (
-                    <>
-                      {/* 배경색 */}
-                      <PropertyRow
-                        label={t("propertiesPanel.backgroundColor") || "배경색"}
-                      >
-                        {getMixedValue((pos) => pos.backgroundColor, "#2E2E2F")
-                          .isMixed ? (
-                          <span className="text-[#6B6D75] text-style-4 italic">
-                            Mixed
-                          </span>
-                        ) : null}
-                        <ColorInput
-                          value={
-                            getMixedValue(
-                              (pos) => pos.backgroundColor,
-                              "#2E2E2F",
-                            ).value
-                          }
-                          onChange={(color) =>
-                            handleBatchStyleChange("backgroundColor", color)
-                          }
-                          onChangeComplete={(color) =>
-                            handleBatchStyleChangeComplete(
+        <>
+          {/* 스크롤 가능한 속성 영역 */}
+          <div className="flex-1 properties-panel-overlay-scroll">
+            <div
+              ref={batchScrollRef}
+              className="properties-panel-overlay-viewport"
+            >
+              <div className="p-[12px] flex flex-col gap-[12px]">
+                {/* 스타일 탭 (위치/크기 제외) */}
+                {activeTab === TABS.STYLE && (
+                  <>
+                    {/* 배경색 */}
+                    <PropertyRow
+                      label={t("propertiesPanel.backgroundColor") || "배경색"}
+                    >
+                      {getMixedValue((pos) => pos.backgroundColor, "#2E2E2F")
+                        .isMixed ? (
+                        <span className="text-[#6B6D75] text-style-4 italic">
+                          Mixed
+                        </span>
+                      ) : null}
+                      <ColorInput
+                        value={
+                          getMixedValue(
+                            (pos) => pos.backgroundColor,
+                            "#2E2E2F",
+                          ).value
+                        }
+                        onChange={(color) =>
+                          handleBatchStyleChange("backgroundColor", color)
+                        }
+                        onChangeComplete={(color) =>
+                          handleBatchStyleChangeComplete(
                               "backgroundColor",
                               color,
                             )
@@ -1668,106 +1622,6 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
               </div>
             </div>
           </>
-        ) : (
-          /* 개별 편집 모드 - 아코디언 */
-          <div className="flex-1 properties-panel-overlay-scroll">
-            <div
-              ref={accordionScrollRef}
-              className="properties-panel-overlay-viewport"
-            >
-              <div className="flex flex-col">
-                {getSelectedKeysData().map((keyData, idx) => {
-                  const isExpanded = expandedAccordionIndex === idx;
-                  const keyName =
-                    keyData.keyInfo?.displayName ||
-                    keyData.keyCode ||
-                    `Key ${idx + 1}`;
-
-                  return (
-                    <div
-                      key={keyData.index}
-                      className="border-b border-[#3A3943]"
-                    >
-                      {/* 아코디언 헤더 */}
-                      <button
-                        onClick={() =>
-                          setExpandedAccordionIndex(isExpanded ? null : idx)
-                        }
-                        className="w-full p-[12px] flex items-center justify-between hover:bg-[#2A2A30] transition-colors"
-                      >
-                        <span className="text-[#DBDEE8] text-style-2">
-                          {keyName}
-                        </span>
-                        <svg
-                          width="10"
-                          height="6"
-                          viewBox="0 0 10 6"
-                          fill="none"
-                          className={`transform transition-transform ${isExpanded ? "rotate-180" : ""}`}
-                        >
-                          <path
-                            d="M1 1L5 5L9 1"
-                            stroke="#6B6D75"
-                            strokeWidth="1.5"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      </button>
-
-                      {/* 아코디언 콘텐츠 - 분리된 컴포넌트 사용 */}
-                      {isExpanded && keyData.position && (
-                        <div className="p-[12px] pt-0 flex flex-col gap-[12px]">
-                          {activeTab === TABS.STYLE && (
-                            <StyleTabContent
-                              keyIndex={keyData.index}
-                              keyPosition={keyData.position}
-                              keyCode={keyData.keyCode}
-                              keyInfo={keyData.keyInfo}
-                              onPositionChange={onPositionChange}
-                              onKeyUpdate={onKeyUpdate}
-                              onKeyPreview={onKeyPreview}
-                              onKeyMappingChange={onKeyMappingChange}
-                              panelElement={panelElement}
-                              useCustomCSS={useCustomCSS}
-                              t={t}
-                            />
-                          )}
-                          {activeTab === TABS.NOTE && (
-                            <NoteTabContent
-                              keyIndex={keyData.index}
-                              keyPosition={keyData.position}
-                              onKeyUpdate={onKeyUpdate}
-                              onKeyPreview={onKeyPreview}
-                              panelElement={panelElement}
-                              t={t}
-                            />
-                          )}
-                          {activeTab === TABS.COUNTER && (
-                            <CounterTabContent
-                              keyIndex={keyData.index}
-                              keyPosition={keyData.position}
-                              onKeyUpdate={onKeyUpdate}
-                              panelElement={panelElement}
-                              t={t}
-                            />
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-            <div className="properties-panel-overlay-bar">
-              <div
-                ref={accordionThumbRef}
-                className="properties-panel-overlay-thumb"
-                style={{ display: 'none' }}
-              />
-            </div>
-          </div>
-        )}
       </div>
     );
   }

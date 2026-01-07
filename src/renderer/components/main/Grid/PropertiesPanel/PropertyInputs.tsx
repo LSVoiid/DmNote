@@ -394,7 +394,7 @@ export const ToggleSwitch: React.FC<ToggleSwitchProps> = ({
 // ============================================================================
 
 export const SectionDivider: React.FC = () => (
-  <div className="w-full h-[1px] bg-[#3A3943] my-[11px]" />
+  <div className="w-full h-[1px] bg-[#3A3943] my-[5.5px]" />
 );
 
 // ============================================================================
