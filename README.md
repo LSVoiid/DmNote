@@ -27,7 +27,7 @@ https://github.com/user-attachments/assets/20fb118d-3982-4925-9004-9ce0936590c2
 키보드/마우스 입력 감지는 Windows에서는 Raw Input API, macOS에서는 전역 입력 이벤트를 사용합니다.
 간편한 설정으로 스트리밍이나 플레이 영상 제작 시 키 입력을 시각적으로 보여줄 수 있습니다. 현재는 Windows/macOS 환경을 지원하며, 리듬게임 이외의 다른 게임에서도 사용이 가능합니다.
 
-[DM NOTE v1.4.0 다운로드](https://github.com/lee-sihun/DmNote/releases/download/1.4.1/DM.NOTE.v.1.4.1.zip)
+[DM NOTE v1.4.1 다운로드](https://github.com/lee-sihun/DmNote/releases/download/1.4.1/DM.NOTE.v.1.4.1.zip)
 
 ## ✨ 주요 기능
 
@@ -155,4 +155,5 @@ npm run tauri:dev
 - 동시 입력 간격 밀리초(ms) 표시
 - 입력 통계 분석 기능
  -->
+
 
