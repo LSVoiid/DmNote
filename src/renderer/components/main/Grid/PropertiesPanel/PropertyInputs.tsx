@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import type {
   PropertyRowProps,
   NumberInputProps,
@@ -11,6 +11,7 @@ import type {
   FontStyleToggleProps,
 } from "./types";
 import { TABS } from "./types";
+import ColorPicker from "@components/main/Modal/content/ColorPicker";
 
 // ============================================================================
 // PropertyRow
@@ -177,19 +178,69 @@ export const TextInput: React.FC<TextInputProps> = ({
 // ColorInput
 // ============================================================================
 
-export const ColorInput: React.FC<ColorInputProps> = ({ value, onChange, onChangeComplete }) => {
+export const ColorInput: React.FC<ColorInputProps> = ({
+  value,
+  onChange,
+  onChangeComplete,
+  colorId,
+  solidOnly = true,
+  panelElement,
+  isOpen: externalIsOpen,
+  onToggle: externalOnToggle,
+}) => {
+  // 외부 제어 모드인지 확인
+  const isControlled = externalIsOpen !== undefined && externalOnToggle !== undefined;
+  
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = isControlled ? externalIsOpen : internalOpen;
+  
   const buttonRef = useRef<HTMLButtonElement>(null);
+  
+  // 로컬 색상 상태 (드래그 중 UI 업데이트용)
+  const [localColor, setLocalColor] = useState(value || "#FFFFFF");
 
-  const handleClick = () => {
-    if (typeof (window as any).__dmn_showColorPicker === "function") {
-      (window as any).__dmn_showColorPicker({
-        initialColor: value || "#FFFFFF",
-        onColorChange: onChange,
-        onColorChangeComplete: onChangeComplete,
-        referenceElement: buttonRef.current,
-        id: `props-panel-color-${Date.now()}`,
-      });
+  // 피커가 닫혀있을 때만 외부 prop과 동기화
+  useEffect(() => {
+    if (!open) {
+      setLocalColor(value || "#FFFFFF");
     }
+  }, [value, open]);
+
+  // colorId가 없으면 value 기반으로 생성
+  const stableId = useMemo(
+    () => colorId || `color-input-${value?.replace(/[^a-zA-Z0-9]/g, "")}`,
+    [colorId, value]
+  );
+
+  const interactiveRefs = useMemo(() => [buttonRef], []);
+
+  const handleToggle = () => {
+    if (isControlled) {
+      externalOnToggle();
+    } else {
+      setInternalOpen((prev) => !prev);
+    }
+  };
+
+  const handleClose = () => {
+    if (isControlled) {
+      externalOnToggle();
+    } else {
+      setInternalOpen(false);
+    }
+  };
+
+  // 드래그 중 로컬 상태만 업데이트
+  const handleColorChange = (color: string) => {
+    setLocalColor(color);
+    // onChange는 호출하지 않음 - 드래그 중 부모 상태 변경 방지
+  };
+
+  // 드래그 완료 시 부모에게 전달
+  const handleColorChangeComplete = (color: string) => {
+    setLocalColor(color);
+    onChange?.(color);
+    onChangeComplete?.(color);
   };
 
   const getDisplayColor = (color: string): string => {
@@ -210,12 +261,29 @@ export const ColorInput: React.FC<ColorInputProps> = ({ value, onChange, onChang
   };
 
   return (
-    <button
-      ref={buttonRef}
-      onClick={handleClick}
-      className="w-[23px] h-[23px] rounded-[7px] border-[1px] border-[#3A3943] overflow-hidden cursor-pointer hover:border-[#505058] transition-colors flex-shrink-0"
-      style={{ backgroundColor: getDisplayColor(value) }}
-    />
+    <>
+      <button
+        ref={buttonRef}
+        onClick={handleToggle}
+        className={`w-[23px] h-[23px] rounded-[7px] border-[1px] overflow-hidden cursor-pointer transition-colors flex-shrink-0 ${
+          open ? "border-[#459BF8]" : "border-[#3A3943] hover:border-[#505058]"
+        }`}
+        style={{ backgroundColor: getDisplayColor(localColor) }}
+      />
+      {open && (
+        <ColorPicker
+          open={open}
+          referenceRef={buttonRef}
+          panelElement={panelElement}
+          color={localColor}
+          onColorChange={handleColorChange}
+          onColorChangeComplete={handleColorChangeComplete}
+          onClose={handleClose}
+          interactiveRefs={interactiveRefs}
+          solidOnly={solidOnly}
+        />
+      )}
+    </>
   );
 };
 

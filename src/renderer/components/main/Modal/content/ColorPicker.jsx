@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState, useLayoutEffect } from "react";
 import { useTranslation } from "@contexts/I18nContext";
 import { Saturation, Hue, Alpha, useColor } from "react-color-palette";
 import "react-color-palette/css";
@@ -37,13 +37,14 @@ const extractAlphaFromColor = (colorValue) => {
 export default function ColorPickerWrapper({
   open,
   referenceRef,
+  panelElement = null,
   color,
   onColorChange,
   onColorChangeComplete,
   onClose,
   solidOnly = false,
   interactiveRefs = [],
-  position,
+  position = undefined,
   offsetY = -80,
   placement = "right-start",
 }) {
@@ -66,9 +67,14 @@ export default function ColorPickerWrapper({
   );
   const suppressGradientResetRef = useRef(false);
   const suppressGradientBroadcastRef = useRef(false);
+  // 드래그 중인지 추적 (드래그 중에는 외부 color prop 동기화 건너뜀)
+  const isDraggingRef = useRef(false);
   // 한번이라도 그라디언트 모드에 진입(또는 그라디언트 값을 받은) 이후엔
   // 솔리드 색상(prop)이 들어와도 그라디언트 편집 상태를 다시 시드하지 않음
   const hasSeededGradientFromSolidRef = useRef(isGradientColor(color));
+
+  // 사용자가 모드를 수동으로 변경했는지 추적
+  const userSwitchedModeRef = useRef(false);
 
   const prevColorRef = useRef(color);
   // which gradient input is currently selected for Sat/Hue editing: 'top' | 'bottom'
@@ -188,10 +194,20 @@ export default function ColorPickerWrapper({
   }, [saveCurrentColorToPalette, onClose]);
 
   useEffect(() => {
+    // 드래그 중에는 외부 color prop 동기화 건너뜀
+    if (isDraggingRef.current) {
+      return;
+    }
+    
     const wasGradient = isGradientColor(prevColorRef.current);
     const isGradientNow = isGradientColor(color);
 
-    setMode(isGradientNow ? MODES.gradient : MODES.solid);
+    // 사용자가 수동으로 모드를 전환한 직후에는 prop 기반 모드 전환 무시
+    if (userSwitchedModeRef.current) {
+      userSwitchedModeRef.current = false;
+    } else {
+      setMode(isGradientNow ? MODES.gradient : MODES.solid);
+    }
 
     if (isGradientNow) {
       const topHex = color.top.replace("#", "").toUpperCase();
@@ -312,11 +328,13 @@ export default function ColorPickerWrapper({
   );
 
   const handleChange = (nextColor) => {
+    isDraggingRef.current = true;
     applyColor(nextColor, false);
   };
 
   const handleChangeComplete = (nextColor) => {
     applyColor(nextColor, true);
+    isDraggingRef.current = false;
   };
 
   const handleInputChange = (raw) => {
@@ -405,6 +423,7 @@ export default function ColorPickerWrapper({
 
   const handleModeSwitch = (nextMode) => {
     if (nextMode === mode) return;
+    userSwitchedModeRef.current = true;
     setMode(nextMode);
     if (nextMode === MODES.solid) {
       // 그라디언트 -> 솔리드 전환 시, 부모로 전달되는 단색 변경에 따라
@@ -414,6 +433,7 @@ export default function ColorPickerWrapper({
       if (parsed) {
         setSelectedColor(parsed);
         onColorChange?.(parsed.hex);
+        onColorChangeComplete?.(parsed.hex);
       }
     } else {
       // 그라디언트 모드에 진입함을 표시(이후부터는 시드 금지)
@@ -423,22 +443,83 @@ export default function ColorPickerWrapper({
     }
   };
 
+  // 고정 위치 상태
+  const [fixedPosition, setFixedPosition] = useState(null);
+  const pickerContainerRef = useRef(null);
+
+  // panelElement가 있을 때 고정 위치 계산 (패널 기준)
+  useLayoutEffect(() => {
+    if (!open) {
+      setFixedPosition(null);
+      return;
+    }
+    
+    if (panelElement) {
+      // 다음 프레임에서 실제 렌더링된 picker 크기를 측정
+      requestAnimationFrame(() => {
+        const panelRect = panelElement.getBoundingClientRect();
+        
+        // picker 요소의 실제 크기를 측정하거나 기본값 사용
+        const pickerEl = pickerContainerRef.current;
+        const pickerWidth = pickerEl ? pickerEl.offsetWidth : 164;
+        // 솔리드 모드 높이를 기준으로 함
+        const solidPickerHeight = solidOnly ? 280 : 264; // solidOnly일 때 Alpha 슬라이더 포함
+        const actualPickerHeight = pickerEl ? pickerEl.offsetHeight : solidPickerHeight;
+        
+        const gap = 5; // 패널과 피커 사이의 간격
+        const padding = 5; // 화면 가장자리 패딩
+        
+        // X축: 패널 왼쪽에서 gap만큼 떨어진 위치
+        let fixedX = panelRect.left - pickerWidth - gap;
+        
+        // 왼쪽 화면 경계를 벗어나면 최소 padding 위치로 조정
+        if (fixedX < padding) {
+          fixedX = padding;
+        }
+        
+        // Y축: 패널 하단에서 picker 하단을 기준으로 정렬
+        // 솔리드 피커의 하단 위치를 기준으로 함
+        const panelBottomPadding = 20; // 패널 하단에서 약간 올려서 배치
+        const solidPickerBottom = panelRect.bottom - panelBottomPadding;
+        
+        // 그라디언트 모드일 때도 하단은 솔리드와 동일하게 유지
+        // 따라서 Y 위치는 (하단 기준 - 실제 높이)
+        let fixedY = solidPickerBottom - actualPickerHeight;
+        
+        // Y축 상단 경계 체크
+        if (fixedY < padding) {
+          fixedY = padding;
+        }
+        
+        setFixedPosition({ x: fixedX, y: fixedY });
+      });
+    } else {
+      setFixedPosition(null);
+    }
+  }, [open, panelElement, solidOnly, mode]); // mode 변경 시에도 재계산 (높이가 변경됨)
+
+  // fixedPosition이 있으면 offsetY를 무시 (이미 정확한 좌표가 계산됨)
+  const effectiveOffsetY = fixedPosition ? 0 : offsetY;
+
   return (
     <FloatingPopup
       open={open}
       referenceRef={referenceRef}
-      fixedX={position?.x}
-      fixedY={position?.y}
+      fixedX={fixedPosition?.x ?? position?.x}
+      fixedY={fixedPosition?.y ?? position?.y}
       placement={placement}
       offset={32}
-      offsetY={offsetY}
+      offsetY={effectiveOffsetY}
       className="z-50"
       interactiveRefs={interactiveRefs}
       onClose={handleClose}
       autoClose={false}
-      closeOnScroll={true}
+      closeOnScroll={false}
     >
-      <div className="flex flex-col p-[8px] gap-[8px] w-[146px] bg-[#1A191E] rounded-[13px] border-[1px] border-[#2A2A30]">
+      <div 
+        ref={pickerContainerRef}
+        className="flex flex-col p-[8px] gap-[8px] w-[146px] bg-[#1A191E] rounded-[13px] border-[1px] border-[#2A2A30]"
+      >
         {!solidOnly && <ModeSwitch mode={mode} onChange={handleModeSwitch} />}
 
         <Saturation

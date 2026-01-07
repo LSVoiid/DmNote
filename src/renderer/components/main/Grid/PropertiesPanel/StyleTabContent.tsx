@@ -1,17 +1,20 @@
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import type { StyleTabContentProps } from "./types";
 import type { ImageFit, KeyPosition } from "@src/types/keys";
 import {
   PropertyRow,
   NumberInput,
   TextInput,
-  ColorInput,
   SelectInput,
   ToggleSwitch,
   FontStyleToggle,
   SectionDivider,
 } from "./PropertyInputs";
 import ImagePicker from "../../Modal/content/ImagePicker";
+import ColorPicker from "../../Modal/content/ColorPicker";
+
+// 피커 타겟 타입
+type PickerTarget = "backgroundColor" | "borderColor" | "fontColor" | "image" | null;
 
 interface StyleTabContentInternalProps extends StyleTabContentProps {
   // 로컬 상태 (단일 선택 시에만 사용, 개별 편집 모드에서는 사용하지 않음)
@@ -40,6 +43,7 @@ const StyleTabContent: React.FC<StyleTabContentInternalProps> = ({
   showImagePicker = false,
   onToggleImagePicker,
   imageButtonRef,
+  panelElement,
   useCustomCSS = false,
   t,
   // 로컬 상태
@@ -55,6 +59,82 @@ const StyleTabContent: React.FC<StyleTabContentInternalProps> = ({
 }) => {
   // 개별 편집 모드인지 확인 (로컬 상태 핸들러가 없으면 개별 편집 모드)
   const isIndividualMode = !onLocalDxChange;
+
+  // 통합 피커 상태
+  const [pickerFor, setPickerFor] = useState<PickerTarget>(null);
+  
+  // 컬러 버튼 refs
+  const bgColorBtnRef = useRef<HTMLButtonElement>(null);
+  const borderColorBtnRef = useRef<HTMLButtonElement>(null);
+  const fontColorBtnRef = useRef<HTMLButtonElement>(null);
+  const internalImageButtonRef = useRef<HTMLButtonElement>(null);
+  
+  // 로컬 색상 상태 (드래그 중 UI 업데이트용)
+  const [localColors, setLocalColors] = useState({
+    backgroundColor: keyPosition.backgroundColor || "#2E2E2F",
+    borderColor: keyPosition.borderColor || "#717171",
+    fontColor: keyPosition.fontColor || "#717171",
+  });
+
+  // 피커가 닫혀있을 때만 외부 prop과 동기화
+  useEffect(() => {
+    if (!pickerFor || (pickerFor !== "backgroundColor" && pickerFor !== "borderColor" && pickerFor !== "fontColor")) {
+      setLocalColors({
+        backgroundColor: keyPosition.backgroundColor || "#2E2E2F",
+        borderColor: keyPosition.borderColor || "#717171",
+        fontColor: keyPosition.fontColor || "#717171",
+      });
+    }
+  }, [pickerFor, keyPosition.backgroundColor, keyPosition.borderColor, keyPosition.fontColor]);
+
+  // interactiveRefs
+  const colorPickerInteractiveRefs = useMemo(
+    () => [bgColorBtnRef, borderColorBtnRef, fontColorBtnRef],
+    []
+  );
+  
+  // 실제 사용할 이미지 버튼 ref (외부에서 제공되면 외부 것 사용)
+  const actualImageButtonRef = imageButtonRef || internalImageButtonRef;
+
+  // 피커 토글 (같은 타겟이면 닫고, 다른 타겟이면 바로 전환)
+  const handlePickerToggle = useCallback((target: PickerTarget) => {
+    setPickerFor((prev) => (prev === target ? null : target));
+  }, []);
+
+  // 이미지 피커 토글 (외부 핸들러가 있으면 사용, 없으면 내부 상태 사용)
+  const handleImagePickerToggle = useCallback(() => {
+    if (onToggleImagePicker) {
+      onToggleImagePicker();
+      setPickerFor(null); // 다른 피커 닫기
+    } else {
+      handlePickerToggle("image");
+    }
+  }, [onToggleImagePicker, handlePickerToggle]);
+
+  // 현재 피커 색상값 가져오기
+  const colorValueFor = useCallback(
+    (key: Exclude<PickerTarget, "image" | null>): string => {
+      return localColors[key];
+    },
+    [localColors]
+  );
+
+  // 드래그 중 로컬 상태만 업데이트
+  const handleColorChange = useCallback(
+    (key: Exclude<PickerTarget, "image" | null>, color: string) => {
+      setLocalColors((prev) => ({ ...prev, [key]: color }));
+    },
+    []
+  );
+
+  // 드래그 완료 시 부모에게 전달
+  const handleColorChangeComplete = useCallback(
+    (key: Exclude<PickerTarget, "image" | null>, color: string) => {
+      setLocalColors((prev) => ({ ...prev, [key]: color }));
+      onKeyUpdate({ index: keyIndex, [key]: color });
+    },
+    [keyIndex, onKeyUpdate]
+  );
 
   // 위치 변경 핸들러
   const handlePositionXChange = useCallback(
@@ -184,6 +264,27 @@ const StyleTabContent: React.FC<StyleTabContentInternalProps> = ({
     onKeyUpdate({ index: keyIndex, className: keyPosition.className || "" });
   }, [keyIndex, keyPosition.className, onKeyUpdate]);
 
+  // 이미지 피커 열림 상태 (외부 또는 내부)
+  const isImagePickerOpen = onToggleImagePicker ? showImagePicker : pickerFor === "image";
+
+  // 색상 표시용 헬퍼 함수
+  const getDisplayColor = (color: string): string => {
+    if (!color) return "#ffffff";
+    if (color.startsWith("rgba") || color.startsWith("rgb")) {
+      const match = color.match(/\d+/g);
+      if (match && match.length >= 3) {
+        const r = parseInt(match[0]).toString(16).padStart(2, "0");
+        const g = parseInt(match[1]).toString(16).padStart(2, "0");
+        const b = parseInt(match[2]).toString(16).padStart(2, "0");
+        return `#${r}${g}${b}`;
+      }
+    }
+    if (color.startsWith("#")) {
+      return color.slice(0, 7);
+    }
+    return "#ffffff";
+  };
+
   return (
     <>
       {/* 키 매핑 - 단일 선택 모드에서만 표시 */}
@@ -277,19 +378,27 @@ const StyleTabContent: React.FC<StyleTabContentInternalProps> = ({
 
       {/* 배경색 */}
       <PropertyRow label={t("propertiesPanel.backgroundColor") || "배경색"}>
-        <ColorInput
-          value={keyPosition.backgroundColor || "#2E2E2F"}
-          onChange={(color) => handleStyleChange("backgroundColor", color)}
-          onChangeComplete={(color) => handleStyleChangeComplete("backgroundColor", color)}
+        <button
+          ref={bgColorBtnRef}
+          type="button"
+          onClick={() => handlePickerToggle("backgroundColor")}
+          className={`w-[23px] h-[23px] rounded-[7px] border-[1px] overflow-hidden cursor-pointer transition-colors flex-shrink-0 ${
+            pickerFor === "backgroundColor" ? "border-[#459BF8]" : "border-[#3A3943] hover:border-[#505058]"
+          }`}
+          style={{ backgroundColor: getDisplayColor(localColors.backgroundColor) }}
         />
       </PropertyRow>
 
       {/* 테두리 색상 */}
       <PropertyRow label={t("propertiesPanel.borderColor") || "테두리 색상"}>
-        <ColorInput
-          value={keyPosition.borderColor || "#717171"}
-          onChange={(color) => handleStyleChange("borderColor", color)}
-          onChangeComplete={(color) => handleStyleChangeComplete("borderColor", color)}
+        <button
+          ref={borderColorBtnRef}
+          type="button"
+          onClick={() => handlePickerToggle("borderColor")}
+          className={`w-[23px] h-[23px] rounded-[7px] border-[1px] overflow-hidden cursor-pointer transition-colors flex-shrink-0 ${
+            pickerFor === "borderColor" ? "border-[#459BF8]" : "border-[#3A3943] hover:border-[#505058]"
+          }`}
+          style={{ backgroundColor: getDisplayColor(localColors.borderColor) }}
         />
       </PropertyRow>
 
@@ -330,10 +439,14 @@ const StyleTabContent: React.FC<StyleTabContentInternalProps> = ({
 
       {/* 글꼴 색상 */}
       <PropertyRow label={t("propertiesPanel.fontColor") || "글꼴 색상"}>
-        <ColorInput
-          value={keyPosition.fontColor || "#717171"}
-          onChange={(color) => handleStyleChange("fontColor", color)}
-          onChangeComplete={(color) => handleStyleChangeComplete("fontColor", color)}
+        <button
+          ref={fontColorBtnRef}
+          type="button"
+          onClick={() => handlePickerToggle("fontColor")}
+          className={`w-[23px] h-[23px] rounded-[7px] border-[1px] overflow-hidden cursor-pointer transition-colors flex-shrink-0 ${
+            pickerFor === "fontColor" ? "border-[#459BF8]" : "border-[#3A3943] hover:border-[#505058]"
+          }`}
+          style={{ backgroundColor: getDisplayColor(localColors.fontColor) }}
         />
       </PropertyRow>
 
@@ -407,6 +520,7 @@ const StyleTabContent: React.FC<StyleTabContentInternalProps> = ({
         <ImagePicker
           open={showImagePicker}
           referenceRef={imageButtonRef}
+          panelElement={panelElement}
           idleImage={keyPosition.inactiveImage || ""}
           activeImage={keyPosition.activeImage || ""}
           idleTransparent={keyPosition.idleTransparent ?? false}
@@ -418,6 +532,21 @@ const StyleTabContent: React.FC<StyleTabContentInternalProps> = ({
           onIdleImageReset={handleIdleImageReset}
           onActiveImageReset={handleActiveImageReset}
           onClose={() => onToggleImagePicker()}
+        />
+      )}
+
+      {/* 통합 ColorPicker - 단일 인스턴스로 깜빡임 없이 전환 */}
+      {pickerFor && pickerFor !== "image" && (
+        <ColorPicker
+          open={!!pickerFor}
+          referenceRef={bgColorBtnRef}
+          panelElement={panelElement}
+          color={colorValueFor(pickerFor)}
+          onColorChange={(c: string) => handleColorChange(pickerFor, c)}
+          onColorChangeComplete={(c: string) => handleColorChangeComplete(pickerFor, c)}
+          onClose={() => setPickerFor(null)}
+          solidOnly={true}
+          interactiveRefs={colorPickerInteractiveRefs}
         />
       )}
     </>

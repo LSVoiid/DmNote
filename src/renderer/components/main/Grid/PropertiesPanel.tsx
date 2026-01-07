@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { useTranslation } from "@contexts/I18nContext";
 import { useGridSelectionStore } from "@stores/useGridSelectionStore";
 import { useKeyStore } from "@stores/useKeyStore";
@@ -8,6 +8,7 @@ import type { KeyPosition, NoteColor, KeyCounterSettings } from "@src/types/keys
 import { createDefaultCounterSettings, normalizeCounterSettings } from "@src/types/keys";
 import Checkbox from "@components/main/common/Checkbox";
 import Dropdown from "@components/main/common/Dropdown";
+import ColorPicker from "@components/main/Modal/content/ColorPicker";
 
 // 분리된 컴포넌트들
 import {
@@ -78,6 +79,18 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   const [showImagePicker, setShowImagePicker] = useState(false);
   const imageButtonRef = useRef<HTMLButtonElement>(null);
 
+  // 일괄 편집용 컬러 버튼 refs
+  const batchNoteColorButtonRef = useRef<HTMLButtonElement>(null);
+  const batchGlowColorButtonRef = useRef<HTMLButtonElement>(null);
+  const batchCounterFillIdleButtonRef = useRef<HTMLButtonElement>(null);
+  const batchCounterFillActiveButtonRef = useRef<HTMLButtonElement>(null);
+  const batchCounterStrokeIdleButtonRef = useRef<HTMLButtonElement>(null);
+  const batchCounterStrokeActiveButtonRef = useRef<HTMLButtonElement>(null);
+
+  // 패널 ref (컬러픽커/이미지픽커 위치 기준)
+  // useRef 대신 useState를 사용하여 ref가 설정될 때 리렌더링 유발
+  const [panelElement, setPanelElement] = useState<HTMLDivElement | null>(null);
+
   // 패널 가시성 상태 (선택과 별개로 패널만 닫을 수 있음)
   const [isPanelVisible, setIsPanelVisible] = useState(true);
 
@@ -87,6 +100,27 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   // 다중 선택 모드 상태
   const [isBatchEditMode, setIsBatchEditMode] = useState(true);
   const [expandedAccordionIndex, setExpandedAccordionIndex] = useState<number | null>(null);
+
+  // 배치 편집용 로컬 ColorPicker 상태
+  type BatchPickerTarget = "noteColor" | "glowColor" | "fillIdle" | "fillActive" | "strokeIdle" | "strokeActive" | null;
+  const [batchPickerFor, setBatchPickerFor] = useState<BatchPickerTarget>(null);
+  
+  // 배치 편집용 로컬 색상 상태 (드래그 중 UI 업데이트용)
+  const [batchLocalColors, setBatchLocalColors] = useState<{
+    noteColor: any;
+    glowColor: any;
+    fillIdle: string;
+    fillActive: string;
+    strokeIdle: string;
+    strokeActive: string;
+  }>({
+    noteColor: "#FFA500",
+    glowColor: "#FFA500",
+    fillIdle: "#FFFFFF",
+    fillActive: "#FFFFFF",
+    strokeIdle: "#000000",
+    strokeActive: "#000000",
+  });
 
   // 선택이 변경되면 로컬 상태 초기화
   useEffect(() => {
@@ -364,79 +398,146 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     [selectedKeyElements, onKeyUpdate]
   );
 
-  // 일괄 노트 컬러 피커 열기
-  const handleOpenBatchNoteColorPicker = useCallback(() => {
-    if (typeof (window as any).__dmn_showColorPicker === "function") {
-      const keysData = getSelectedKeysData();
-      const firstNoteColor = keysData[0]?.position?.noteColor;
-      let initialColor: any = "#FFA500";
-      if (firstNoteColor && typeof firstNoteColor === "object" && "type" in firstNoteColor && firstNoteColor.type === "gradient") {
-        initialColor = { type: "gradient", top: firstNoteColor.top, bottom: firstNoteColor.bottom };
-      } else if (typeof firstNoteColor === "string") {
-        initialColor = firstNoteColor;
-      }
-      (window as any).__dmn_showColorPicker({
-        initialColor,
-        onColorChange: handleBatchNoteColorChange,
-        onColorChangeComplete: handleBatchNoteColorChangeComplete,
-        id: `batch-note-color-picker-${Date.now()}`,
-        enableGradient: true,
-      });
-    }
-  }, [getSelectedKeysData, handleBatchNoteColorChange, handleBatchNoteColorChangeComplete]);
+  // (사이드 패널) 일괄 편집에서도 전역 컬러피커를 쓰지 않음
+  // - 노트/글로우는 NoteTabContent(단일 편집)에서 로컬 ColorPicker로 처리
+  // - 카운터는 CounterTabContent(단일 편집)로 로컬 ColorPicker 처리
 
-  const handleOpenBatchGlowColorPicker = useCallback(() => {
-    if (typeof (window as any).__dmn_showColorPicker === "function") {
-      const keysData = getSelectedKeysData();
-      const firstGlowColor = keysData[0]?.position?.noteGlowColor;
-      let initialColor: any = "#FFA500";
-      if (firstGlowColor && typeof firstGlowColor === "object" && "type" in firstGlowColor && firstGlowColor.type === "gradient") {
-        initialColor = { type: "gradient", top: firstGlowColor.top, bottom: firstGlowColor.bottom };
-      } else if (typeof firstGlowColor === "string") {
-        initialColor = firstGlowColor;
-      }
-      (window as any).__dmn_showColorPicker({
-        initialColor,
-        onColorChange: handleBatchGlowColorChange,
-        onColorChangeComplete: handleBatchGlowColorChangeComplete,
-        id: `batch-glow-color-picker-${Date.now()}`,
-        enableGradient: true,
-      });
-    }
-  }, [getSelectedKeysData, handleBatchGlowColorChange, handleBatchGlowColorChangeComplete]);
+  // 배치 편집용 interactiveRefs
+  const batchColorPickerInteractiveRefs = useMemo(
+    () => [
+      batchNoteColorButtonRef,
+      batchGlowColorButtonRef,
+      batchCounterFillIdleButtonRef,
+      batchCounterFillActiveButtonRef,
+      batchCounterStrokeIdleButtonRef,
+      batchCounterStrokeActiveButtonRef,
+    ],
+    []
+  );
 
-  const handleOpenBatchCounterColorPicker = useCallback(
-    (target: "fillIdle" | "fillActive" | "strokeIdle" | "strokeActive") => {
+  // 배치 피커 토글 - 열릴 때 현재 색상값으로 로컬 상태 초기화
+  const handleBatchPickerToggle = useCallback((target: typeof batchPickerFor) => {
+    if (target && target !== batchPickerFor) {
+      // 피커가 열릴 때 현재 색상값으로 로컬 상태 초기화
       const keysData = getSelectedKeysData();
-      const firstCounter = keysData[0]?.position ? normalizeCounterSettings(keysData[0].position.counter) : createDefaultCounterSettings();
-      
-      const colors = {
-        fillIdle: firstCounter.fill.idle,
-        fillActive: firstCounter.fill.active,
-        strokeIdle: firstCounter.stroke.idle,
-        strokeActive: firstCounter.stroke.active,
-      };
-
-      if (typeof (window as any).__dmn_showColorPicker === "function") {
-        (window as any).__dmn_showColorPicker({
-          initialColor: colors[target],
-          onColorChange: () => {},
-          onColorChangeComplete: (color: string) => {
-            if (target === "fillIdle") {
-              handleBatchCounterUpdate({ fill: { ...firstCounter.fill, idle: color } });
-            } else if (target === "fillActive") {
-              handleBatchCounterUpdate({ fill: { ...firstCounter.fill, active: color } });
-            } else if (target === "strokeIdle") {
-              handleBatchCounterUpdate({ stroke: { ...firstCounter.stroke, idle: color } });
-            } else if (target === "strokeActive") {
-              handleBatchCounterUpdate({ stroke: { ...firstCounter.stroke, active: color } });
+      const firstPos = keysData[0]?.position;
+      if (firstPos) {
+        const counterSettings = normalizeCounterSettings(firstPos.counter);
+        setBatchLocalColors({
+          noteColor: (() => {
+            const nc = firstPos.noteColor;
+            if (nc && typeof nc === "object" && "type" in nc && nc.type === "gradient") {
+              return { type: "gradient", top: nc.top, bottom: nc.bottom };
             }
-          },
-          id: `batch-counter-${target}-picker-${Date.now()}`,
+            return typeof nc === "string" ? nc : "#FFA500";
+          })(),
+          glowColor: (() => {
+            const gc = firstPos.noteGlowColor;
+            if (gc && typeof gc === "object" && "type" in gc && gc.type === "gradient") {
+              return { type: "gradient", top: gc.top, bottom: gc.bottom };
+            }
+            return typeof gc === "string" ? gc : "#FFA500";
+          })(),
+          fillIdle: counterSettings.fill.idle,
+          fillActive: counterSettings.fill.active,
+          strokeIdle: counterSettings.stroke.idle,
+          strokeActive: counterSettings.stroke.active,
         });
       }
+    }
+    setBatchPickerFor((prev) => (prev === target ? null : target));
+  }, [batchPickerFor, getSelectedKeysData]);
+
+  // 배치 피커 색상값 가져오기 (로컬 상태 사용)
+  const getBatchPickerColor = useCallback((): any => {
+    switch (batchPickerFor) {
+      case "noteColor":
+        return batchLocalColors.noteColor;
+      case "glowColor":
+        return batchLocalColors.glowColor;
+      case "fillIdle":
+        return batchLocalColors.fillIdle;
+      case "fillActive":
+        return batchLocalColors.fillActive;
+      case "strokeIdle":
+        return batchLocalColors.strokeIdle;
+      case "strokeActive":
+        return batchLocalColors.strokeActive;
+      default:
+        return "#FFA500";
+    }
+  }, [batchPickerFor, batchLocalColors]);
+
+  // 배치 피커 referenceRef (카운터 컬러픽커는 원본 모달처럼 fillActive 버튼 위치에 고정)
+  const getBatchPickerRef = useCallback(() => {
+    switch (batchPickerFor) {
+      case "noteColor":
+        return batchNoteColorButtonRef;
+      case "glowColor":
+        return batchGlowColorButtonRef;
+      case "fillIdle":
+      case "fillActive":
+      case "strokeIdle":
+      case "strokeActive":
+        // 카운터 컬러픽커는 모두 fillActive 버튼 위치에서 렌더링
+        return batchCounterFillActiveButtonRef;
+      default:
+        return null;
+    }
+  }, [batchPickerFor]);
+
+  // 배치 피커 색상 변경 (드래그 중 - 로컬 상태만 업데이트)
+  const handleBatchPickerColorChange = useCallback(
+    (newColor: any) => {
+      // 로컬 상태 업데이트
+      if (batchPickerFor) {
+        setBatchLocalColors((prev) => ({ ...prev, [batchPickerFor]: newColor }));
+      }
+      
+      // 노트/글로우는 프리뷰도 함께 업데이트
+      if (batchPickerFor === "noteColor") {
+        handleBatchNoteColorChange(newColor);
+      } else if (batchPickerFor === "glowColor") {
+        handleBatchGlowColorChange(newColor);
+      }
+      // counter 색상은 preview 없이 complete에서만 처리
     },
-    [getSelectedKeysData, handleBatchCounterUpdate]
+    [batchPickerFor, handleBatchNoteColorChange, handleBatchGlowColorChange]
+  );
+
+  const handleBatchPickerColorChangeComplete = useCallback(
+    (newColor: any) => {
+      // 로컬 상태 업데이트
+      if (batchPickerFor) {
+        setBatchLocalColors((prev) => ({ ...prev, [batchPickerFor]: newColor }));
+      }
+      
+      const keysData = getSelectedKeysData();
+      const firstCounter = keysData[0]?.position
+        ? normalizeCounterSettings(keysData[0].position.counter)
+        : createDefaultCounterSettings();
+
+      if (batchPickerFor === "noteColor") {
+        handleBatchNoteColorChangeComplete(newColor);
+      } else if (batchPickerFor === "glowColor") {
+        handleBatchGlowColorChangeComplete(newColor);
+      } else if (batchPickerFor === "fillIdle") {
+        handleBatchCounterUpdate({ fill: { ...firstCounter.fill, idle: newColor } });
+      } else if (batchPickerFor === "fillActive") {
+        handleBatchCounterUpdate({ fill: { ...firstCounter.fill, active: newColor } });
+      } else if (batchPickerFor === "strokeIdle") {
+        handleBatchCounterUpdate({ stroke: { ...firstCounter.stroke, idle: newColor } });
+      } else if (batchPickerFor === "strokeActive") {
+        handleBatchCounterUpdate({ stroke: { ...firstCounter.stroke, active: newColor } });
+      }
+    },
+    [
+      batchPickerFor,
+      getSelectedKeysData,
+      handleBatchNoteColorChangeComplete,
+      handleBatchGlowColorChangeComplete,
+      handleBatchCounterUpdate,
+    ]
   );
 
   // ============================================================================
@@ -465,8 +566,18 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
       );
     }
 
-    // 혼합 값 표시 함수
+    // 혼합 값 표시 함수 (피커가 열려있을 때는 로컬 상태 사용)
     const getBatchNoteColorDisplay = () => {
+      // 노트 피커가 열려있으면 로컬 상태 사용
+      if (batchPickerFor === "noteColor") {
+        const value = batchLocalColors.noteColor;
+        if (value && typeof value === "object" && "type" in value && value.type === "gradient") {
+          return { style: { background: `linear-gradient(to bottom, ${value.top}, ${value.bottom})` }, label: "Gradient", isMixed: false };
+        }
+        const color = typeof value === "string" ? value : "#FFA500";
+        return { style: { backgroundColor: color }, label: color.replace(/^#/, ""), isMixed: false };
+      }
+      
       const { isMixed, value } = getMixedValue((pos) => pos.noteColor, "#FFA500");
       if (isMixed) return { style: { backgroundColor: "#666" }, label: "Mixed", isMixed: true };
       if (value && typeof value === "object" && "type" in value && value.type === "gradient") {
@@ -477,6 +588,16 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     };
 
     const getBatchGlowColorDisplay = () => {
+      // 글로우 피커가 열려있으면 로컬 상태 사용
+      if (batchPickerFor === "glowColor") {
+        const value = batchLocalColors.glowColor;
+        if (value && typeof value === "object" && "type" in value && value.type === "gradient") {
+          return { style: { background: `linear-gradient(to bottom, ${value.top}, ${value.bottom})` }, label: "Gradient", isMixed: false };
+        }
+        const color = typeof value === "string" ? value : "#FFA500";
+        return { style: { backgroundColor: color }, label: color.replace(/^#/, ""), isMixed: false };
+      }
+      
       const { isMixed, value } = getMixedValue((pos) => pos.noteGlowColor, "#FFA500");
       if (isMixed) return { style: { backgroundColor: "#666" }, label: "Mixed", isMixed: true };
       if (value && typeof value === "object" && "type" in value && value.type === "gradient") {
@@ -486,13 +607,30 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
       return { style: { backgroundColor: color }, label: color.replace(/^#/, ""), isMixed: false };
     };
 
+    // 카운터 색상 표시 (피커가 열려있을 때는 로컬 상태 사용)
+    const getCounterColorDisplay = (key: "fillIdle" | "fillActive" | "strokeIdle" | "strokeActive") => {
+      if (batchPickerFor === key) {
+        return batchLocalColors[key];
+      }
+      const keysData = getSelectedKeysData();
+      const firstPos = keysData[0]?.position;
+      if (!firstPos) return "#FFFFFF";
+      const counterSettings = normalizeCounterSettings(firstPos.counter);
+      switch (key) {
+        case "fillIdle": return counterSettings.fill.idle;
+        case "fillActive": return counterSettings.fill.active;
+        case "strokeIdle": return counterSettings.stroke.idle;
+        case "strokeActive": return counterSettings.stroke.active;
+      }
+    };
+
     const keysData = getSelectedKeysData();
     const batchCounterSettings = keysData[0]?.position
       ? normalizeCounterSettings(keysData[0].position.counter)
       : createDefaultCounterSettings();
 
     return (
-      <div className="absolute right-0 top-0 bottom-0 w-[220px] bg-[#1F1F24] border-l border-[#3A3943] flex flex-col z-30 shadow-lg">
+      <div ref={setPanelElement} className="absolute right-0 top-0 bottom-0 w-[220px] bg-[#1F1F24] border-l border-[#3A3943] flex flex-col z-30 shadow-lg">
         {/* 헤더 */}
         <div className="flex items-center justify-between p-[12px] border-b border-[#3A3943]">
           <div className="flex items-center gap-[8px]">
@@ -552,6 +690,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                         value={getMixedValue((pos) => pos.backgroundColor, "#2E2E2F").value}
                         onChange={(color) => handleBatchStyleChange("backgroundColor", color)}
                         onChangeComplete={(color) => handleBatchStyleChangeComplete("backgroundColor", color)}
+                        panelElement={panelElement}
                       />
                     </PropertyRow>
 
@@ -564,6 +703,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                         value={getMixedValue((pos) => pos.borderColor, "#717171").value}
                         onChange={(color) => handleBatchStyleChange("borderColor", color)}
                         onChangeComplete={(color) => handleBatchStyleChangeComplete("borderColor", color)}
+                        panelElement={panelElement}
                       />
                     </PropertyRow>
 
@@ -620,6 +760,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                         value={getMixedValue((pos) => pos.fontColor, "#717171").value}
                         onChange={(color) => handleBatchStyleChange("fontColor", color)}
                         onChangeComplete={(color) => handleBatchStyleChangeComplete("fontColor", color)}
+                        panelElement={panelElement}
                       />
                     </PropertyRow>
 
@@ -645,7 +786,8 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                     {/* 노트 색상 */}
                     <PropertyRow label={t("keySetting.noteColor") || "노트 색상"}>
                       <button
-                        onClick={handleOpenBatchNoteColorPicker}
+                        ref={batchNoteColorButtonRef}
+                        onClick={() => handleBatchPickerToggle("noteColor")}
                         className="relative w-[80px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943] flex items-center justify-center text-[#DBDEE8] text-style-2"
                       >
                         <div
@@ -691,7 +833,8 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                       <>
                         <PropertyRow label={t("keySetting.noteGlowColor") || "글로우 색상"}>
                           <button
-                            onClick={handleOpenBatchGlowColorPicker}
+                            ref={batchGlowColorButtonRef}
+                            onClick={() => handleBatchPickerToggle("glowColor")}
                             className="relative w-[80px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943] flex items-center justify-center text-[#DBDEE8] text-style-2"
                           >
                             <div
@@ -805,22 +948,24 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                     <PropertyRow label={t("counterSetting.fill") || "채우기"}>
                       <div className="flex items-center gap-[4px]">
                         <button
-                          onClick={() => handleOpenBatchCounterColorPicker("fillIdle")}
+                          ref={batchCounterFillIdleButtonRef}
+                          onClick={() => handleBatchPickerToggle("fillIdle")}
                           className="relative px-[7px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943] flex items-center justify-center text-[#DBDEE8] text-style-4"
                         >
                           <div
                             className="absolute left-[6px] top-[4.5px] w-[11px] h-[11px] rounded-[2px] border border-[#3A3943]"
-                            style={{ backgroundColor: batchCounterSettings.fill.idle }}
+                            style={{ backgroundColor: getCounterColorDisplay("fillIdle") }}
                           />
                           <span className="ml-[16px] text-left">{t("counterSetting.idle") || "대기"}</span>
                         </button>
                         <button
-                          onClick={() => handleOpenBatchCounterColorPicker("fillActive")}
+                          ref={batchCounterFillActiveButtonRef}
+                          onClick={() => handleBatchPickerToggle("fillActive")}
                           className="relative px-[7px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943] flex items-center justify-center text-[#DBDEE8] text-style-4"
                         >
                           <div
                             className="absolute left-[6px] top-[4.5px] w-[11px] h-[11px] rounded-[2px] border border-[#3A3943]"
-                            style={{ backgroundColor: batchCounterSettings.fill.active }}
+                            style={{ backgroundColor: getCounterColorDisplay("fillActive") }}
                           />
                           <span className="ml-[16px] text-left">{t("counterSetting.active") || "입력"}</span>
                         </button>
@@ -831,22 +976,24 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                     <PropertyRow label={t("counterSetting.stroke") || "외곽선"}>
                       <div className="flex items-center gap-[4px]">
                         <button
-                          onClick={() => handleOpenBatchCounterColorPicker("strokeIdle")}
+                          ref={batchCounterStrokeIdleButtonRef}
+                          onClick={() => handleBatchPickerToggle("strokeIdle")}
                           className="relative px-[7px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943] flex items-center justify-center text-[#DBDEE8] text-style-4"
                         >
                           <div
                             className="absolute left-[6px] top-[4.5px] w-[11px] h-[11px] rounded-[2px] border border-[#3A3943]"
-                            style={{ backgroundColor: batchCounterSettings.stroke.idle }}
+                            style={{ backgroundColor: getCounterColorDisplay("strokeIdle") }}
                           />
                           <span className="ml-[16px] text-left">{t("counterSetting.idle") || "대기"}</span>
                         </button>
                         <button
-                          onClick={() => handleOpenBatchCounterColorPicker("strokeActive")}
+                          ref={batchCounterStrokeActiveButtonRef}
+                          onClick={() => handleBatchPickerToggle("strokeActive")}
                           className="relative px-[7px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943] flex items-center justify-center text-[#DBDEE8] text-style-4"
                         >
                           <div
                             className="absolute left-[6px] top-[4.5px] w-[11px] h-[11px] rounded-[2px] border border-[#3A3943]"
-                            style={{ backgroundColor: batchCounterSettings.stroke.active }}
+                            style={{ backgroundColor: getCounterColorDisplay("strokeActive") }}
                           />
                           <span className="ml-[16px] text-left">{t("counterSetting.active") || "입력"}</span>
                         </button>
@@ -867,6 +1014,21 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                 )}
 
               </div>
+
+              {/* 배치 편집용 로컬 ColorPicker */}
+              {batchPickerFor && (
+                <ColorPicker
+                  open={!!batchPickerFor}
+                  referenceRef={getBatchPickerRef()}
+                  panelElement={panelElement}
+                  color={getBatchPickerColor()}
+                  onColorChange={handleBatchPickerColorChange}
+                  onColorChangeComplete={handleBatchPickerColorChangeComplete}
+                  onClose={() => setBatchPickerFor(null)}
+                  interactiveRefs={batchColorPickerInteractiveRefs}
+                  solidOnly={batchPickerFor !== "noteColor" && batchPickerFor !== "glowColor"}
+                />
+              )}
             </div>
           </>
         ) : (
@@ -909,6 +1071,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                             onKeyUpdate={onKeyUpdate}
                             onKeyPreview={onKeyPreview}
                             onKeyMappingChange={onKeyMappingChange}
+                            panelElement={panelElement}
                             useCustomCSS={useCustomCSS}
                             t={t}
                           />
@@ -919,6 +1082,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                             keyPosition={keyData.position}
                             onKeyUpdate={onKeyUpdate}
                             onKeyPreview={onKeyPreview}
+                            panelElement={panelElement}
                             t={t}
                           />
                         )}
@@ -927,6 +1091,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                             keyIndex={keyData.index}
                             keyPosition={keyData.position}
                             onKeyUpdate={onKeyUpdate}
+                            panelElement={panelElement}
                             t={t}
                           />
                         )}
@@ -988,8 +1153,8 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     );
   }
 
-  return (
-    <div className="absolute right-0 top-0 bottom-0 w-[220px] bg-[#1F1F24] border-l border-[#3A3943] flex flex-col z-30 shadow-lg">
+    return (
+      <div ref={setPanelElement} className="absolute right-0 top-0 bottom-0 w-[220px] bg-[#1F1F24] border-l border-[#3A3943] flex flex-col z-30 shadow-lg">
       {/* 헤더 */}
       <div className="flex items-center justify-between p-[12px] border-b border-[#3A3943] flex-shrink-0">
         <span className="text-[#DBDEE8] text-style-2">
@@ -1030,6 +1195,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
               showImagePicker={showImagePicker}
               onToggleImagePicker={() => setShowImagePicker(!showImagePicker)}
               imageButtonRef={imageButtonRef}
+              panelElement={panelElement}
               useCustomCSS={useCustomCSS}
               t={t}
               // 로컬 상태 (단일 선택 시에만 사용)
@@ -1052,6 +1218,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
               keyPosition={singleKeyPosition}
               onKeyUpdate={onKeyUpdate}
               onKeyPreview={onKeyPreview}
+              panelElement={panelElement}
               t={t}
             />
           )}
@@ -1062,6 +1229,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
               keyIndex={singleKeyIndex!}
               keyPosition={singleKeyPosition}
               onKeyUpdate={onKeyUpdate}
+              panelElement={panelElement}
               t={t}
             />
           )}

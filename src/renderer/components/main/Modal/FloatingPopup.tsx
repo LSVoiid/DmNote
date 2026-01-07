@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   useFloating,
   offset as fuiOffset,
@@ -130,22 +131,22 @@ const FloatingPopup = ({
       const menuHeight = rect.height;
       const padding = 5; // 창 가장자리로부터의 패딩
 
-      // 오른쪽 경계를 벗어나면 왼쪽 정렬로 변경
+      // 오른쪽 경계를 벗어나면 왼쪽으로 이동
       if (adjustedX + menuWidth > viewportWidth - padding) {
-        adjustedX = fixedX - menuWidth + offsetX;
+        adjustedX = viewportWidth - menuWidth - padding;
       }
 
-      // 아래쪽 경계를 벗어나면 위쪽 정렬로 변경
+      // 아래쪽 경계를 벗어나면 위쪽으로 이동
       if (adjustedY + menuHeight > viewportHeight - padding) {
-        adjustedY = fixedY - menuHeight + offsetY;
+        adjustedY = viewportHeight - menuHeight - padding;
       }
 
-      // 왼쪽 경계를 벗어나면 오른쪽 정렬로 변경
+      // 왼쪽 경계를 벗어나면 최소 padding 위치로 조정
       if (adjustedX < padding) {
         adjustedX = padding;
       }
 
-      // 위쪽 경계를 벗어나면 아래쪽 정렬로 변경
+      // 위쪽 경계를 벗어나면 최소 padding 위치로 조정
       if (adjustedY < padding) {
         adjustedY = padding;
       }
@@ -161,7 +162,6 @@ const FloatingPopup = ({
 
     let pointerCapturedInside = false;
 
-    const floatingEl = refs.floating.current;
     const referenceEl = referenceRef?.current ?? null;
 
     const handlePointerDownInside = () => {
@@ -174,9 +174,12 @@ const FloatingPopup = ({
 
     const handleDocumentDown = (event: PointerEvent) => {
       const target = event.target as Node;
+      // floatingRef.current를 이벤트 발생 시점에 동적으로 참조
+      const floatingEl = floatingRef.current;
       const interactiveEls = interactiveRefs
         .map((r) => r?.current)
         .filter(Boolean) as HTMLElement[];
+      
       if (!floatingEl) return;
 
       const isInsideFloating = floatingEl.contains(target);
@@ -209,18 +212,17 @@ const FloatingPopup = ({
       onClose?.();
     };
 
-    floatingEl?.addEventListener("pointerdown", handlePointerDownInside);
+    // 이벤트 리스너는 document에만 등록 (floatingEl은 동적으로 참조)
     document.addEventListener("pointerup", handlePointerUp, true);
     document.addEventListener("pointerdown", handleDocumentDown, true);
     document.addEventListener("mousedown", handleDocumentDown, true);
 
     return () => {
-      floatingEl?.removeEventListener("pointerdown", handlePointerDownInside);
       document.removeEventListener("pointerup", handlePointerUp, true);
       document.removeEventListener("pointerdown", handleDocumentDown, true);
       document.removeEventListener("mousedown", handleDocumentDown, true);
     };
-  }, [open, autoClose, onClose, referenceRef, refs.floating]);
+  }, [open, autoClose, onClose, referenceRef, interactiveRefs]);
 
   if (!open) return null;
 
@@ -242,7 +244,7 @@ const FloatingPopup = ({
     top = (y ?? 0) + offsetY;
   }
 
-  return (
+  const floatingContent = (
     <div
       ref={(node) => {
         refs.setFloating(node);
@@ -260,6 +262,13 @@ const FloatingPopup = ({
       {children}
     </div>
   );
+
+  // fixedX/fixedY가 있으면 Portal을 사용하여 body에 렌더링 (overflow 클리핑 방지)
+  if (isFixed) {
+    return createPortal(floatingContent, document.body);
+  }
+
+  return floatingContent;
 };
 
 export default FloatingPopup;

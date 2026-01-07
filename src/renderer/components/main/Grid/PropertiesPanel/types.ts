@@ -43,6 +43,12 @@ export interface ColorInputProps {
   value: string;
   onChange: (value: string) => void;
   onChangeComplete?: (value: string) => void;
+  colorId?: string;
+  solidOnly?: boolean;
+  panelElement?: HTMLElement | null;
+  // 외부에서 열림 상태를 제어할 때 사용
+  isOpen?: boolean;
+  onToggle?: () => void;
 }
 
 export interface SelectInputProps {
@@ -142,6 +148,7 @@ export interface StyleTabContentProps {
   showImagePicker?: boolean;
   onToggleImagePicker?: () => void;
   imageButtonRef?: React.RefObject<HTMLButtonElement>;
+  panelElement?: HTMLElement | null;
   useCustomCSS?: boolean;
   t: (key: string) => string;
 }
@@ -151,6 +158,7 @@ export interface NoteTabContentProps {
   keyPosition: KeyPosition;
   onKeyUpdate: (data: Partial<KeyPosition> & { index: number }) => void;
   onKeyPreview?: (index: number, updates: Partial<KeyPosition>) => void;
+  panelElement?: HTMLElement | null;
   t: (key: string) => string;
 }
 
@@ -158,6 +166,7 @@ export interface CounterTabContentProps {
   keyIndex: number;
   keyPosition: KeyPosition;
   onKeyUpdate: (data: Partial<KeyPosition> & { index: number }) => void;
+  panelElement?: HTMLElement | null;
   t: (key: string) => string;
 }
 

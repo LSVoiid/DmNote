@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { NoteTabContentProps } from "./types";
 import type { NoteColor, KeyPosition } from "@src/types/keys";
 import {
@@ -7,138 +7,232 @@ import {
   SectionDivider,
 } from "./PropertyInputs";
 import Checkbox from "@components/main/common/Checkbox";
+import ColorPicker from "@components/main/Modal/content/ColorPicker";
+import { isGradientColor } from "@utils/colorUtils";
+
+// 색상 모드 상수
+const COLOR_MODES = {
+  solid: "solid",
+  gradient: "gradient",
+} as const;
+
+type ColorMode = (typeof COLOR_MODES)[keyof typeof COLOR_MODES];
+
+// 그라디언트 객체 생성 헬퍼
+const toGradient = (top: string, bottom: string) => ({
+  type: "gradient" as const,
+  top,
+  bottom,
+});
 
 const NoteTabContent: React.FC<NoteTabContentProps> = ({
   keyIndex,
   keyPosition,
   onKeyUpdate,
   onKeyPreview,
+  panelElement,
   t,
 }) => {
-  // 노트 색상 헬퍼 함수
-  const getNoteColorDisplay = useCallback(() => {
+  // 통합 피커 상태 (카운터 탭 패턴)
+  type PickerTarget = "note" | "glow" | null;
+  const [pickerFor, setPickerFor] = useState<PickerTarget>(null);
+  const pickerOpen = !!pickerFor;
+  
+  // 컬러 버튼 refs
+  const noteColorButtonRef = useRef<HTMLButtonElement>(null);
+  const glowColorButtonRef = useRef<HTMLButtonElement>(null);
+
+  // 노트 색상 상태 (원본 모달과 동일한 패턴)
+  const [noteColorMode, setNoteColorMode] = useState<ColorMode>(() => {
     const noteColor = keyPosition.noteColor;
-    if (noteColor && typeof noteColor === "object" && "type" in noteColor && noteColor.type === "gradient") {
+    return isGradientColor(noteColor) ? COLOR_MODES.gradient : COLOR_MODES.solid;
+  });
+  const [noteColorTop, setNoteColorTop] = useState<string>(() => {
+    const noteColor = keyPosition.noteColor;
+    if (noteColor && typeof noteColor === "object" && noteColor.type === "gradient") {
+      return noteColor.top;
+    }
+    return typeof noteColor === "string" ? noteColor : "#FFA500";
+  });
+  const [noteGradientBottom, setNoteGradientBottom] = useState<string>(() => {
+    const noteColor = keyPosition.noteColor;
+    if (noteColor && typeof noteColor === "object" && noteColor.type === "gradient") {
+      return noteColor.bottom;
+    }
+    return typeof noteColor === "string" ? noteColor : "#FFA500";
+  });
+
+  // 글로우 색상 상태 (원본 모달과 동일한 패턴)
+  const [glowColorMode, setGlowColorMode] = useState<ColorMode>(() => {
+    const glowColor = keyPosition.noteGlowColor;
+    return isGradientColor(glowColor) ? COLOR_MODES.gradient : COLOR_MODES.solid;
+  });
+  const [glowColorTop, setGlowColorTop] = useState<string>(() => {
+    const glowColor = keyPosition.noteGlowColor;
+    if (glowColor && typeof glowColor === "object" && glowColor.type === "gradient") {
+      return glowColor.top;
+    }
+    return typeof glowColor === "string" ? glowColor : "#FFA500";
+  });
+  const [glowGradientBottom, setGlowGradientBottom] = useState<string>(() => {
+    const glowColor = keyPosition.noteGlowColor;
+    if (glowColor && typeof glowColor === "object" && glowColor.type === "gradient") {
+      return glowColor.bottom;
+    }
+    return typeof glowColor === "string" ? glowColor : "#FFA500";
+  });
+
+  // keyPosition 변경 시 내부 상태 동기화 (피커가 닫혀있을 때만)
+  useEffect(() => {
+    // 피커가 열려있으면 외부 변경을 무시 (드래그 중 충돌 방지)
+    if (pickerFor === "note") return;
+    
+    const noteColor = keyPosition.noteColor;
+    if (noteColor && typeof noteColor === "object" && noteColor.type === "gradient") {
+      setNoteColorMode(COLOR_MODES.gradient);
+      setNoteColorTop(noteColor.top);
+      setNoteGradientBottom(noteColor.bottom);
+    } else {
+      setNoteColorMode(COLOR_MODES.solid);
+      const color = typeof noteColor === "string" ? noteColor : "#FFA500";
+      setNoteColorTop(color);
+      setNoteGradientBottom(color);
+    }
+  }, [keyPosition.noteColor, pickerFor]);
+
+  useEffect(() => {
+    // 피커가 열려있으면 외부 변경을 무시 (드래그 중 충돌 방지)
+    if (pickerFor === "glow") return;
+    
+    const glowColor = keyPosition.noteGlowColor;
+    if (glowColor && typeof glowColor === "object" && glowColor.type === "gradient") {
+      setGlowColorMode(COLOR_MODES.gradient);
+      setGlowColorTop(glowColor.top);
+      setGlowGradientBottom(glowColor.bottom);
+    } else {
+      setGlowColorMode(COLOR_MODES.solid);
+      const color = typeof glowColor === "string" ? glowColor : "#FFA500";
+      setGlowColorTop(color);
+      setGlowGradientBottom(color);
+    }
+  }, [keyPosition.noteGlowColor, pickerFor]);
+
+  const interactiveRefs = useMemo(
+    () => [noteColorButtonRef, glowColorButtonRef],
+    []
+  );
+
+  // 노트 색상 헬퍼 함수 (내부 상태 기반으로 실시간 반영)
+  const getNoteColorDisplay = useCallback(() => {
+    if (noteColorMode === COLOR_MODES.gradient) {
       return {
-        style: { background: `linear-gradient(to bottom, ${noteColor.top}, ${noteColor.bottom})` },
+        style: { background: `linear-gradient(to bottom, ${noteColorTop}, ${noteGradientBottom})` },
         label: "Gradient",
       };
     }
-    const color = typeof noteColor === "string" ? noteColor : "#FFA500";
     return {
-      style: { backgroundColor: color },
-      label: color.replace(/^#/, ""),
+      style: { backgroundColor: noteColorTop },
+      label: noteColorTop.replace(/^#/, ""),
     };
-  }, [keyPosition.noteColor]);
+  }, [noteColorMode, noteColorTop, noteGradientBottom]);
 
   const getGlowColorDisplay = useCallback(() => {
-    const glowColor = keyPosition.noteGlowColor;
-    if (glowColor && typeof glowColor === "object" && "type" in glowColor && glowColor.type === "gradient") {
+    if (glowColorMode === COLOR_MODES.gradient) {
       return {
-        style: { background: `linear-gradient(to bottom, ${glowColor.top}, ${glowColor.bottom})` },
+        style: { background: `linear-gradient(to bottom, ${glowColorTop}, ${glowGradientBottom})` },
         label: "Gradient",
       };
     }
-    const color = typeof glowColor === "string" ? glowColor : "#FFA500";
     return {
-      style: { backgroundColor: color },
-      label: color.replace(/^#/, ""),
+      style: { backgroundColor: glowColorTop },
+      label: glowColorTop.replace(/^#/, ""),
     };
-  }, [keyPosition.noteGlowColor]);
+  }, [glowColorMode, glowColorTop, glowGradientBottom]);
 
-  // 노트 색상 변경 핸들러
-  const handleNoteColorChange = useCallback(
-    (newColor: any) => {
-      let colorValue: NoteColor;
-      if (newColor && typeof newColor === "object" && newColor.type === "gradient") {
-        colorValue = { type: "gradient", top: newColor.top, bottom: newColor.bottom };
+  // 통합 색상 변경 핸들러 (pickerFor 기반)
+  const handleColorChange = useCallback(
+    (target: "note" | "glow", newColor: any) => {
+      if (target === "note") {
+        if (newColor && typeof newColor === "object" && newColor.type === "gradient") {
+          setNoteColorMode(COLOR_MODES.gradient);
+          setNoteColorTop(newColor.top);
+          setNoteGradientBottom(newColor.bottom);
+        } else {
+          setNoteColorMode(COLOR_MODES.solid);
+          setNoteColorTop(newColor);
+          setNoteGradientBottom(newColor);
+        }
       } else {
-        colorValue = newColor;
+        if (newColor && typeof newColor === "object" && newColor.type === "gradient") {
+          setGlowColorMode(COLOR_MODES.gradient);
+          setGlowColorTop(newColor.top);
+          setGlowGradientBottom(newColor.bottom);
+        } else {
+          setGlowColorMode(COLOR_MODES.solid);
+          setGlowColorTop(newColor);
+          setGlowGradientBottom(newColor);
+        }
       }
-      onKeyPreview?.(keyIndex, { noteColor: colorValue });
     },
-    [keyIndex, onKeyPreview]
+    []
   );
 
-  const handleNoteColorChangeComplete = useCallback(
-    (newColor: any) => {
+  const handleColorChangeComplete = useCallback(
+    (target: "note" | "glow", newColor: any) => {
       let colorValue: NoteColor;
-      if (newColor && typeof newColor === "object" && newColor.type === "gradient") {
-        colorValue = { type: "gradient", top: newColor.top, bottom: newColor.bottom };
+      
+      if (target === "note") {
+        if (newColor && typeof newColor === "object" && newColor.type === "gradient") {
+          setNoteColorMode(COLOR_MODES.gradient);
+          setNoteColorTop(newColor.top);
+          setNoteGradientBottom(newColor.bottom);
+          colorValue = { type: "gradient", top: newColor.top, bottom: newColor.bottom };
+        } else {
+          setNoteColorMode(COLOR_MODES.solid);
+          setNoteColorTop(newColor);
+          setNoteGradientBottom(newColor);
+          colorValue = newColor;
+        }
+        onKeyPreview?.(keyIndex, { noteColor: colorValue });
+        onKeyUpdate({ index: keyIndex, noteColor: colorValue });
       } else {
-        colorValue = newColor;
+        if (newColor && typeof newColor === "object" && newColor.type === "gradient") {
+          setGlowColorMode(COLOR_MODES.gradient);
+          setGlowColorTop(newColor.top);
+          setGlowGradientBottom(newColor.bottom);
+          colorValue = { type: "gradient", top: newColor.top, bottom: newColor.bottom };
+        } else {
+          setGlowColorMode(COLOR_MODES.solid);
+          setGlowColorTop(newColor);
+          setGlowGradientBottom(newColor);
+          colorValue = newColor;
+        }
+        onKeyPreview?.(keyIndex, { noteGlowColor: colorValue });
+        onKeyUpdate({ index: keyIndex, noteGlowColor: colorValue });
       }
-      onKeyUpdate({ index: keyIndex, noteColor: colorValue });
     },
-    [keyIndex, onKeyUpdate]
+    [keyIndex, onKeyPreview, onKeyUpdate]
   );
 
-  // 글로우 색상 변경 핸들러
-  const handleGlowColorChange = useCallback(
-    (newColor: any) => {
-      let colorValue: NoteColor;
-      if (newColor && typeof newColor === "object" && newColor.type === "gradient") {
-        colorValue = { type: "gradient", top: newColor.top, bottom: newColor.bottom };
-      } else {
-        colorValue = newColor;
-      }
-      onKeyPreview?.(keyIndex, { noteGlowColor: colorValue });
-    },
-    [keyIndex, onKeyPreview]
-  );
-
-  const handleGlowColorChangeComplete = useCallback(
-    (newColor: any) => {
-      let colorValue: NoteColor;
-      if (newColor && typeof newColor === "object" && newColor.type === "gradient") {
-        colorValue = { type: "gradient", top: newColor.top, bottom: newColor.bottom };
-      } else {
-        colorValue = newColor;
-      }
-      onKeyUpdate({ index: keyIndex, noteGlowColor: colorValue });
-    },
-    [keyIndex, onKeyUpdate]
-  );
-
-  // 노트 컬러 피커 열기
-  const handleOpenNoteColorPicker = useCallback(() => {
-    if (typeof (window as any).__dmn_showColorPicker === "function") {
-      const noteColor = keyPosition.noteColor;
-      let initialColor: any = "#FFA500";
-      if (noteColor && typeof noteColor === "object" && "type" in noteColor && noteColor.type === "gradient") {
-        initialColor = { type: "gradient", top: noteColor.top, bottom: noteColor.bottom };
-      } else if (typeof noteColor === "string") {
-        initialColor = noteColor;
-      }
-      (window as any).__dmn_showColorPicker({
-        initialColor,
-        onColorChange: handleNoteColorChange,
-        onColorChangeComplete: handleNoteColorChangeComplete,
-        id: `note-color-picker-${keyIndex}-${Date.now()}`,
-        enableGradient: true,
-      });
+  // ColorPicker에 전달할 색상 (내부 상태 기반)
+  const notePickerColor = useMemo(() => {
+    if (noteColorMode === COLOR_MODES.gradient) {
+      return toGradient(noteColorTop, noteGradientBottom);
     }
-  }, [keyPosition.noteColor, keyIndex, handleNoteColorChange, handleNoteColorChangeComplete]);
+    return noteColorTop;
+  }, [noteColorMode, noteColorTop, noteGradientBottom]);
 
-  // 글로우 컬러 피커 열기
-  const handleOpenGlowColorPicker = useCallback(() => {
-    if (typeof (window as any).__dmn_showColorPicker === "function") {
-      const glowColor = keyPosition.noteGlowColor;
-      let initialColor: any = "#FFA500";
-      if (glowColor && typeof glowColor === "object" && "type" in glowColor && glowColor.type === "gradient") {
-        initialColor = { type: "gradient", top: glowColor.top, bottom: glowColor.bottom };
-      } else if (typeof glowColor === "string") {
-        initialColor = glowColor;
-      }
-      (window as any).__dmn_showColorPicker({
-        initialColor,
-        onColorChange: handleGlowColorChange,
-        onColorChangeComplete: handleGlowColorChangeComplete,
-        id: `glow-color-picker-${keyIndex}-${Date.now()}`,
-        enableGradient: true,
-      });
+  const glowPickerColor = useMemo(() => {
+    if (glowColorMode === COLOR_MODES.gradient) {
+      return toGradient(glowColorTop, glowGradientBottom);
     }
-  }, [keyPosition.noteGlowColor, keyIndex, handleGlowColorChange, handleGlowColorChangeComplete]);
+    return glowColorTop;
+  }, [glowColorMode, glowColorTop, glowGradientBottom]);
+
+  // 피커 토글 (같은 타겟이면 닫고, 다른 타겟이면 바로 전환)
+  const handlePickerToggle = useCallback((target: "note" | "glow") => {
+    setPickerFor((prev) => (prev === target ? null : target));
+  }, []);
 
   // 스타일 변경 완료 핸들러
   const handleStyleChangeComplete = useCallback(
@@ -153,8 +247,11 @@ const NoteTabContent: React.FC<NoteTabContentProps> = ({
       {/* 노트 색상 */}
       <PropertyRow label={t("keySetting.noteColor") || "노트 색상"}>
         <button
-          onClick={handleOpenNoteColorPicker}
-          className="relative w-[80px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943] flex items-center justify-center text-[#DBDEE8] text-style-2"
+          ref={noteColorButtonRef}
+          onClick={() => handlePickerToggle("note")}
+          className={`relative w-[80px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] ${
+            pickerFor === "note" ? "border-[#459BF8]" : "border-[#3A3943]"
+          } flex items-center justify-center text-[#DBDEE8] text-style-2`}
         >
           <div
             className="absolute left-[6px] top-[4.5px] w-[11px] h-[11px] rounded-[2px] border border-[#3A3943]"
@@ -191,8 +288,11 @@ const NoteTabContent: React.FC<NoteTabContentProps> = ({
         <>
           <PropertyRow label={t("keySetting.noteGlowColor") || "글로우 색상"}>
             <button
-              onClick={handleOpenGlowColorPicker}
-              className="relative w-[80px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943] flex items-center justify-center text-[#DBDEE8] text-style-2"
+              ref={glowColorButtonRef}
+              onClick={() => handlePickerToggle("glow")}
+              className={`relative w-[80px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] ${
+                pickerFor === "glow" ? "border-[#459BF8]" : "border-[#3A3943]"
+              } flex items-center justify-center text-[#DBDEE8] text-style-2`}
             >
               <div
                 className="absolute left-[6px] top-[4.5px] w-[11px] h-[11px] rounded-[2px] border border-[#3A3943]"
@@ -242,6 +342,22 @@ const NoteTabContent: React.FC<NoteTabContentProps> = ({
           onChange={() => handleStyleChangeComplete("noteAutoYCorrection", !(keyPosition.noteAutoYCorrection ?? true))}
         />
       </div>
+
+      {/* 통합 ColorPicker - 단일 인스턴스로 깜빡임 없이 전환 */}
+      {pickerFor && (
+        <ColorPicker
+          key={pickerFor}
+          open={pickerOpen}
+          referenceRef={noteColorButtonRef}
+          panelElement={panelElement}
+          color={pickerFor === "note" ? notePickerColor : glowPickerColor}
+          onColorChange={(c: any) => handleColorChange(pickerFor, c)}
+          onColorChangeComplete={(c: any) => handleColorChangeComplete(pickerFor, c)}
+          onClose={() => setPickerFor(null)}
+          interactiveRefs={interactiveRefs}
+          solidOnly={false}
+        />
+      )}
     </>
   );
 };

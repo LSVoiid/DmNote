@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useLayoutEffect } from "react";
 import { useTranslation } from "@contexts/I18nContext";
 import FloatingPopup from "../FloatingPopup";
 import Checkbox from "@components/main/common/Checkbox";
@@ -11,6 +11,7 @@ const STATE_MODES = {
 export default function ImagePicker({
   open,
   referenceRef,
+  panelElement = null,
   idleImage,
   activeImage,
   idleTransparent,
@@ -71,19 +72,81 @@ export default function ImagePicker({
     }
   };
 
+  // 고정 위치 상태
+  const [fixedPosition, setFixedPosition] = useState(null);
+  const pickerContainerRef = useRef(null);
+
+  // panelElement가 있을 때 고정 위치 계산 (패널 기준, ColorPicker와 동일한 위치)
+  useLayoutEffect(() => {
+    if (!open) {
+      setFixedPosition(null);
+      return;
+    }
+    
+    if (panelElement) {
+      // 다음 프레임에서 실제 렌더링된 picker 크기를 측정
+      requestAnimationFrame(() => {
+        const panelRect = panelElement.getBoundingClientRect();
+        
+        // picker 요소의 실제 크기를 측정하거나 기본값 사용
+        const pickerEl = pickerContainerRef.current;
+        const pickerWidth = pickerEl ? pickerEl.offsetWidth : 164;
+        const pickerHeight = pickerEl ? pickerEl.offsetHeight : 220;
+        
+        // ColorPicker의 솔리드 모드 높이를 기준으로 하단 정렬
+        const colorPickerSolidHeight = 264;
+        
+        const gap = 5; // 패널과 피커 사이의 간격
+        const padding = 5; // 화면 가장자리 패딩
+        
+        // X축: 패널 왼쪽에서 gap만큼 떨어진 위치
+        let fixedX = panelRect.left - pickerWidth - gap;
+        
+        // 왼쪽 화면 경계를 벗어나면 최소 padding 위치로 조정
+        if (fixedX < padding) {
+          fixedX = padding;
+        }
+        
+        // Y축: ColorPicker의 솔리드 모드 하단과 동일한 위치에 ImagePicker 하단 정렬
+        const panelBottomPadding = 20;
+        const solidPickerBottom = panelRect.bottom - panelBottomPadding;
+        
+        // ImagePicker 하단을 ColorPicker 솔리드 모드 하단과 동일하게
+        let fixedY = solidPickerBottom - pickerHeight;
+        
+        // Y축 상단 경계 체크
+        if (fixedY < padding) {
+          fixedY = padding;
+        }
+        
+        setFixedPosition({ x: fixedX, y: fixedY });
+      });
+    } else {
+      setFixedPosition(null);
+    }
+  }, [open, panelElement]);
+
+  // fixedPosition이 있으면 offsetY를 무시 (이미 정확한 좌표가 계산됨)
+  const effectiveOffsetY = fixedPosition ? 0 : -93;
+
   return (
     <FloatingPopup
       open={open}
       referenceRef={referenceRef}
+      fixedX={fixedPosition?.x}
+      fixedY={fixedPosition?.y}
       placement="right-start"
       offset={32}
-      offsetY={-93}
+      offsetY={effectiveOffsetY}
       className="z-50"
       interactiveRefs={interactiveRefs}
       onClose={onClose}
       autoClose={false}
     >
-      <div className="flex flex-col p-[8px] gap-[8px] w-[146px] bg-[#1A191E] rounded-[13px] border-[1px] border-[#2A2A30]">
+      <div 
+        ref={pickerContainerRef}
+        className="flex flex-col p-[8px] gap-[8px] w-[146px] bg-[#1A191E] rounded-[13px] border-[1px] border-[#2A2A30]"
+      >
         {/* 모드 전환 버튼 */}
         <div className="flex gap-[6px] max-w-full">
           {[
