@@ -244,6 +244,26 @@ const NoteTabContent: React.FC<NoteTabContentProps> = ({
 
   return (
     <>
+      {/* 노트 효과 표시 */}
+      <div className="flex justify-between items-center w-full h-[23px]">
+        <p className="text-white text-style-2">{t("keySetting.noteEffectEnabled") || "노트 효과 표시"}</p>
+        <Checkbox
+          checked={keyPosition.noteEffectEnabled ?? true}
+          onChange={() => handleStyleChangeComplete("noteEffectEnabled", !(keyPosition.noteEffectEnabled ?? true))}
+        />
+      </div>
+
+      {/* Y축 자동 보정 */}
+      <div className="flex justify-between items-center w-full h-[23px]">
+        <p className="text-white text-style-2">{t("keySetting.noteAutoYCorrection") || "Y축 자동 보정"}</p>
+        <Checkbox
+          checked={keyPosition.noteAutoYCorrection ?? true}
+          onChange={() => handleStyleChangeComplete("noteAutoYCorrection", !(keyPosition.noteAutoYCorrection ?? true))}
+        />
+      </div>
+
+      <SectionDivider />
+
       {/* 노트 색상 */}
       <PropertyRow label={t("keySetting.noteColor") || "노트 색상"}>
         <button
@@ -275,7 +295,7 @@ const NoteTabContent: React.FC<NoteTabContentProps> = ({
       <SectionDivider />
 
       {/* 글로우 효과 */}
-      <div className="flex justify-between items-center w-full">
+      <div className="flex justify-between items-center w-full h-[23px]">
         <p className="text-white text-style-2">{t("keySetting.noteGlow") || "글로우 효과"}</p>
         <Checkbox
           checked={keyPosition.noteGlowEnabled ?? false}
@@ -322,26 +342,6 @@ const NoteTabContent: React.FC<NoteTabContentProps> = ({
           </PropertyRow>
         </>
       )}
-
-      <SectionDivider />
-
-      {/* 노트 효과 표시 */}
-      <div className="flex justify-between items-center w-full">
-        <p className="text-white text-style-2">{t("keySetting.noteEffectEnabled") || "노트 효과 표시"}</p>
-        <Checkbox
-          checked={keyPosition.noteEffectEnabled ?? true}
-          onChange={() => handleStyleChangeComplete("noteEffectEnabled", !(keyPosition.noteEffectEnabled ?? true))}
-        />
-      </div>
-
-      {/* Y축 자동 보정 */}
-      <div className="flex justify-between items-center w-full">
-        <p className="text-white text-style-2">{t("keySetting.noteAutoYCorrection") || "Y축 자동 보정"}</p>
-        <Checkbox
-          checked={keyPosition.noteAutoYCorrection ?? true}
-          onChange={() => handleStyleChangeComplete("noteAutoYCorrection", !(keyPosition.noteAutoYCorrection ?? true))}
-        />
-      </div>
 
       {/* 통합 ColorPicker - 단일 인스턴스로 깜빡임 없이 전환 */}
       {pickerFor && (

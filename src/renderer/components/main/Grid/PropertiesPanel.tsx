@@ -1187,7 +1187,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                       <SectionDivider />
 
                       {/* 글로우 효과 */}
-                      <div className="flex justify-between items-center w-full">
+                      <div className="flex justify-between items-center w-full h-[23px]">
                         <p className="text-white text-style-2">
                           {t("keySetting.noteGlow") || "글로우 효과"}
                         </p>
@@ -1297,7 +1297,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                       <SectionDivider />
 
                       {/* 노트 효과 표시 */}
-                      <div className="flex justify-between items-center w-full">
+                      <div className="flex justify-between items-center w-full h-[23px]">
                         <p className="text-white text-style-2">
                           {t("keySetting.noteEffectEnabled") ||
                             "노트 효과 표시"}
@@ -1321,7 +1321,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                       </div>
 
                       {/* Y축 자동 보정 */}
-                      <div className="flex justify-between items-center w-full">
+                      <div className="flex justify-between items-center w-full h-[23px]">
                         <p className="text-white text-style-2">
                           {t("keySetting.noteAutoYCorrection") ||
                             "Y축 자동 보정"}
@@ -1517,7 +1517,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                       <SectionDivider />
 
                       {/* 카운터 사용 */}
-                      <div className="flex justify-between items-center w-full">
+                      <div className="flex justify-between items-center w-full h-[23px]">
                         <p className="text-white text-style-2">
                           {t("counterSetting.counterEnabled") || "카운터 표시"}
                         </p>

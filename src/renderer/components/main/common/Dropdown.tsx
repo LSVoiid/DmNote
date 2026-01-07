@@ -46,7 +46,7 @@ const Dropdown: React.FC<DropdownProps> = ({
     >
       <button
         type="button"
-        className="flex box-border items-center justify-between py-[0px] px-[8px] bg-[#2A2A31] border-[1px] border-[#3A3944] rounded-[7px] text-[#DBDEE8] text-style-2 !leading-[23px] outline-none"
+        className="flex box-border items-center justify-between h-[23px] py-[0px] px-[8px] bg-[#2A2A31] border-[1px] border-[#3A3944] rounded-[7px] text-[#DBDEE8] text-style-2 outline-none"
         onClick={() => setOpen((prev) => !prev)}
         disabled={disabled}
       >
@@ -72,7 +72,7 @@ const Dropdown: React.FC<DropdownProps> = ({
         </svg>
       </button>
       {open && (
-        <div className="absolute left-0 top-[26px] flex flex-col justify-center items-center p-[1px] bg-[#2A2A31] border-[1px] border-[#3A3944] rounded-[7px] z-20 overflow-hidden gap-[2px]">
+        <div className="absolute left-0 top-[25px] flex flex-col justify-center items-center p-[1px] bg-[#2A2A31] border-[1px] border-[#3A3944] rounded-[7px] z-20 overflow-hidden gap-[2px]">
           {options.length === 0 ? (
             <div className="px-4 py-3 text-[#9AA0AA] text-[18px] font-medium">
               옵션 없음
@@ -82,7 +82,7 @@ const Dropdown: React.FC<DropdownProps> = ({
               <button
                 key={opt.value}
                 type="button"
-                className={`text-left w-full px-[13px] py-[0px] rounded-[7px] text-style-2 text-[#DBDEE8] !leading-[23px] transition-colors duration-100 flex items-center bg-[#2A2A31] hover:bg-[#24232A] ${
+                className={`text-left w-full h-[23px] px-[13px] py-[0px] rounded-[7px] text-style-2 text-[#DBDEE8] transition-colors duration-100 flex items-center bg-[#2A2A31] hover:bg-[#24232A] ${
                   value === opt.value ? "!bg-[#24232A] pointer-events-none" : ""
                 }`}
                 onClick={() => {

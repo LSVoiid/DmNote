@@ -6,12 +6,12 @@ import {
   NumberInput,
   TextInput,
   SelectInput,
-  ToggleSwitch,
   FontStyleToggle,
   SectionDivider,
 } from "./PropertyInputs";
 import ImagePicker from "../../Modal/content/ImagePicker";
 import ColorPicker from "../../Modal/content/ColorPicker";
+import Checkbox from "../../common/Checkbox";
 
 // 피커 타겟 타입
 type PickerTarget = "backgroundColor" | "borderColor" | "fontColor" | "image" | null;
@@ -289,32 +289,22 @@ const StyleTabContent: React.FC<StyleTabContentInternalProps> = ({
     <>
       {/* 키 매핑 - 단일 선택 모드에서만 표시 */}
       {onKeyListen && (
-        <PropertyRow label={t("propertiesPanel.keyMapping") || "키 매핑"}>
-          <button
-            onClick={onKeyListen}
-            className={`flex items-center justify-center h-[23px] min-w-[0px] px-[8.5px] bg-[#2A2A30] rounded-[7px] border-[1px] ${
-              isListening ? "border-[#459BF8]" : "border-[#3A3943]"
-            } text-[#DBDEE8] text-style-2`}
-          >
-            {isListening
-              ? t("propertiesPanel.pressAnyKey") || "Press any key"
-              : keyInfo?.displayName || t("propertiesPanel.clickToSet") || "Click to set"}
-          </button>
-        </PropertyRow>
+        <>
+          <PropertyRow label={t("propertiesPanel.keyMapping") || "키 매핑"}>
+            <button
+              onClick={onKeyListen}
+              className={`flex items-center justify-center h-[23px] min-w-[0px] px-[8.5px] bg-[#2A2A30] rounded-[7px] border-[1px] ${
+                isListening ? "border-[#459BF8]" : "border-[#3A3943]"
+              } text-[#DBDEE8] text-style-2`}
+            >
+              {isListening
+                ? t("propertiesPanel.pressAnyKey") || "Press any key"
+                : keyInfo?.displayName || t("propertiesPanel.clickToSet") || "Click to set"}
+            </button>
+          </PropertyRow>
+          <SectionDivider />
+        </>
       )}
-
-      {/* 표시 텍스트 */}
-      <PropertyRow label={t("propertiesPanel.displayText") || "표시 텍스트"}>
-        <TextInput
-          value={keyPosition.displayText || ""}
-          onChange={handleDisplayTextChange}
-          onBlur={handleDisplayTextBlur}
-          placeholder={keyInfo?.displayName || t("propertiesPanel.displayTextPlaceholder") || "Custom text"}
-          width="90px"
-        />
-      </PropertyRow>
-
-      <SectionDivider />
       
       {/* 위치 */}
       <PropertyRow label={t("propertiesPanel.position") || "위치"}>
@@ -355,26 +345,6 @@ const StyleTabContent: React.FC<StyleTabContentInternalProps> = ({
       </PropertyRow>
 
       <SectionDivider />
-
-      {/* 커스텀 이미지 - 단일 선택 모드에서만 표시 */}
-      {onToggleImagePicker && imageButtonRef && (
-        <>
-          <PropertyRow label={t("propertiesPanel.customImage") || "커스텀 이미지"}>
-            <button
-              ref={imageButtonRef}
-              type="button"
-              className={`px-[7px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] flex items-center justify-center ${
-                showImagePicker ? "border-[#459BF8]" : "border-[#3A3943]"
-              } text-[#DBDEE8] text-style-4`}
-              onClick={onToggleImagePicker}
-            >
-              {t("propertiesPanel.configure") || "설정하기"}
-            </button>
-          </PropertyRow>
-
-          <SectionDivider />
-        </>
-      )}
 
       {/* 배경색 */}
       <PropertyRow label={t("propertiesPanel.backgroundColor") || "배경색"}>
@@ -424,7 +394,34 @@ const StyleTabContent: React.FC<StyleTabContentInternalProps> = ({
         />
       </PropertyRow>
 
+      {/* 커스텀 이미지 - 단일 선택 모드에서만 표시 */}
+      {onToggleImagePicker && imageButtonRef && (
+        <PropertyRow label={t("propertiesPanel.customImage") || "커스텀 이미지"}>
+          <button
+            ref={imageButtonRef}
+            type="button"
+            className={`px-[7px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] flex items-center justify-center ${
+              showImagePicker ? "border-[#459BF8]" : "border-[#3A3943]"
+            } text-[#DBDEE8] text-style-4`}
+            onClick={onToggleImagePicker}
+          >
+            {t("propertiesPanel.configure") || "설정하기"}
+          </button>
+        </PropertyRow>
+      )}
+
       <SectionDivider />
+
+      {/* 표시 텍스트 */}
+      <PropertyRow label={t("propertiesPanel.displayText") || "표시 텍스트"}>
+        <TextInput
+          value={keyPosition.displayText || ""}
+          onChange={handleDisplayTextChange}
+          onBlur={handleDisplayTextBlur}
+          placeholder={keyInfo?.displayName || t("propertiesPanel.displayTextPlaceholder") || "Custom text"}
+          width="90px"
+        />
+      </PropertyRow>
 
       {/* 글꼴 크기 */}
       <PropertyRow label={t("propertiesPanel.fontSize") || "글꼴 크기"}>
@@ -500,13 +497,13 @@ const StyleTabContent: React.FC<StyleTabContentInternalProps> = ({
           </PropertyRow>
 
           {/* CSS 우선순위 토글 */}
-          <div className="flex justify-between items-center w-full">
+          <div className="flex justify-between items-center w-full h-[23px]">
             <p className="text-white text-style-2">
               {t("propertiesPanel.useInlineStyles") || "인라인 스타일 우선"}
             </p>
-            <ToggleSwitch
+            <Checkbox
               checked={keyPosition.useInlineStyles ?? false}
-              onChange={(checked) => handleStyleChangeComplete("useInlineStyles", checked)}
+              onChange={() => handleStyleChangeComplete("useInlineStyles", !(keyPosition.useInlineStyles ?? false))}
             />
           </div>
           <p className="text-[#6B6D75] text-[10px] mt-[-4px]">

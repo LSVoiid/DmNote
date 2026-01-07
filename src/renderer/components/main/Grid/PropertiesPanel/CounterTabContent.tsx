@@ -143,6 +143,17 @@ const CounterTabContent: React.FC<CounterTabContentProps> = ({
 
   return (
     <>
+      {/* 카운터 사용 */}
+      <div className="flex justify-between items-center w-full h-[23px]">
+        <p className="text-white text-style-2">{t("counterSetting.counterEnabled") || "카운터 표시"}</p>
+        <Checkbox
+          checked={counterSettings.enabled}
+          onChange={() => handleCounterUpdate({ enabled: !counterSettings.enabled })}
+        />
+      </div>
+
+      <SectionDivider />
+
       {/* 배치 영역 */}
       <PropertyRow label={t("counterSetting.placementArea") || "배치 영역"}>
         <Dropdown
@@ -257,17 +268,6 @@ const CounterTabContent: React.FC<CounterTabContentProps> = ({
           </button>
         </div>
       </PropertyRow>
-
-      <SectionDivider />
-
-      {/* 카운터 사용 */}
-      <div className="flex justify-between items-center w-full">
-        <p className="text-white text-style-2">{t("counterSetting.counterEnabled") || "카운터 표시"}</p>
-        <Checkbox
-          checked={counterSettings.enabled}
-          onChange={() => handleCounterUpdate({ enabled: !counterSettings.enabled })}
-        />
-      </div>
 
       {pickerFor && (
         <ColorPicker
