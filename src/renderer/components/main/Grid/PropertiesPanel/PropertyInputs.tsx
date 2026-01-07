@@ -17,7 +17,10 @@ import ColorPicker from "@components/main/Modal/content/ColorPicker";
 // PropertyRow
 // ============================================================================
 
-export const PropertyRow: React.FC<PropertyRowProps> = ({ label, children }) => (
+export const PropertyRow: React.FC<PropertyRowProps> = ({
+  label,
+  children,
+}) => (
   <div className="flex justify-between items-center w-full">
     <p className="text-white text-style-2">{label}</p>
     <div className="flex items-center gap-[10.5px]">{children}</div>
@@ -39,7 +42,7 @@ export const NumberInput: React.FC<NumberInputProps> = ({
   width = "54px",
 }) => {
   const hasSuffix = !!suffix;
-  
+
   const getDisplayValue = (val: number | string, focused: boolean): string => {
     if (hasSuffix && !focused) {
       return `${val}${suffix}`;
@@ -47,7 +50,9 @@ export const NumberInput: React.FC<NumberInputProps> = ({
     return String(val);
   };
 
-  const [localValue, setLocalValue] = useState<string>(getDisplayValue(value, false));
+  const [localValue, setLocalValue] = useState<string>(
+    getDisplayValue(value, false)
+  );
   const [isFocused, setIsFocused] = useState(false);
 
   useEffect(() => {
@@ -59,7 +64,7 @@ export const NumberInput: React.FC<NumberInputProps> = ({
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value.replace(/[^0-9-]/g, "");
     setLocalValue(newValue);
-    
+
     if (newValue !== "" && newValue !== "-" && !isNaN(Number(newValue))) {
       const numValue = Number(newValue);
       const clamped = Math.min(Math.max(numValue, min), max);
@@ -76,7 +81,11 @@ export const NumberInput: React.FC<NumberInputProps> = ({
   const handleBlur = () => {
     setIsFocused(false);
     const numericValue = localValue.replace(/[^0-9-]/g, "");
-    if (numericValue === "" || numericValue === "-" || isNaN(Number(numericValue))) {
+    if (
+      numericValue === "" ||
+      numericValue === "-" ||
+      isNaN(Number(numericValue))
+    ) {
       setLocalValue(getDisplayValue(value, false));
     } else {
       const numValue = Number(numericValue);
@@ -120,7 +129,9 @@ export const NumberInput: React.FC<NumberInputProps> = ({
         onChange={handleChange}
         onFocus={handleFocus}
         onBlur={handleBlur}
-        className={`absolute ${prefix ? "left-[20px]" : "left-[5px]"} top-[-1px] h-[23px] ${
+        className={`absolute ${
+          prefix ? "left-[20px]" : "left-[5px]"
+        } top-[-1px] h-[23px] ${
           prefix ? "w-[26px]" : "w-[calc(100%-10px)]"
         } bg-transparent text-style-4 text-[#DBDEE8] text-left`}
       />
@@ -189,13 +200,14 @@ export const ColorInput: React.FC<ColorInputProps> = ({
   onToggle: externalOnToggle,
 }) => {
   // 외부 제어 모드인지 확인
-  const isControlled = externalIsOpen !== undefined && externalOnToggle !== undefined;
-  
+  const isControlled =
+    externalIsOpen !== undefined && externalOnToggle !== undefined;
+
   const [internalOpen, setInternalOpen] = useState(false);
   const open = isControlled ? externalIsOpen : internalOpen;
-  
+
   const buttonRef = useRef<HTMLButtonElement>(null);
-  
+
   // 로컬 색상 상태 (드래그 중 UI 업데이트용)
   const [localColor, setLocalColor] = useState(value || "#FFFFFF");
 
@@ -291,7 +303,11 @@ export const ColorInput: React.FC<ColorInputProps> = ({
 // SelectInput
 // ============================================================================
 
-export const SelectInput: React.FC<SelectInputProps> = ({ value, options, onChange }) => {
+export const SelectInput: React.FC<SelectInputProps> = ({
+  value,
+  options,
+  onChange,
+}) => {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -305,14 +321,26 @@ export const SelectInput: React.FC<SelectInputProps> = ({ value, options, onChan
         <span className="text-style-4 text-[#DBDEE8]">
           {options.find((opt) => opt.value === value)?.label || value}
         </span>
-        <svg width="8" height="5" viewBox="0 0 8 5" fill="none" className="flex-shrink-0">
-          <path d="M1 1L4 4L7 1" stroke="#6B6D75" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        <svg
+          width="8"
+          height="5"
+          viewBox="0 0 8 5"
+          fill="none"
+          className="flex-shrink-0"
+        >
+          <path
+            d="M1 1L4 4L7 1"
+            stroke="#6B6D75"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </svg>
       </button>
       {isOpen && (
         <>
-          <div 
-            className="fixed inset-0 z-10" 
+          <div
+            className="fixed inset-0 z-10"
             onClick={() => setIsOpen(false)}
           />
           <div className="absolute top-[27px] left-0 right-0 bg-[#2A2A30] border border-[#3A3943] rounded-[7px] z-20 overflow-hidden shadow-lg min-w-[70px]">
@@ -341,7 +369,10 @@ export const SelectInput: React.FC<SelectInputProps> = ({ value, options, onChan
 // ToggleSwitch
 // ============================================================================
 
-export const ToggleSwitch: React.FC<ToggleSwitchProps> = ({ checked, onChange }) => {
+export const ToggleSwitch: React.FC<ToggleSwitchProps> = ({
+  checked,
+  onChange,
+}) => {
   return (
     <button
       onClick={() => onChange(!checked)}
@@ -372,31 +403,96 @@ export const SectionDivider: React.FC = () => (
 
 const BoldIcon: React.FC = () => (
   <svg width="10" height="12" viewBox="0 0 10 12" fill="none">
-    <path d="M1 1H5.5C7.433 1 9 2.343 9 4C9 5.657 7.433 6 5.5 6H1V1Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
-    <path d="M1 6H6C8.209 6 9.5 7.343 9.5 9C9.5 10.657 8.209 11 6 11H1V6Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
+    <path
+      d="M1 1H5.5C7.433 1 9 2.343 9 4C9 5.657 7.433 6 5.5 6H1V1Z"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinejoin="round"
+    />
+    <path
+      d="M1 6H6C8.209 6 9.5 7.343 9.5 9C9.5 10.657 8.209 11 6 11H1V6Z"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinejoin="round"
+    />
   </svg>
 );
 
 const ItalicIcon: React.FC = () => (
   <svg width="8" height="12" viewBox="0 0 8 12" fill="none">
-    <line x1="3" y1="1" x2="7" y2="1" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-    <line x1="1" y1="11" x2="5" y2="11" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-    <line x1="5.5" y1="1" x2="2.5" y2="11" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+    <line
+      x1="3"
+      y1="1"
+      x2="7"
+      y2="1"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+    />
+    <line
+      x1="1"
+      y1="11"
+      x2="5"
+      y2="11"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+    />
+    <line
+      x1="5.5"
+      y1="1"
+      x2="2.5"
+      y2="11"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+    />
   </svg>
 );
 
 const UnderlineIcon: React.FC = () => (
   <svg width="12" height="14" viewBox="0 0 12 14" fill="none">
-    <path d="M2 1V6C2 8.209 3.791 10 6 10C8.209 10 10 8.209 10 6V1" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-    <line x1="1" y1="13" x2="11" y2="13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+    <path
+      d="M2 1V6C2 8.209 3.791 10 6 10C8.209 10 10 8.209 10 6V1"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+    />
+    <line
+      x1="1"
+      y1="13"
+      x2="11"
+      y2="13"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+    />
   </svg>
 );
 
 const StrikethroughIcon: React.FC = () => (
   <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-    <path d="M3 3C3 1.895 4.343 1 6 1C7.657 1 9 1.895 9 3C9 4 8 4.5 6 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-    <path d="M6 7C8 7.5 9 8 9 9C9 10.105 7.657 11 6 11C4.343 11 3 10.105 3 9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-    <line x1="1" y1="6" x2="11" y2="6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+    <path
+      d="M3 3C3 1.895 4.343 1 6 1C7.657 1 9 1.895 9 3C9 4 8 4.5 6 5"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+    />
+    <path
+      d="M6 7C8 7.5 9 8 9 9C9 10.105 7.657 11 6 11C4.343 11 3 10.105 3 9"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+    />
+    <line
+      x1="1"
+      y1="6"
+      x2="11"
+      y2="6"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+    />
   </svg>
 );
 
@@ -462,10 +558,10 @@ export const FontStyleToggle: React.FC<FontStyleToggleProps> = ({
 const TabButton: React.FC<TabButtonProps> = ({ active, onClick, children }) => (
   <button
     onClick={onClick}
-    className={`flex-1 h-[28px] text-style-2 rounded-[5px] transition-colors ${
+    className={`w-full h-[24px] rounded-[7px] text-style-2 transition-colors ${
       active
-        ? "bg-[#2A2A30] text-[#DBDEE8]"
-        : "text-[#6B6D75] hover:text-[#97999E]"
+        ? "bg-[#3A3943] text-white"
+        : "bg-[#26262C] text-[#9395A1] hover:bg-[#303036]"
     }`}
   >
     {children}
@@ -473,12 +569,12 @@ const TabButton: React.FC<TabButtonProps> = ({ active, onClick, children }) => (
 );
 
 export const Tabs: React.FC<TabsProps> = ({ activeTab, onTabChange, t }) => (
-  <div className="flex items-center gap-[2px] bg-[#1F1F24] rounded-[7px] p-[2px] border border-[#3A3943]">
+  <div className="flex w-full h-[30px] bg-[#26262C] rounded-[7px] items-center p-[3px] gap-[5px]">
     <TabButton
       active={activeTab === TABS.STYLE}
       onClick={() => onTabChange(TABS.STYLE)}
     >
-      {t("propertiesPanel.tabStyle") || "스타일"}
+      {t("propertiesPanel.tabStyle") || "키"}
     </TabButton>
     <TabButton
       active={activeTab === TABS.NOTE}
@@ -501,11 +597,18 @@ export const Tabs: React.FC<TabsProps> = ({ activeTab, onTabChange, t }) => (
 
 export const CloseIcon: React.FC = () => (
   <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-    <path d="M1 1L9 9M9 1L1 9" stroke="#6B6D75" strokeWidth="1.5" strokeLinecap="round"/>
+    <path
+      d="M1 1L9 9M9 1L1 9"
+      stroke="#6B6D75"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+    />
   </svg>
 );
 
-export const SidebarToggleIcon: React.FC<{ isOpen: boolean }> = ({ isOpen }) => (
+export const SidebarToggleIcon: React.FC<{ isOpen: boolean }> = ({
+  isOpen,
+}) => (
   <svg width="16" height="14" viewBox="0 0 16 14" fill="none">
     <rect
       x="0.75"
@@ -527,9 +630,33 @@ export const SidebarToggleIcon: React.FC<{ isOpen: boolean }> = ({ isOpen }) => 
     />
     {isOpen && (
       <>
-        <line x1="12" y1="4" x2="13.5" y2="4" stroke="#6B6D75" strokeWidth="1" strokeLinecap="round" />
-        <line x1="12" y1="7" x2="13.5" y2="7" stroke="#6B6D75" strokeWidth="1" strokeLinecap="round" />
-        <line x1="12" y1="10" x2="13.5" y2="10" stroke="#6B6D75" strokeWidth="1" strokeLinecap="round" />
+        <line
+          x1="12"
+          y1="4"
+          x2="13.5"
+          y2="4"
+          stroke="#6B6D75"
+          strokeWidth="1"
+          strokeLinecap="round"
+        />
+        <line
+          x1="12"
+          y1="7"
+          x2="13.5"
+          y2="7"
+          stroke="#6B6D75"
+          strokeWidth="1"
+          strokeLinecap="round"
+        />
+        <line
+          x1="12"
+          y1="10"
+          x2="13.5"
+          y2="10"
+          stroke="#6B6D75"
+          strokeWidth="1"
+          strokeLinecap="round"
+        />
       </>
     )}
   </svg>
