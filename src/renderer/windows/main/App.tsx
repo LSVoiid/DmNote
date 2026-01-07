@@ -95,6 +95,7 @@ export default function App() {
     handlePositionChange,
     handleKeyUpdate,
     handleKeyPreview,
+    handleKeyBatchPreview,
     handleKeyStyleUpdate,
     handleKeyBatchStyleUpdate,
     handleKeyMappingChange,
@@ -483,6 +484,7 @@ export default function App() {
               }}
               onKeyBatchUpdate={handleKeyBatchStyleUpdate}
               onKeyPreview={handleKeyPreview}
+              onKeyBatchPreview={handleKeyBatchPreview}
               onKeyMappingChange={handleKeyMappingChange}
             />
           </div>

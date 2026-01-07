@@ -541,6 +541,129 @@ export function useKeyManager() {
     });
   };
 
+  // 다중 선택 시 여러 키를 한 번에 프리뷰 (배치 프리뷰)
+  const handleKeyBatchPreview = (
+    updates: Array<{
+      index: number;
+      activeImage?: string;
+      inactiveImage?: string;
+      activeTransparent?: boolean;
+      idleTransparent?: boolean;
+      width?: number;
+      height?: number;
+      className?: string;
+      backgroundColor?: string;
+      borderColor?: string;
+      borderWidth?: number;
+      borderRadius?: number;
+      fontSize?: number;
+      fontColor?: string;
+      imageFit?: ImageFit;
+      useInlineStyles?: boolean;
+      displayText?: string;
+      noteColor?: NoteColor;
+      noteGlowColor?: NoteColor;
+    }>
+  ) => {
+    if (updates.length === 0) return;
+
+    const state = useKeyStore.getState();
+    const mode = state.selectedKeyType || selectedKeyType;
+    const currentPositions = state.positions;
+    const current = currentPositions[mode] || [];
+
+    // 업데이트할 인덱스들을 Map으로 변환
+    const updateMap = new Map<number, (typeof updates)[number]>();
+    for (const update of updates) {
+      if (current[update.index]) {
+        updateMap.set(update.index, update);
+      }
+    }
+
+    if (updateMap.size === 0) return;
+
+    const updatedPositions: KeyPositions = {
+      ...currentPositions,
+      [mode]: current.map((pos, i) => {
+        const update = updateMap.get(i);
+        if (!update) return pos;
+
+        return {
+          ...pos,
+          activeImage:
+            update.activeImage !== undefined
+              ? update.activeImage
+              : pos.activeImage,
+          inactiveImage:
+            update.inactiveImage !== undefined
+              ? update.inactiveImage
+              : pos.inactiveImage,
+          activeTransparent:
+            update.activeTransparent !== undefined
+              ? update.activeTransparent
+              : pos.activeTransparent ?? false,
+          idleTransparent:
+            update.idleTransparent !== undefined
+              ? update.idleTransparent
+              : pos.idleTransparent ?? false,
+          width:
+            typeof update.width === "number" && !Number.isNaN(update.width)
+              ? update.width
+              : pos.width,
+          height:
+            typeof update.height === "number" && !Number.isNaN(update.height)
+              ? update.height
+              : pos.height,
+          className:
+            update.className !== undefined
+              ? update.className
+              : pos.className ?? "",
+          backgroundColor:
+            update.backgroundColor !== undefined
+              ? update.backgroundColor
+              : pos.backgroundColor,
+          borderColor:
+            update.borderColor !== undefined
+              ? update.borderColor
+              : pos.borderColor,
+          borderWidth:
+            update.borderWidth !== undefined
+              ? update.borderWidth
+              : pos.borderWidth,
+          borderRadius:
+            update.borderRadius !== undefined
+              ? update.borderRadius
+              : pos.borderRadius,
+          fontSize:
+            update.fontSize !== undefined ? update.fontSize : pos.fontSize,
+          fontColor:
+            update.fontColor !== undefined ? update.fontColor : pos.fontColor,
+          imageFit:
+            update.imageFit !== undefined ? update.imageFit : pos.imageFit,
+          useInlineStyles:
+            update.useInlineStyles !== undefined
+              ? update.useInlineStyles
+              : pos.useInlineStyles,
+          displayText:
+            update.displayText !== undefined
+              ? update.displayText
+              : pos.displayText,
+          noteColor:
+            update.noteColor !== undefined ? update.noteColor : pos.noteColor,
+          noteGlowColor:
+            update.noteGlowColor !== undefined
+              ? update.noteGlowColor
+              : pos.noteGlowColor,
+        };
+      }),
+    };
+
+    setPositions(updatedPositions);
+    window.api.keys.updatePositions(updatedPositions).catch((error) => {
+      console.error("Failed to batch preview key settings", error);
+    });
+  };
+
   const handleCounterSettingsUpdate = (
     index: number,
     payload: CounterUpdatePayload
@@ -1196,6 +1319,7 @@ export function useKeyManager() {
     handlePositionChange,
     handleKeyUpdate,
     handleKeyPreview,
+    handleKeyBatchPreview,
     handleKeyStyleUpdate,
     handleKeyBatchStyleUpdate,
     handleKeyMappingChange,

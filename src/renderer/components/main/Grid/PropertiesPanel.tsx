@@ -51,6 +51,7 @@ interface PropertiesPanelProps {
   onKeyUpdate: (data: Partial<KeyPosition> & { index: number }) => void;
   onKeyBatchUpdate?: (updates: Array<{ index: number } & Partial<KeyPosition>>) => void;
   onKeyPreview?: (index: number, updates: Partial<KeyPosition>) => void;
+  onKeyBatchPreview?: (updates: Array<{ index: number } & Partial<KeyPosition>>) => void;
   onKeyMappingChange?: (index: number, newKey: string) => void;
 }
 
@@ -63,6 +64,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   onKeyUpdate,
   onKeyBatchUpdate,
   onKeyPreview,
+  onKeyBatchPreview,
   onKeyMappingChange,
 }) => {
   const { t } = useTranslation();
@@ -454,13 +456,21 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
 
   const handleBatchStyleChange = useCallback(
     (property: keyof KeyPosition, value: any) => {
-      selectedKeyElements.forEach((el) => {
-        if (el.index !== undefined) {
-          onKeyPreview?.(el.index, { [property]: value });
-        }
-      });
+      const updates = selectedKeyElements
+        .filter((el) => el.index !== undefined)
+        .map((el) => ({ index: el.index!, [property]: value }));
+
+      if (onKeyBatchPreview && updates.length > 0) {
+        onKeyBatchPreview(updates);
+      } else if (onKeyPreview) {
+        // 폴백: 개별 프리뷰
+        updates.forEach((update) => {
+          const { index, ...rest } = update;
+          onKeyPreview(index, rest);
+        });
+      }
     },
-    [selectedKeyElements, onKeyPreview],
+    [selectedKeyElements, onKeyBatchPreview, onKeyPreview],
   );
 
   const handleBatchStyleChangeComplete = useCallback(
@@ -520,13 +530,21 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
       } else {
         colorValue = newColor;
       }
-      selectedKeyElements.forEach((el) => {
-        if (el.index !== undefined) {
-          onKeyPreview?.(el.index, { noteColor: colorValue });
-        }
-      });
+
+      const updates = selectedKeyElements
+        .filter((el) => el.index !== undefined)
+        .map((el) => ({ index: el.index!, noteColor: colorValue }));
+
+      if (onKeyBatchPreview && updates.length > 0) {
+        onKeyBatchPreview(updates);
+      } else if (onKeyPreview) {
+        updates.forEach((update) => {
+          const { index, ...rest } = update;
+          onKeyPreview(index, rest);
+        });
+      }
     },
-    [selectedKeyElements, onKeyPreview],
+    [selectedKeyElements, onKeyBatchPreview, onKeyPreview],
   );
 
   const handleBatchNoteColorChangeComplete = useCallback(
@@ -575,13 +593,21 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
       } else {
         colorValue = newColor;
       }
-      selectedKeyElements.forEach((el) => {
-        if (el.index !== undefined) {
-          onKeyPreview?.(el.index, { noteGlowColor: colorValue });
-        }
-      });
+
+      const updates = selectedKeyElements
+        .filter((el) => el.index !== undefined)
+        .map((el) => ({ index: el.index!, noteGlowColor: colorValue }));
+
+      if (onKeyBatchPreview && updates.length > 0) {
+        onKeyBatchPreview(updates);
+      } else if (onKeyPreview) {
+        updates.forEach((update) => {
+          const { index, ...rest } = update;
+          onKeyPreview(index, rest);
+        });
+      }
     },
-    [selectedKeyElements, onKeyPreview],
+    [selectedKeyElements, onKeyBatchPreview, onKeyPreview],
   );
 
   const handleBatchGlowColorChangeComplete = useCallback(
