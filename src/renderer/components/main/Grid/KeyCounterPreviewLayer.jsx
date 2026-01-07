@@ -1,0 +1,136 @@
+import React, { memo, useMemo } from "react";
+import {
+  createDefaultCounterSettings,
+  normalizeCounterSettings,
+} from "@src/types/keys";
+import { toCssRgba } from "@utils/colorUtils";
+
+const OUTSIDE_OFFSET = 5;
+
+const computeOutsideStyle = (align, dx, dy, width, height, gap) => {
+  const base = {
+    position: "absolute",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    pointerEvents: "none",
+  };
+
+  const offset = Number.isFinite(gap) ? gap : OUTSIDE_OFFSET;
+
+  switch (align) {
+    case "bottom":
+      return {
+        ...base,
+        left: `${dx + width / 2}px`,
+        top: `${dy + height + offset}px`,
+        transform: "translate(-50%, 0)",
+        minWidth: `${width}px`,
+      };
+    case "left":
+      return {
+        ...base,
+        left: `${dx - offset}px`,
+        top: `${dy + height / 2}px`,
+        transform: "translate(-100%, -50%)",
+      };
+    case "right":
+      return {
+        ...base,
+        left: `${dx + width + offset}px`,
+        top: `${dy + height / 2}px`,
+        transform: "translate(0, -50%)",
+      };
+    case "top":
+    default:
+      return {
+        ...base,
+        left: `${dx + width / 2}px`,
+        top: `${dy - offset}px`,
+        transform: "translate(-50%, -100%)",
+        minWidth: `${width}px`,
+      };
+  }
+};
+
+const KeyCounterPreview = memo(({ position, previewValue = 0 }) => {
+  const dx = Number.isFinite(position?.dx) ? position.dx : 0;
+  const dy = Number.isFinite(position?.dy) ? position.dy : 0;
+  const width = Number.isFinite(position?.width) ? position.width : 60;
+  const height = Number.isFinite(position?.height) ? position.height : 60;
+
+  const counterSettings = useMemo(() => {
+    if (position?.counter) {
+      return normalizeCounterSettings(position.counter);
+    }
+    return createDefaultCounterSettings();
+  }, [position?.counter]);
+
+  // 개별 키의 카운터가 비활성화되었거나 outside가 아니면 렌더링하지 않음
+  if (!counterSettings.enabled || counterSettings.placement !== "outside") {
+    return null;
+  }
+
+  const style = computeOutsideStyle(
+    counterSettings.align,
+    dx,
+    dy,
+    width,
+    height,
+    counterSettings.gap
+  );
+
+  const fillColor = counterSettings.fill.idle;
+  const strokeColor = counterSettings.stroke.idle;
+
+  const fill = toCssRgba(fillColor, "#FFFFFF");
+  const stroke = toCssRgba(strokeColor, "transparent");
+  const strokeWidth = stroke.alpha > 0 ? "1px" : "0px";
+
+  return (
+    <div className="pointer-events-none" style={style}>
+      <span
+        className="counter pointer-events-none select-none"
+        data-text={previewValue}
+        data-counter-state="inactive"
+        style={{
+          fontSize: "16px",
+          fontWeight: 800,
+          lineHeight: 1,
+          "--counter-color-default": fill.css,
+          "--counter-stroke-color-default": stroke.css,
+          "--counter-stroke-width-default": strokeWidth,
+        }}
+      >
+        {previewValue}
+      </span>
+    </div>
+  );
+});
+
+export default function KeyCounterPreviewLayer({
+  positions,
+  previewValue = 0,
+}) {
+  if (!positions?.length) {
+    return null;
+  }
+
+  return (
+    <div
+      className="absolute inset-0 pointer-events-none"
+      style={{ zIndex: 12 }}
+    >
+      {positions.map((position, index) => {
+        if (!position) return null;
+        return (
+          <KeyCounterPreview
+            key={`counter-preview-${index}`}
+            position={position}
+            previewValue={previewValue}
+          />
+        );
+      })}
+    </div>
+  );
+}

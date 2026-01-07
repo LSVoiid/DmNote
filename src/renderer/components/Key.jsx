@@ -42,6 +42,9 @@ export default function DraggableKey({
   panX = 0,
   panY = 0,
   zIndex = 0,
+  // 카운터 미리보기 props
+  counterEnabled = false,
+  counterPreviewValue = 0,
 }) {
   const macOS = isMac();
   const { displayName } = getKeyInfoByGlobalKey(keyName);
@@ -68,10 +71,23 @@ export default function DraggableKey({
     fontItalic,
     fontUnderline,
     fontStrikethrough,
+    // 카운터 설정
+    counter,
   } = position;
 
   // 표시할 텍스트: displayText가 있으면 사용, 없으면 기본 displayName
   const labelText = displayText || displayName;
+
+  // 카운터 설정 정규화
+  const counterSettings = normalizeCounterSettings(
+    counter ?? createDefaultCounterSettings()
+  );
+  
+  // 카운터 표시 조건: 전역 활성화 + 개별 키 활성화 + inside 배치
+  const showInsideCounter =
+    counterEnabled &&
+    counterSettings.enabled &&
+    counterSettings.placement === "inside";
 
   // 스마트 가이드를 위한 다른 요소들의 bounds 가져오기
   const { getOtherElements } = useSmartGuidesElements();
@@ -491,6 +507,75 @@ export default function DraggableKey({
     [useInline, fontColor, fontSize, fontWeight, fontItalic, fontUnderline, fontStrikethrough]
   );
 
+  // 카운터 미리보기 렌더링 (Grid 편집용)
+  const counterFillColor = counterSettings.fill.idle;
+  const counterStrokeColor = counterSettings.stroke.idle;
+  const contentGap = Number.isFinite(counterSettings.gap) ? counterSettings.gap : 6;
+  const fillColorCss = toCssRgba(counterFillColor, "#FFFFFF");
+  const strokeColorCss = toCssRgba(counterStrokeColor, "transparent");
+
+  const renderInsideCounterPreview = () => {
+    if (!showInsideCounter) {
+      return null;
+    }
+
+    const displayValue = counterPreviewValue ?? 0;
+    const strokeWidth = strokeColorCss.alpha > 0 ? "1px" : "0px";
+
+    const counterElement = (
+      <span
+        key="counter"
+        className="counter pointer-events-none select-none"
+        data-text={displayValue}
+        data-counter-state="inactive"
+        style={{
+          fontSize: "16px",
+          fontWeight: 800,
+          lineHeight: 1,
+          "--counter-color-default": fillColorCss.css,
+          "--counter-stroke-color-default": strokeColorCss.css,
+          "--counter-stroke-width-default": strokeWidth,
+        }}
+      >
+        {displayValue}
+      </span>
+    );
+
+    const nameElement = (
+      <span
+        key="label"
+        className="font-bold text-[14px] pointer-events-none select-none"
+        style={textStyle}
+      >
+        {labelText}
+      </span>
+    );
+
+    const isHorizontal =
+      counterSettings.align === "left" || counterSettings.align === "right";
+
+    const elements = isHorizontal
+      ? counterSettings.align === "left"
+        ? [counterElement, nameElement]
+        : [nameElement, counterElement]
+      : counterSettings.align === "top"
+      ? [counterElement, nameElement]
+      : [nameElement, counterElement];
+
+    const containerClass = `flex ${
+      isHorizontal ? "" : "flex-col"
+    } w-full h-full items-center pointer-events-none select-none justify-center`;
+
+    return (
+      <div
+        className={containerClass}
+        style={{ padding: "0px", gap: `${contentGap}px` }}
+      >
+        {elements}
+      </div>
+    );
+  };
+
   const attachRef = (node) => {
     // 드래그 훅에 ref 연결 (선택 모드가 아닐 때만)
     if (!isSelectionMode) {
@@ -517,6 +602,8 @@ export default function DraggableKey({
     >
       {inactiveImage ? (
         <img src={inactiveImage} alt="" style={imageStyle} draggable={false} />
+      ) : showInsideCounter ? (
+        renderInsideCounterPreview()
       ) : (
         <div
           className="flex items-center justify-center h-full font-bold"

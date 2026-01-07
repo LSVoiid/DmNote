@@ -22,10 +22,12 @@ import GridBackground from "./GridBackground";
 import MarqueeSelectionOverlay from "./MarqueeSelectionOverlay";
 import ResizeHandles from "./ResizeHandles";
 import GroupResizeHandles, { isElementResizable } from "./GroupResizeHandles";
+import KeyCounterPreviewLayer from "./KeyCounterPreviewLayer";
 import { useGridSelectionStore } from "@stores/useGridSelectionStore";
 import { useHistoryStore } from "@stores/useHistoryStore";
 import { useUIStore } from "@stores/useUIStore";
 import { useSmartGuidesStore } from "@stores/useSmartGuidesStore";
+import { useSettingsStore } from "@stores/useSettingsStore";
 import {
   GRID_SNAP,
   snapCursorToGrid,
@@ -68,6 +70,7 @@ export default function Grid({
   canRedo,
 }) {
   const selectedKeyType = useKeyStore((state) => state.selectedKeyType);
+  const keyCounterEnabled = useSettingsStore((state) => state.keyCounterEnabled);
   const { t, i18n } = useTranslation();
   const locale = i18n.language;
 
@@ -350,6 +353,8 @@ export default function Grid({
         zoom={zoom}
         panX={panX}
         panY={panY}
+        counterEnabled={keyCounterEnabled}
+        counterPreviewValue={0}
       />
     ));
   };
@@ -535,6 +540,13 @@ export default function Grid({
         }}
       >
         {renderKeys()}
+        {/* Outside 카운터 미리보기 레이어 */}
+        {keyCounterEnabled && (
+          <KeyCounterPreviewLayer
+            positions={positions[selectedKeyType]}
+            previewValue={0}
+          />
+        )}
         {renderDuplicateGhost()}
         <PluginElementsRenderer
           windowType="main"
