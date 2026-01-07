@@ -9,6 +9,7 @@ import { useTranslation } from "@contexts/I18nContext";
 import { useGridSelectionStore } from "@stores/useGridSelectionStore";
 import { useKeyStore } from "@stores/useKeyStore";
 import { useSettingsStore } from "@stores/useSettingsStore";
+import { useLenis } from "@hooks/useLenis";
 import { getKeyInfoByGlobalKey } from "@utils/KeyMaps";
 import type {
   KeyPosition,
@@ -120,35 +121,10 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   // 패널 가시성 상태 (선택과 별개로 패널만 닫을 수 있음)
   const [isPanelVisible, setIsPanelVisible] = useState(true);
 
-  // overlay scrollbar refs/state
-  const batchScrollRef = useRef<HTMLDivElement | null>(null);
-  const accordionScrollRef = useRef<HTMLDivElement | null>(null);
-  const singleScrollRef = useRef<HTMLDivElement | null>(null);
-
-  const [batchThumb, setBatchThumb] = useState<ScrollThumbState>({
-    top: 0,
-    height: 0,
-    visible: false,
-  });
-  const [accordionThumb, setAccordionThumb] = useState<ScrollThumbState>({
-    top: 0,
-    height: 0,
-    visible: false,
-  });
-  const [singleThumb, setSingleThumb] = useState<ScrollThumbState>({
-    top: 0,
-    height: 0,
-    visible: false,
-  });
-
-  // 탭 상태
-  const [activeTab, setActiveTab] = useState<TabType>(TABS.STYLE);
-
-  // 다중 선택 모드 상태
-  const [isBatchEditMode, setIsBatchEditMode] = useState(true);
-  const [expandedAccordionIndex, setExpandedAccordionIndex] = useState<
-    number | null
-  >(null);
+  // overlay scrollbar thumb refs (직접 DOM 조작으로 리렌더링 방지)
+  const batchThumbRef = useRef<HTMLDivElement | null>(null);
+  const accordionThumbRef = useRef<HTMLDivElement | null>(null);
+  const singleThumbRef = useRef<HTMLDivElement | null>(null);
 
   const calculateThumb = useCallback((el: HTMLDivElement): ScrollThumbState => {
     const { scrollTop, scrollHeight, clientHeight } = el;
@@ -167,14 +143,94 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     return { top, height, visible: true };
   }, []);
 
+  // thumb DOM 직접 업데이트 (리렌더링 없이 성능 최적화)
+  const updateThumbDOM = useCallback(
+    (thumbEl: HTMLDivElement | null, scrollEl: HTMLDivElement | null) => {
+      if (!thumbEl || !scrollEl) return;
+      const thumb = calculateThumb(scrollEl);
+      thumbEl.style.top = `${thumb.top}px`;
+      thumbEl.style.height = `${thumb.height}px`;
+      thumbEl.style.display = thumb.visible ? 'block' : 'none';
+    },
+    [calculateThumb],
+  );
+
+  // 스크롤 엘리먼트 refs (thumb 계산용)
+  const batchScrollElementRef = useRef<HTMLDivElement | null>(null);
+  const accordionScrollElementRef = useRef<HTMLDivElement | null>(null);
+  const singleScrollElementRef = useRef<HTMLDivElement | null>(null);
+
+  // Lenis 스크롤 적용 (직접 DOM 조작으로 thumb 업데이트)
+  const {
+    scrollContainerRef: batchLenisRef,
+    wrapperElement: batchScrollElement,
+  } = useLenis({
+    onScroll: useCallback(() => {
+      updateThumbDOM(batchThumbRef.current, batchScrollElementRef.current);
+    }, [updateThumbDOM]),
+  });
+
+  const {
+    scrollContainerRef: accordionLenisRef,
+    wrapperElement: accordionScrollElement,
+  } = useLenis({
+    onScroll: useCallback(() => {
+      updateThumbDOM(accordionThumbRef.current, accordionScrollElementRef.current);
+    }, [updateThumbDOM]),
+  });
+
+  const {
+    scrollContainerRef: singleLenisRef,
+    wrapperElement: singleScrollElement,
+  } = useLenis({
+    onScroll: useCallback(() => {
+      updateThumbDOM(singleThumbRef.current, singleScrollElementRef.current);
+    }, [updateThumbDOM]),
+  });
+
+  // wrapperElement가 변경되면 ref 업데이트
+  useEffect(() => {
+    batchScrollElementRef.current = batchScrollElement;
+  }, [batchScrollElement]);
+
+  useEffect(() => {
+    accordionScrollElementRef.current = accordionScrollElement;
+  }, [accordionScrollElement]);
+
+  useEffect(() => {
+    singleScrollElementRef.current = singleScrollElement;
+  }, [singleScrollElement]);
+
+  // callback ref를 합성하여 Lenis와 내부 ref 모두 업데이트
+  const batchScrollRef = useCallback((node: HTMLDivElement | null) => {
+    batchScrollElementRef.current = node;
+    batchLenisRef(node);
+  }, [batchLenisRef]);
+
+  const accordionScrollRef = useCallback((node: HTMLDivElement | null) => {
+    accordionScrollElementRef.current = node;
+    accordionLenisRef(node);
+  }, [accordionLenisRef]);
+
+  const singleScrollRef = useCallback((node: HTMLDivElement | null) => {
+    singleScrollElementRef.current = node;
+    singleLenisRef(node);
+  }, [singleLenisRef]);
+
   const updateThumbs = useCallback(() => {
-    if (batchScrollRef.current)
-      setBatchThumb(calculateThumb(batchScrollRef.current));
-    if (accordionScrollRef.current)
-      setAccordionThumb(calculateThumb(accordionScrollRef.current));
-    if (singleScrollRef.current)
-      setSingleThumb(calculateThumb(singleScrollRef.current));
-  }, [calculateThumb]);
+    updateThumbDOM(batchThumbRef.current, batchScrollElementRef.current);
+    updateThumbDOM(accordionThumbRef.current, accordionScrollElementRef.current);
+    updateThumbDOM(singleThumbRef.current, singleScrollElementRef.current);
+  }, [updateThumbDOM]);
+
+  // 탭 상태
+  const [activeTab, setActiveTab] = useState<TabType>(TABS.STYLE);
+
+  // 다중 선택 모드 상태
+  const [isBatchEditMode, setIsBatchEditMode] = useState(true);
+  const [expandedAccordionIndex, setExpandedAccordionIndex] = useState<
+    number | null
+  >(null);
 
   useEffect(() => {
     updateThumbs();
@@ -927,7 +983,6 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
             <div className="flex-1 properties-panel-overlay-scroll">
               <div
                 ref={batchScrollRef}
-                onScroll={updateThumbs}
                 className="properties-panel-overlay-viewport"
               >
                 <div className="p-[12px] flex flex-col gap-[12px]">
@@ -1553,12 +1608,11 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                 )}
               </div>
               <div className="properties-panel-overlay-bar">
-                {batchThumb.visible ? (
-                  <div
-                    className="properties-panel-overlay-thumb"
-                    style={{ top: batchThumb.top, height: batchThumb.height }}
-                  />
-                ) : null}
+                <div
+                  ref={batchThumbRef}
+                  className="properties-panel-overlay-thumb"
+                  style={{ display: 'none' }}
+                />
               </div>
             </div>
           </>
@@ -1567,7 +1621,6 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
           <div className="flex-1 properties-panel-overlay-scroll">
             <div
               ref={accordionScrollRef}
-              onScroll={updateThumbs}
               className="properties-panel-overlay-viewport"
             >
               <div className="flex flex-col">
@@ -1655,15 +1708,11 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
               </div>
             </div>
             <div className="properties-panel-overlay-bar">
-              {accordionThumb.visible ? (
-                <div
-                  className="properties-panel-overlay-thumb"
-                  style={{
-                    top: accordionThumb.top,
-                    height: accordionThumb.height,
-                  }}
-                />
-              ) : null}
+              <div
+                ref={accordionThumbRef}
+                className="properties-panel-overlay-thumb"
+                style={{ display: 'none' }}
+              />
             </div>
           </div>
         )}
@@ -1755,7 +1804,6 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
       <div className="flex-1 properties-panel-overlay-scroll">
         <div
           ref={singleScrollRef}
-          onScroll={updateThumbs}
           className="properties-panel-overlay-viewport"
         >
           <div className="p-[12px] flex flex-col gap-[12px]">
@@ -1824,12 +1872,11 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
           </div>
         </div>
         <div className="properties-panel-overlay-bar">
-          {singleThumb.visible ? (
-            <div
-              className="properties-panel-overlay-thumb"
-              style={{ top: singleThumb.top, height: singleThumb.height }}
-            />
-          ) : null}
+          <div
+            ref={singleThumbRef}
+            className="properties-panel-overlay-thumb"
+            style={{ display: 'none' }}
+          />
         </div>
       </div>
     </div>
