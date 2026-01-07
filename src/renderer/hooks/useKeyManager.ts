@@ -1149,6 +1149,45 @@ export function useKeyManager() {
     [selectedKeyType, saveToHistory, setPositions]
   );
 
+  // 다중 선택 시 여러 키를 한 번에 업데이트 (배치 업데이트)
+  const handleKeyBatchStyleUpdate = useCallback(
+    (updates: Array<{ index: number } & Partial<KeyPositions[string][number]>>) => {
+      if (updates.length === 0) return;
+
+      const state = useKeyStore.getState();
+      const mode = state.selectedKeyType || selectedKeyType;
+      const currentPositions = state.positions;
+      const current = currentPositions[mode] || [];
+
+      // 업데이트할 인덱스들을 Map으로 변환하여 O(1) 조회
+      const updateMap = new Map<number, Partial<KeyPositions[string][number]>>();
+      for (const { index, ...rest } of updates) {
+        if (current[index]) {
+          updateMap.set(index, rest);
+        }
+      }
+
+      if (updateMap.size === 0) return;
+
+      // 히스토리에 현재 상태 저장 (한 번만)
+      saveToHistory();
+
+      const updatedPositions: KeyPositions = {
+        ...currentPositions,
+        [mode]: current.map((pos, i) => {
+          const update = updateMap.get(i);
+          return update ? { ...pos, ...update } : pos;
+        }),
+      };
+
+      setPositions(updatedPositions);
+      window.api.keys.updatePositions(updatedPositions).catch((error) => {
+        console.error("Failed to batch update key styles", error);
+      });
+    },
+    [selectedKeyType, saveToHistory, setPositions]
+  );
+
   return {
     selectedKey,
     setSelectedKey,
@@ -1158,6 +1197,7 @@ export function useKeyManager() {
     handleKeyUpdate,
     handleKeyPreview,
     handleKeyStyleUpdate,
+    handleKeyBatchStyleUpdate,
     handleKeyMappingChange,
     handleNoteColorUpdate,
     handleNoteColorPreview,

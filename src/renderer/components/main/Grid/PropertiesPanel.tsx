@@ -49,6 +49,7 @@ import CounterTabContent from "./PropertiesPanel/CounterTabContent";
 interface PropertiesPanelProps {
   onPositionChange: (index: number, dx: number, dy: number) => void;
   onKeyUpdate: (data: Partial<KeyPosition> & { index: number }) => void;
+  onKeyBatchUpdate?: (updates: Array<{ index: number } & Partial<KeyPosition>>) => void;
   onKeyPreview?: (index: number, updates: Partial<KeyPosition>) => void;
   onKeyMappingChange?: (index: number, newKey: string) => void;
 }
@@ -60,6 +61,7 @@ interface PropertiesPanelProps {
 const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   onPositionChange,
   onKeyUpdate,
+  onKeyBatchUpdate,
   onKeyPreview,
   onKeyMappingChange,
 }) => {
@@ -463,29 +465,43 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
 
   const handleBatchStyleChangeComplete = useCallback(
     (property: keyof KeyPosition, value: any) => {
-      selectedKeyElements.forEach((el) => {
-        if (el.index !== undefined) {
-          onKeyUpdate({ index: el.index, [property]: value });
-        }
-      });
+      const updates = selectedKeyElements
+        .filter((el) => el.index !== undefined)
+        .map((el) => ({ index: el.index!, [property]: value }));
+
+      if (onKeyBatchUpdate && updates.length > 0) {
+        onKeyBatchUpdate(updates);
+      } else {
+        // 폴백: 개별 업데이트
+        updates.forEach((update) => onKeyUpdate(update));
+      }
     },
-    [selectedKeyElements, onKeyUpdate],
+    [selectedKeyElements, onKeyBatchUpdate, onKeyUpdate],
   );
 
   const handleBatchCounterUpdate = useCallback(
     (updates: Partial<KeyCounterSettings>) => {
-      selectedKeyElements.forEach((el) => {
-        if (el.index !== undefined) {
-          const pos = positions[selectedKeyType]?.[el.index];
+      const batchUpdates = selectedKeyElements
+        .filter((el) => el.index !== undefined)
+        .map((el) => {
+          const pos = positions[selectedKeyType]?.[el.index!];
           if (pos) {
             const currentSettings = normalizeCounterSettings(pos.counter);
             const newSettings = { ...currentSettings, ...updates };
-            onKeyUpdate({ index: el.index, counter: newSettings });
+            return { index: el.index!, counter: newSettings };
           }
-        }
-      });
+          return null;
+        })
+        .filter((update): update is { index: number; counter: KeyCounterSettings } => update !== null);
+
+      if (onKeyBatchUpdate && batchUpdates.length > 0) {
+        onKeyBatchUpdate(batchUpdates);
+      } else {
+        // 폴백: 개별 업데이트
+        batchUpdates.forEach((update) => onKeyUpdate(update));
+      }
     },
-    [selectedKeyElements, positions, selectedKeyType, onKeyUpdate],
+    [selectedKeyElements, positions, selectedKeyType, onKeyBatchUpdate, onKeyUpdate],
   );
 
   const handleBatchNoteColorChange = useCallback(
@@ -529,13 +545,18 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
       } else {
         colorValue = newColor;
       }
-      selectedKeyElements.forEach((el) => {
-        if (el.index !== undefined) {
-          onKeyUpdate({ index: el.index, noteColor: colorValue });
-        }
-      });
+
+      const updates = selectedKeyElements
+        .filter((el) => el.index !== undefined)
+        .map((el) => ({ index: el.index!, noteColor: colorValue }));
+
+      if (onKeyBatchUpdate && updates.length > 0) {
+        onKeyBatchUpdate(updates);
+      } else {
+        updates.forEach((update) => onKeyUpdate(update));
+      }
     },
-    [selectedKeyElements, onKeyUpdate],
+    [selectedKeyElements, onKeyBatchUpdate, onKeyUpdate],
   );
 
   const handleBatchGlowColorChange = useCallback(
@@ -579,13 +600,18 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
       } else {
         colorValue = newColor;
       }
-      selectedKeyElements.forEach((el) => {
-        if (el.index !== undefined) {
-          onKeyUpdate({ index: el.index, noteGlowColor: colorValue });
-        }
-      });
+
+      const updates = selectedKeyElements
+        .filter((el) => el.index !== undefined)
+        .map((el) => ({ index: el.index!, noteGlowColor: colorValue }));
+
+      if (onKeyBatchUpdate && updates.length > 0) {
+        onKeyBatchUpdate(updates);
+      } else {
+        updates.forEach((update) => onKeyUpdate(update));
+      }
     },
-    [selectedKeyElements, onKeyUpdate],
+    [selectedKeyElements, onKeyBatchUpdate, onKeyUpdate],
   );
 
   // (사이드 패널) 일괄 편집에서도 전역 컬러피커를 쓰지 않음

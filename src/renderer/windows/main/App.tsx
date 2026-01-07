@@ -96,6 +96,7 @@ export default function App() {
     handleKeyUpdate,
     handleKeyPreview,
     handleKeyStyleUpdate,
+    handleKeyBatchStyleUpdate,
     handleKeyMappingChange,
     handleNoteColorUpdate,
     handleNoteColorPreview,
@@ -480,6 +481,7 @@ export default function App() {
                 const { index, ...updates } = data;
                 handleKeyStyleUpdate(index, updates);
               }}
+              onKeyBatchUpdate={handleKeyBatchStyleUpdate}
               onKeyPreview={handleKeyPreview}
               onKeyMappingChange={handleKeyMappingChange}
             />
