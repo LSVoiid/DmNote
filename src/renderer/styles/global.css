@@ -266,7 +266,7 @@ input[type="number"]::-webkit-outer-spin-button {
 .properties-panel-overlay-bar {
   position: absolute;
   top: 0;
-  right: 0;
+  right: 0px;
   bottom: 0;
   width: 4px;
   opacity: 0;
@@ -293,7 +293,6 @@ input[type="number"]::-webkit-outer-spin-button {
 .properties-panel-overlay-scroll:active .properties-panel-overlay-thumb {
   background: #5a5963;
 }
-
 
 /* Settings scroll - only show on hover */
 .settings-content-scroll {

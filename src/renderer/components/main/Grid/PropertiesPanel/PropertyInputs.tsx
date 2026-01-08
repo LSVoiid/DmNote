@@ -104,9 +104,10 @@ export const NumberInput: React.FC<NumberInputProps> = ({
         onChange={handleChange}
         onFocus={handleFocus}
         onBlur={handleBlur}
-        className={`text-center w-[47px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] ${
+        className={`text-center h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] ${
           isFocused ? "border-[#459BF8]" : "border-[#3A3943]"
         } text-style-4 text-[#DBDEE8]`}
+        style={{ width }}
       />
     );
   }
@@ -133,7 +134,7 @@ export const NumberInput: React.FC<NumberInputProps> = ({
           prefix ? "left-[20px]" : "left-[5px]"
         } top-[-1px] h-[23px] ${
           prefix ? "w-[26px]" : "w-[calc(100%-10px)]"
-        } bg-transparent text-style-4 text-[#DBDEE8] text-left`}
+        } bg-transparent text-style-4 text-[#DBDEE8] text-center`}
       />
     </div>
   );
@@ -513,7 +514,7 @@ export const FontStyleToggle: React.FC<FontStyleToggleProps> = ({
   const buttonClass = (active: boolean) =>
     `w-[26px] h-[23px] flex items-center justify-center rounded-[5px] transition-colors ${
       active
-        ? "bg-[#459BF8] text-white"
+        ? "bg-[#493C1D] text-[#FFB400]"
         : "bg-[#2A2A30] text-[#6B6D75] hover:bg-[#32323A] hover:text-[#97999E]"
     }`;
 

@@ -326,6 +326,7 @@ const NoteTabContent: React.FC<NoteTabContentProps> = ({
             <NumberInput
               value={keyPosition.noteGlowSize ?? 20}
               onChange={(value) => handleStyleChangeComplete("noteGlowSize", value)}
+              suffix="px"
               min={0}
               max={50}
             />

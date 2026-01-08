@@ -419,7 +419,7 @@ const StyleTabContent: React.FC<StyleTabContentInternalProps> = ({
           onChange={handleDisplayTextChange}
           onBlur={handleDisplayTextBlur}
           placeholder={keyInfo?.displayName || t("propertiesPanel.displayTextPlaceholder") || "Custom text"}
-          width="90px"
+          width="54px"
         />
       </PropertyRow>
 
@@ -485,17 +485,6 @@ const StyleTabContent: React.FC<StyleTabContentInternalProps> = ({
         <>
           <SectionDivider />
           
-          {/* 클래스명 */}
-          <PropertyRow label={t("propertiesPanel.className") || "클래스"}>
-            <TextInput
-              value={keyPosition.className || ""}
-              onChange={handleClassNameChange}
-              onBlur={handleClassNameBlur}
-              placeholder="className"
-              width="90px"
-            />
-          </PropertyRow>
-
           {/* CSS 우선순위 토글 */}
           <div className="flex justify-between items-center w-full h-[23px]">
             <p className="text-white text-style-2">
@@ -506,9 +495,17 @@ const StyleTabContent: React.FC<StyleTabContentInternalProps> = ({
               onChange={() => handleStyleChangeComplete("useInlineStyles", !(keyPosition.useInlineStyles ?? false))}
             />
           </div>
-          <p className="text-[#6B6D75] text-[10px] mt-[-4px]">
-            {t("propertiesPanel.useInlineStylesHint") || "활성화 시 커스텀 CSS보다 속성 패널 스타일이 우선 적용됩니다."}
-          </p>
+
+          {/* 클래스명 */}
+          <PropertyRow label={t("propertiesPanel.className") || "클래스"}>
+            <TextInput
+              value={keyPosition.className || ""}
+              onChange={handleClassNameChange}
+              onBlur={handleClassNameBlur}
+              placeholder="className"
+              width="90px"
+            />
+          </PropertyRow>
         </>
       )}
 

@@ -188,6 +188,7 @@ const CounterTabContent: React.FC<CounterTabContentProps> = ({
           suffix="px"
           min={0}
           max={100}
+          width="54px"
         />
       </PropertyRow>
 
