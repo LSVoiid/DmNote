@@ -37,6 +37,8 @@ export interface NumberInputProps {
   prefix?: string;
   suffix?: string;
   width?: string;
+  isMixed?: boolean;
+  mixedPlaceholder?: string;
 }
 
 export interface ColorInputProps {

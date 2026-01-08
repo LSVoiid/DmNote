@@ -339,6 +339,18 @@
     "tabStyle": "키",
     "tabNote": "노트",
     "tabCounter": "카운터",
-    "batchEditMode": "일괄 편집 모드"
+    "batchEditMode": "일괄 편집 모드",
+    "alignment": "정렬",
+    "alignLeft": "왼쪽 정렬",
+    "alignCenterH": "수평 중앙 정렬",
+    "alignRight": "오른쪽 정렬",
+    "alignTop": "위쪽 정렬",
+    "alignCenterV": "수직 중앙 정렬",
+    "alignBottom": "아래쪽 정렬",
+    "distribution": "분배",
+    "distributeH": "수평 분배",
+    "distributeV": "수직 분배",
+    "width": "너비",
+    "height": "높이"
   }
 }

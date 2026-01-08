@@ -339,6 +339,18 @@
     "tabStyle": "Style",
     "tabNote": "Note",
     "tabCounter": "Counter",
-    "batchEditMode": "Batch Edit Mode"
+    "batchEditMode": "Batch Edit Mode",
+    "alignment": "Alignment",
+    "alignLeft": "Align Left",
+    "alignCenterH": "Align Center Horizontally",
+    "alignRight": "Align Right",
+    "alignTop": "Align Top",
+    "alignCenterV": "Align Center Vertically",
+    "alignBottom": "Align Bottom",
+    "distribution": "Distribution",
+    "distributeH": "Distribute Horizontally",
+    "distributeV": "Distribute Vertically",
+    "width": "Width",
+    "height": "Height"
   }
 }

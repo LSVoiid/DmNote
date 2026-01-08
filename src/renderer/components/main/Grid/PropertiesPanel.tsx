@@ -529,6 +529,139 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     [selectedKeyElements, onKeyBatchUpdate, onKeyUpdate],
   );
 
+  // 정렬 핸들러
+  const handleBatchAlign = useCallback(
+    (direction: "left" | "centerH" | "right" | "top" | "centerV" | "bottom") => {
+      const keyData = selectedKeyElements
+        .filter((el) => el.index !== undefined)
+        .map((el) => {
+          const pos = positions[selectedKeyType]?.[el.index!];
+          return pos ? { index: el.index!, x: pos.dx, y: pos.dy, width: pos.width, height: pos.height } : null;
+        })
+        .filter((d): d is { index: number; x: number; y: number; width: number; height: number } => d !== null);
+
+      if (keyData.length < 2) return;
+
+      let updates: Array<{ index: number } & Partial<KeyPosition>> = [];
+
+      switch (direction) {
+        case "left": {
+          const minX = Math.min(...keyData.map((k) => k.x));
+          updates = keyData.map((k) => ({ index: k.index, dx: minX }));
+          break;
+        }
+        case "centerH": {
+          const minX = Math.min(...keyData.map((k) => k.x));
+          const maxX = Math.max(...keyData.map((k) => k.x + k.width));
+          const centerX = (minX + maxX) / 2;
+          updates = keyData.map((k) => ({ index: k.index, dx: centerX - k.width / 2 }));
+          break;
+        }
+        case "right": {
+          const maxX = Math.max(...keyData.map((k) => k.x + k.width));
+          updates = keyData.map((k) => ({ index: k.index, dx: maxX - k.width }));
+          break;
+        }
+        case "top": {
+          const minY = Math.min(...keyData.map((k) => k.y));
+          updates = keyData.map((k) => ({ index: k.index, dy: minY }));
+          break;
+        }
+        case "centerV": {
+          const minY = Math.min(...keyData.map((k) => k.y));
+          const maxY = Math.max(...keyData.map((k) => k.y + k.height));
+          const centerY = (minY + maxY) / 2;
+          updates = keyData.map((k) => ({ index: k.index, dy: centerY - k.height / 2 }));
+          break;
+        }
+        case "bottom": {
+          const maxY = Math.max(...keyData.map((k) => k.y + k.height));
+          updates = keyData.map((k) => ({ index: k.index, dy: maxY - k.height }));
+          break;
+        }
+      }
+
+      if (onKeyBatchUpdate && updates.length > 0) {
+        onKeyBatchUpdate(updates);
+      } else {
+        updates.forEach((update) => onKeyUpdate(update));
+      }
+    },
+    [selectedKeyElements, positions, selectedKeyType, onKeyBatchUpdate, onKeyUpdate],
+  );
+
+  // 분배 핸들러
+  const handleBatchDistribute = useCallback(
+    (direction: "horizontal" | "vertical") => {
+      const keyData = selectedKeyElements
+        .filter((el) => el.index !== undefined)
+        .map((el) => {
+          const pos = positions[selectedKeyType]?.[el.index!];
+          return pos ? { index: el.index!, x: pos.dx, y: pos.dy, width: pos.width, height: pos.height } : null;
+        })
+        .filter((d): d is { index: number; x: number; y: number; width: number; height: number } => d !== null);
+
+      if (keyData.length < 3) return;
+
+      let updates: Array<{ index: number } & Partial<KeyPosition>> = [];
+
+      if (direction === "horizontal") {
+        // X 위치 기준 정렬
+        const sorted = [...keyData].sort((a, b) => a.x - b.x);
+        const first = sorted[0];
+        const last = sorted[sorted.length - 1];
+        const totalSpan = (last.x + last.width) - first.x;
+        const totalWidths = sorted.reduce((sum, k) => sum + k.width, 0);
+        const gap = (totalSpan - totalWidths) / (sorted.length - 1);
+
+        let currentX = first.x;
+        updates = sorted.map((k) => {
+          const newX = currentX;
+          currentX += k.width + gap;
+          return { index: k.index, dx: newX };
+        });
+      } else {
+        // Y 위치 기준 정렬
+        const sorted = [...keyData].sort((a, b) => a.y - b.y);
+        const first = sorted[0];
+        const last = sorted[sorted.length - 1];
+        const totalSpan = (last.y + last.height) - first.y;
+        const totalHeights = sorted.reduce((sum, k) => sum + k.height, 0);
+        const gap = (totalSpan - totalHeights) / (sorted.length - 1);
+
+        let currentY = first.y;
+        updates = sorted.map((k) => {
+          const newY = currentY;
+          currentY += k.height + gap;
+          return { index: k.index, dy: newY };
+        });
+      }
+
+      if (onKeyBatchUpdate && updates.length > 0) {
+        onKeyBatchUpdate(updates);
+      } else {
+        updates.forEach((update) => onKeyUpdate(update));
+      }
+    },
+    [selectedKeyElements, positions, selectedKeyType, onKeyBatchUpdate, onKeyUpdate],
+  );
+
+  // 일괄 크기 변경 핸들러
+  const handleBatchResize = useCallback(
+    (dimension: "width" | "height", value: number) => {
+      const updates = selectedKeyElements
+        .filter((el) => el.index !== undefined)
+        .map((el) => ({ index: el.index!, [dimension]: value }));
+
+      if (onKeyBatchUpdate && updates.length > 0) {
+        onKeyBatchUpdate(updates);
+      } else {
+        updates.forEach((update) => onKeyUpdate(update));
+      }
+    },
+    [selectedKeyElements, onKeyBatchUpdate, onKeyUpdate],
+  );
+
   const handleBatchCounterUpdate = useCallback(
     (updates: Partial<KeyCounterSettings>) => {
       const batchUpdates = selectedKeyElements
@@ -1063,6 +1196,152 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
               className={`properties-panel-overlay-viewport ${activeTab === TABS.STYLE ? "" : "hidden"}`}
             >
               <div className="p-[12px] flex flex-col gap-[12px]">
+                {/* 정렬 */}
+                <PropertyRow label={t("propertiesPanel.alignment") || "정렬"}>
+                  <div className="flex gap-[4px]">
+                    {/* 수평 정렬 */}
+                    <div className="flex">
+                      <button
+                        type="button"
+                        onClick={() => handleBatchAlign("left")}
+                        className="w-[24px] h-[23px] bg-[#2A2A30] border border-[#3A3943] rounded-l-[7px] border-r-0 flex items-center justify-center hover:bg-[#353540] transition-colors"
+                        title={t("propertiesPanel.alignLeft") || "왼쪽 정렬"}
+                      >
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                          <path d="M1 1V9" stroke="#DBDEE8" strokeWidth="1.5" strokeLinecap="round"/>
+                          <rect x="2.5" y="2.5" width="6" height="1.5" rx="0.5" fill="#DBDEE8"/>
+                          <rect x="2.5" y="6" width="4" height="1.5" rx="0.5" fill="#DBDEE8"/>
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleBatchAlign("centerH")}
+                        className="w-[24px] h-[23px] bg-[#2A2A30] border border-[#3A3943] border-r-0 flex items-center justify-center hover:bg-[#353540] transition-colors"
+                        title={t("propertiesPanel.alignCenterH") || "수평 중앙 정렬"}
+                      >
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                          <path d="M5 1V9" stroke="#DBDEE8" strokeWidth="1.5" strokeLinecap="round"/>
+                          <rect x="1.5" y="2.5" width="7" height="1.5" rx="0.5" fill="#DBDEE8"/>
+                          <rect x="2.5" y="6" width="5" height="1.5" rx="0.5" fill="#DBDEE8"/>
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleBatchAlign("right")}
+                        className="w-[24px] h-[23px] bg-[#2A2A30] border border-[#3A3943] rounded-r-[7px] flex items-center justify-center hover:bg-[#353540] transition-colors"
+                        title={t("propertiesPanel.alignRight") || "오른쪽 정렬"}
+                      >
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                          <path d="M9 1V9" stroke="#DBDEE8" strokeWidth="1.5" strokeLinecap="round"/>
+                          <rect x="1.5" y="2.5" width="6" height="1.5" rx="0.5" fill="#DBDEE8"/>
+                          <rect x="3.5" y="6" width="4" height="1.5" rx="0.5" fill="#DBDEE8"/>
+                        </svg>
+                      </button>
+                    </div>
+                    {/* 수직 정렬 */}
+                    <div className="flex">
+                      <button
+                        type="button"
+                        onClick={() => handleBatchAlign("top")}
+                        className="w-[24px] h-[23px] bg-[#2A2A30] border border-[#3A3943] rounded-l-[7px] border-r-0 flex items-center justify-center hover:bg-[#353540] transition-colors"
+                        title={t("propertiesPanel.alignTop") || "위쪽 정렬"}
+                      >
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                          <path d="M1 1H9" stroke="#DBDEE8" strokeWidth="1.5" strokeLinecap="round"/>
+                          <rect x="2.5" y="2.5" width="1.5" height="6" rx="0.5" fill="#DBDEE8"/>
+                          <rect x="6" y="2.5" width="1.5" height="4" rx="0.5" fill="#DBDEE8"/>
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleBatchAlign("centerV")}
+                        className="w-[24px] h-[23px] bg-[#2A2A30] border border-[#3A3943] border-r-0 flex items-center justify-center hover:bg-[#353540] transition-colors"
+                        title={t("propertiesPanel.alignCenterV") || "수직 중앙 정렬"}
+                      >
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                          <path d="M1 5H9" stroke="#DBDEE8" strokeWidth="1.5" strokeLinecap="round"/>
+                          <rect x="2.5" y="1.5" width="1.5" height="7" rx="0.5" fill="#DBDEE8"/>
+                          <rect x="6" y="2.5" width="1.5" height="5" rx="0.5" fill="#DBDEE8"/>
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleBatchAlign("bottom")}
+                        className="w-[24px] h-[23px] bg-[#2A2A30] border border-[#3A3943] rounded-r-[7px] flex items-center justify-center hover:bg-[#353540] transition-colors"
+                        title={t("propertiesPanel.alignBottom") || "아래쪽 정렬"}
+                      >
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                          <path d="M1 9H9" stroke="#DBDEE8" strokeWidth="1.5" strokeLinecap="round"/>
+                          <rect x="2.5" y="1.5" width="1.5" height="6" rx="0.5" fill="#DBDEE8"/>
+                          <rect x="6" y="3.5" width="1.5" height="4" rx="0.5" fill="#DBDEE8"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </PropertyRow>
+
+                {/* 분배 */}
+                <PropertyRow label={t("propertiesPanel.distribution") || "분배"}>
+                  <div className="flex gap-[4px]">
+                    <button
+                      type="button"
+                      onClick={() => handleBatchDistribute("horizontal")}
+                      disabled={selectedKeyElements.length < 3}
+                      className={`w-[24px] h-[23px] bg-[#2A2A30] border border-[#3A3943] rounded-[7px] flex items-center justify-center transition-colors ${
+                        selectedKeyElements.length < 3
+                          ? "opacity-40 cursor-not-allowed"
+                          : "hover:bg-[#353540]"
+                      }`}
+                      title={t("propertiesPanel.distributeH") || "수평 분배"}
+                    >
+                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                        <rect x="0.5" y="2.5" width="1.5" height="5" rx="0.5" fill="#DBDEE8"/>
+                        <rect x="4.25" y="2.5" width="1.5" height="5" rx="0.5" fill="#DBDEE8"/>
+                        <rect x="8" y="2.5" width="1.5" height="5" rx="0.5" fill="#DBDEE8"/>
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleBatchDistribute("vertical")}
+                      disabled={selectedKeyElements.length < 3}
+                      className={`w-[24px] h-[23px] bg-[#2A2A30] border border-[#3A3943] rounded-[7px] flex items-center justify-center transition-colors ${
+                        selectedKeyElements.length < 3
+                          ? "opacity-40 cursor-not-allowed"
+                          : "hover:bg-[#353540]"
+                      }`}
+                      title={t("propertiesPanel.distributeV") || "수직 분배"}
+                    >
+                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                        <rect x="2.5" y="0.5" width="5" height="1.5" rx="0.5" fill="#DBDEE8"/>
+                        <rect x="2.5" y="4.25" width="5" height="1.5" rx="0.5" fill="#DBDEE8"/>
+                        <rect x="2.5" y="8" width="5" height="1.5" rx="0.5" fill="#DBDEE8"/>
+                      </svg>
+                    </button>
+                  </div>
+                </PropertyRow>
+
+                {/* 크기 */}
+                <PropertyRow label={t("propertiesPanel.size") || "크기"}>
+                  <NumberInput
+                    value={getMixedValue((pos) => pos.width, 60).value}
+                    onChange={(value) => handleBatchResize("width", value)}
+                    prefix="W"
+                    min={10}
+                    max={500}
+                    isMixed={getMixedValue((pos) => pos.width, 60).isMixed}
+                  />
+                  <NumberInput
+                    value={getMixedValue((pos) => pos.height, 60).value}
+                    onChange={(value) => handleBatchResize("height", value)}
+                    prefix="H"
+                    min={10}
+                    max={500}
+                    isMixed={getMixedValue((pos) => pos.height, 60).isMixed}
+                  />
+                </PropertyRow>
+
+                <SectionDivider />
+
                 {/* 배경색 */}
                 <PropertyRow
                   label={t("propertiesPanel.backgroundColor") || "배경색"}

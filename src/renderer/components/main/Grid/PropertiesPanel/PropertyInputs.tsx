@@ -40,6 +40,8 @@ export const NumberInput: React.FC<NumberInputProps> = ({
   prefix,
   suffix,
   width = "54px",
+  isMixed = false,
+  mixedPlaceholder = "Mixed",
 }) => {
   const hasSuffix = !!suffix;
 
@@ -51,19 +53,22 @@ export const NumberInput: React.FC<NumberInputProps> = ({
   };
 
   const [localValue, setLocalValue] = useState<string>(
-    getDisplayValue(value, false)
+    isMixed ? "" : getDisplayValue(value, false)
   );
   const [isFocused, setIsFocused] = useState(false);
+  const [hasUserInput, setHasUserInput] = useState(false);
 
   useEffect(() => {
     if (!isFocused) {
-      setLocalValue(getDisplayValue(value, false));
+      setLocalValue(isMixed ? "" : getDisplayValue(value, false));
+      setHasUserInput(false);
     }
-  }, [value, isFocused, hasSuffix, suffix]);
+  }, [value, isFocused, hasSuffix, suffix, isMixed]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value.replace(/[^0-9-]/g, "");
     setLocalValue(newValue);
+    setHasUserInput(true);
 
     if (newValue !== "" && newValue !== "-" && !isNaN(Number(newValue))) {
       const numValue = Number(newValue);
@@ -74,27 +79,45 @@ export const NumberInput: React.FC<NumberInputProps> = ({
 
   const handleFocus = () => {
     setIsFocused(true);
-    const numericValue = String(value);
-    setLocalValue(numericValue);
+    setHasUserInput(false);
+    if (!isMixed) {
+      const numericValue = String(value);
+      setLocalValue(numericValue);
+    } else {
+      setLocalValue("");
+    }
   };
 
   const handleBlur = () => {
     setIsFocused(false);
     const numericValue = localValue.replace(/[^0-9-]/g, "");
+    
+    // Mixed 상태에서 사용자 입력이 없었으면 Mixed 유지
+    if (isMixed && !hasUserInput) {
+      setLocalValue("");
+      setHasUserInput(false);
+      onBlur?.();
+      return;
+    }
+    
     if (
       numericValue === "" ||
       numericValue === "-" ||
       isNaN(Number(numericValue))
     ) {
-      setLocalValue(getDisplayValue(value, false));
+      setLocalValue(isMixed ? "" : getDisplayValue(value, false));
     } else {
       const numValue = Number(numericValue);
       const clamped = Math.min(Math.max(numValue, min), max);
       setLocalValue(getDisplayValue(clamped, false));
       onChange(clamped);
     }
+    setHasUserInput(false);
     onBlur?.();
   };
+
+  // Mixed 상태일 때 placeholder 표시 여부
+  const showMixedPlaceholder = isMixed && !isFocused && localValue === "";
 
   if (hasSuffix) {
     return (
@@ -104,9 +127,10 @@ export const NumberInput: React.FC<NumberInputProps> = ({
         onChange={handleChange}
         onFocus={handleFocus}
         onBlur={handleBlur}
+        placeholder={showMixedPlaceholder ? mixedPlaceholder : undefined}
         className={`text-center h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] ${
           isFocused ? "border-[#459BF8]" : "border-[#3A3943]"
-        } text-style-4 text-[#DBDEE8]`}
+        } text-style-4 ${showMixedPlaceholder ? "text-[#6B6D75] italic placeholder:text-[#6B6D75] placeholder:italic" : "text-[#DBDEE8]"}`}
         style={{ width }}
       />
     );
@@ -119,7 +143,7 @@ export const NumberInput: React.FC<NumberInputProps> = ({
       }`}
       style={{ width }}
     >
-      {prefix && (
+      {prefix && !showMixedPlaceholder && (
         <span className="absolute left-[5px] top-[50%] transform -translate-y-1/2 text-[#97999E] text-style-1 pointer-events-none">
           {prefix}
         </span>
@@ -130,11 +154,12 @@ export const NumberInput: React.FC<NumberInputProps> = ({
         onChange={handleChange}
         onFocus={handleFocus}
         onBlur={handleBlur}
+        placeholder={showMixedPlaceholder ? mixedPlaceholder : undefined}
         className={`absolute ${
-          prefix ? "left-[20px]" : "left-[5px]"
+          prefix && !showMixedPlaceholder ? "left-[20px]" : "left-0"
         } top-[-1px] h-[23px] ${
-          prefix ? "w-[26px]" : "w-[calc(100%-10px)]"
-        } bg-transparent text-style-4 text-[#DBDEE8] text-center`}
+          prefix && !showMixedPlaceholder ? "w-[26px]" : "w-full"
+        } bg-transparent text-style-4 ${showMixedPlaceholder ? "text-[#6B6D75] italic placeholder:text-[#6B6D75] placeholder:italic" : "text-[#DBDEE8]"} text-center`}
       />
     </div>
   );
