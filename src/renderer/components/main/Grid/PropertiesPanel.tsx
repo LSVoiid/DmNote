@@ -9,25 +9,16 @@ import { useTranslation } from "@contexts/I18nContext";
 import { useGridSelectionStore } from "@stores/useGridSelectionStore";
 import { useKeyStore } from "@stores/useKeyStore";
 import { useSettingsStore } from "@stores/useSettingsStore";
-import { useLenis } from "@hooks/useLenis";
 import { getKeyInfoByGlobalKey } from "@utils/KeyMaps";
-import type {
-  KeyPosition,
-  NoteColor,
-  KeyCounterSettings,
-} from "@src/types/keys";
+import type { KeyPosition, KeyCounterSettings } from "@src/types/keys";
 import {
   createDefaultCounterSettings,
   normalizeCounterSettings,
 } from "@src/types/keys";
-import Checkbox from "@components/main/common/Checkbox";
-import Dropdown from "@components/main/common/Dropdown";
 import ColorPicker from "@components/main/Modal/content/ColorPicker";
 import ImagePicker from "@components/main/Modal/content/ImagePicker";
 
-type ScrollThumbState = { top: number; height: number; visible: boolean };
-
-// 분리된 컴포넌트들
+// 분리된 컴포넌트들 및 훅
 import {
   TABS,
   TabType,
@@ -35,14 +26,22 @@ import {
   NumberInput,
   ColorInput,
   TextInput,
-  Tabs,
   SectionDivider,
-  SidebarToggleIcon,
   FontStyleToggle,
+  Tabs,
+  SidebarToggleIcon,
+  StyleTabContent,
+  NoteTabContent,
+  CounterTabContent,
+  BatchStyleTabContent,
+  BatchNoteTabContent,
+  BatchCounterTabContent,
+  useBatchHandlers,
+  usePanelScroll,
 } from "./PropertiesPanel/index";
-import StyleTabContent from "./PropertiesPanel/StyleTabContent";
-import NoteTabContent from "./PropertiesPanel/NoteTabContent";
-import CounterTabContent from "./PropertiesPanel/CounterTabContent";
+import Checkbox from "@components/main/common/Checkbox";
+import Dropdown from "@components/main/common/Dropdown";
+import type { NoteColor } from "@src/types/keys";
 
 // ============================================================================
 // 메인 컴포넌트 Props
@@ -134,156 +133,13 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   // 탭 상태
   const [activeTab, setActiveTab] = useState<TabType>(TABS.STYLE);
 
-  // overlay scrollbar thumb refs (탭별, 직접 DOM 조작으로 리렌더링 방지)
-  const batchThumbRefs = useRef<Record<TabType, HTMLDivElement | null>>({
-    [TABS.STYLE]: null,
-    [TABS.NOTE]: null,
-    [TABS.COUNTER]: null,
-  });
-  const singleThumbRefs = useRef<Record<TabType, HTMLDivElement | null>>({
-    [TABS.STYLE]: null,
-    [TABS.NOTE]: null,
-    [TABS.COUNTER]: null,
-  });
-
-  const calculateThumb = useCallback((el: HTMLDivElement): ScrollThumbState => {
-    const { scrollTop, scrollHeight, clientHeight } = el;
-    const canScroll = scrollHeight > clientHeight + 1;
-    if (!canScroll) return { top: 0, height: 0, visible: false };
-
-    const minThumbHeight = 16;
-    const height = Math.max(
-      minThumbHeight,
-      (clientHeight / scrollHeight) * clientHeight,
-    );
-    const maxTop = clientHeight - height;
-    const top =
-      maxTop <= 0 ? 0 : (scrollTop / (scrollHeight - clientHeight)) * maxTop;
-
-    return { top, height, visible: true };
-  }, []);
-
-  // thumb DOM 직접 업데이트 (리렌더링 없이 성능 최적화)
-  const updateThumbDOM = useCallback(
-    (thumbEl: HTMLDivElement | null, scrollEl: HTMLDivElement | null) => {
-      if (!thumbEl || !scrollEl) return;
-      const thumb = calculateThumb(scrollEl);
-      thumbEl.style.top = `${thumb.top}px`;
-      thumbEl.style.height = `${thumb.height}px`;
-      thumbEl.style.display = thumb.visible ? 'block' : 'none';
-    },
-    [calculateThumb],
-  );
-
-  // 스크롤 엘리먼트 refs (탭별, thumb 계산용)
-  const batchScrollElementRefs = useRef<Record<TabType, HTMLDivElement | null>>({
-    [TABS.STYLE]: null,
-    [TABS.NOTE]: null,
-    [TABS.COUNTER]: null,
-  });
-  const singleScrollElementRefs = useRef<Record<TabType, HTMLDivElement | null>>({
-    [TABS.STYLE]: null,
-    [TABS.NOTE]: null,
-    [TABS.COUNTER]: null,
-  });
-
-  // Lenis 스크롤 적용 (탭별 6개 훅: batch 3개 + single 3개)
-  const { scrollContainerRef: batchLenisStyleRef } = useLenis({
-    onScroll: useCallback(() => {
-      updateThumbDOM(
-        batchThumbRefs.current[TABS.STYLE],
-        batchScrollElementRefs.current[TABS.STYLE],
-      );
-    }, [updateThumbDOM]),
-  });
-  const { scrollContainerRef: batchLenisNoteRef } = useLenis({
-    onScroll: useCallback(() => {
-      updateThumbDOM(
-        batchThumbRefs.current[TABS.NOTE],
-        batchScrollElementRefs.current[TABS.NOTE],
-      );
-    }, [updateThumbDOM]),
-  });
-  const { scrollContainerRef: batchLenisCounterRef } = useLenis({
-    onScroll: useCallback(() => {
-      updateThumbDOM(
-        batchThumbRefs.current[TABS.COUNTER],
-        batchScrollElementRefs.current[TABS.COUNTER],
-      );
-    }, [updateThumbDOM]),
-  });
-
-  const { scrollContainerRef: singleLenisStyleRef } = useLenis({
-    onScroll: useCallback(() => {
-      updateThumbDOM(
-        singleThumbRefs.current[TABS.STYLE],
-        singleScrollElementRefs.current[TABS.STYLE],
-      );
-    }, [updateThumbDOM]),
-  });
-  const { scrollContainerRef: singleLenisNoteRef } = useLenis({
-    onScroll: useCallback(() => {
-      updateThumbDOM(
-        singleThumbRefs.current[TABS.NOTE],
-        singleScrollElementRefs.current[TABS.NOTE],
-      );
-    }, [updateThumbDOM]),
-  });
-  const { scrollContainerRef: singleLenisCounterRef } = useLenis({
-    onScroll: useCallback(() => {
-      updateThumbDOM(
-        singleThumbRefs.current[TABS.COUNTER],
-        singleScrollElementRefs.current[TABS.COUNTER],
-      );
-    }, [updateThumbDOM]),
-  });
-
-  // callback ref를 합성하여 Lenis와 내부 ref 모두 업데이트 (탭별)
-  const batchScrollRefFor = useCallback(
-    (tab: TabType) => (node: HTMLDivElement | null) => {
-      batchScrollElementRefs.current[tab] = node;
-      if (tab === TABS.STYLE) batchLenisStyleRef(node);
-      if (tab === TABS.NOTE) batchLenisNoteRef(node);
-      if (tab === TABS.COUNTER) batchLenisCounterRef(node);
-    },
-    [batchLenisStyleRef, batchLenisNoteRef, batchLenisCounterRef],
-  );
-
-  const singleScrollRefFor = useCallback(
-    (tab: TabType) => (node: HTMLDivElement | null) => {
-      singleScrollElementRefs.current[tab] = node;
-      if (tab === TABS.STYLE) singleLenisStyleRef(node);
-      if (tab === TABS.NOTE) singleLenisNoteRef(node);
-      if (tab === TABS.COUNTER) singleLenisCounterRef(node);
-    },
-    [singleLenisStyleRef, singleLenisNoteRef, singleLenisCounterRef],
-  );
-
-  const batchThumbRefFor = useCallback(
-    (tab: TabType) => (node: HTMLDivElement | null) => {
-      batchThumbRefs.current[tab] = node;
-    },
-    [],
-  );
-
-  const singleThumbRefFor = useCallback(
-    (tab: TabType) => (node: HTMLDivElement | null) => {
-      singleThumbRefs.current[tab] = node;
-    },
-    [],
-  );
-
-  const updateThumbs = useCallback(
-    (tab: TabType) => {
-      updateThumbDOM(batchThumbRefs.current[tab], batchScrollElementRefs.current[tab]);
-      updateThumbDOM(singleThumbRefs.current[tab], singleScrollElementRefs.current[tab]);
-    },
-    [updateThumbDOM],
-  );
-
-  useEffect(() => {
-    updateThumbs(activeTab);
-  }, [updateThumbs, activeTab, selectedElements.length]);
+  // 스크롤 훅 사용
+  const {
+    batchScrollRefFor,
+    batchThumbRefFor,
+    singleScrollRefFor,
+    singleThumbRefFor,
+  } = usePanelScroll(activeTab, selectedElements.length);
 
   // 배치 편집용 로컬 ColorPicker 상태
   type BatchPickerTarget =
@@ -491,327 +347,29 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   );
 
   // ============================================================================
-  // 다중 선택 일괄 편집 핸들러
+  // 다중 선택 일괄 편집 핸들러 (훅 사용)
   // ============================================================================
 
-  const handleBatchStyleChange = useCallback(
-    (property: keyof KeyPosition, value: any) => {
-      const updates = selectedKeyElements
-        .filter((el) => el.index !== undefined)
-        .map((el) => ({ index: el.index!, [property]: value }));
-
-      if (onKeyBatchPreview && updates.length > 0) {
-        onKeyBatchPreview(updates);
-      } else if (onKeyPreview) {
-        // 폴백: 개별 프리뷰
-        updates.forEach((update) => {
-          const { index, ...rest } = update;
-          onKeyPreview(index, rest);
-        });
-      }
-    },
-    [selectedKeyElements, onKeyBatchPreview, onKeyPreview],
-  );
-
-  const handleBatchStyleChangeComplete = useCallback(
-    (property: keyof KeyPosition, value: any) => {
-      const updates = selectedKeyElements
-        .filter((el) => el.index !== undefined)
-        .map((el) => ({ index: el.index!, [property]: value }));
-
-      if (onKeyBatchUpdate && updates.length > 0) {
-        onKeyBatchUpdate(updates);
-      } else {
-        // 폴백: 개별 업데이트
-        updates.forEach((update) => onKeyUpdate(update));
-      }
-    },
-    [selectedKeyElements, onKeyBatchUpdate, onKeyUpdate],
-  );
-
-  // 정렬 핸들러
-  const handleBatchAlign = useCallback(
-    (direction: "left" | "centerH" | "right" | "top" | "centerV" | "bottom") => {
-      const keyData = selectedKeyElements
-        .filter((el) => el.index !== undefined)
-        .map((el) => {
-          const pos = positions[selectedKeyType]?.[el.index!];
-          return pos ? { index: el.index!, x: pos.dx, y: pos.dy, width: pos.width, height: pos.height } : null;
-        })
-        .filter((d): d is { index: number; x: number; y: number; width: number; height: number } => d !== null);
-
-      if (keyData.length < 2) return;
-
-      let updates: Array<{ index: number } & Partial<KeyPosition>> = [];
-
-      switch (direction) {
-        case "left": {
-          const minX = Math.min(...keyData.map((k) => k.x));
-          updates = keyData.map((k) => ({ index: k.index, dx: minX }));
-          break;
-        }
-        case "centerH": {
-          const minX = Math.min(...keyData.map((k) => k.x));
-          const maxX = Math.max(...keyData.map((k) => k.x + k.width));
-          const centerX = (minX + maxX) / 2;
-          updates = keyData.map((k) => ({ index: k.index, dx: centerX - k.width / 2 }));
-          break;
-        }
-        case "right": {
-          const maxX = Math.max(...keyData.map((k) => k.x + k.width));
-          updates = keyData.map((k) => ({ index: k.index, dx: maxX - k.width }));
-          break;
-        }
-        case "top": {
-          const minY = Math.min(...keyData.map((k) => k.y));
-          updates = keyData.map((k) => ({ index: k.index, dy: minY }));
-          break;
-        }
-        case "centerV": {
-          const minY = Math.min(...keyData.map((k) => k.y));
-          const maxY = Math.max(...keyData.map((k) => k.y + k.height));
-          const centerY = (minY + maxY) / 2;
-          updates = keyData.map((k) => ({ index: k.index, dy: centerY - k.height / 2 }));
-          break;
-        }
-        case "bottom": {
-          const maxY = Math.max(...keyData.map((k) => k.y + k.height));
-          updates = keyData.map((k) => ({ index: k.index, dy: maxY - k.height }));
-          break;
-        }
-      }
-
-      if (onKeyBatchUpdate && updates.length > 0) {
-        onKeyBatchUpdate(updates);
-      } else {
-        updates.forEach((update) => onKeyUpdate(update));
-      }
-    },
-    [selectedKeyElements, positions, selectedKeyType, onKeyBatchUpdate, onKeyUpdate],
-  );
-
-  // 분배 핸들러
-  const handleBatchDistribute = useCallback(
-    (direction: "horizontal" | "vertical") => {
-      const keyData = selectedKeyElements
-        .filter((el) => el.index !== undefined)
-        .map((el) => {
-          const pos = positions[selectedKeyType]?.[el.index!];
-          return pos ? { index: el.index!, x: pos.dx, y: pos.dy, width: pos.width, height: pos.height } : null;
-        })
-        .filter((d): d is { index: number; x: number; y: number; width: number; height: number } => d !== null);
-
-      if (keyData.length < 3) return;
-
-      let updates: Array<{ index: number } & Partial<KeyPosition>> = [];
-
-      if (direction === "horizontal") {
-        // X 위치 기준 정렬
-        const sorted = [...keyData].sort((a, b) => a.x - b.x);
-        const first = sorted[0];
-        const last = sorted[sorted.length - 1];
-        const totalSpan = (last.x + last.width) - first.x;
-        const totalWidths = sorted.reduce((sum, k) => sum + k.width, 0);
-        const gap = (totalSpan - totalWidths) / (sorted.length - 1);
-
-        let currentX = first.x;
-        updates = sorted.map((k) => {
-          const newX = currentX;
-          currentX += k.width + gap;
-          return { index: k.index, dx: newX };
-        });
-      } else {
-        // Y 위치 기준 정렬
-        const sorted = [...keyData].sort((a, b) => a.y - b.y);
-        const first = sorted[0];
-        const last = sorted[sorted.length - 1];
-        const totalSpan = (last.y + last.height) - first.y;
-        const totalHeights = sorted.reduce((sum, k) => sum + k.height, 0);
-        const gap = (totalSpan - totalHeights) / (sorted.length - 1);
-
-        let currentY = first.y;
-        updates = sorted.map((k) => {
-          const newY = currentY;
-          currentY += k.height + gap;
-          return { index: k.index, dy: newY };
-        });
-      }
-
-      if (onKeyBatchUpdate && updates.length > 0) {
-        onKeyBatchUpdate(updates);
-      } else {
-        updates.forEach((update) => onKeyUpdate(update));
-      }
-    },
-    [selectedKeyElements, positions, selectedKeyType, onKeyBatchUpdate, onKeyUpdate],
-  );
-
-  // 일괄 크기 변경 핸들러
-  const handleBatchResize = useCallback(
-    (dimension: "width" | "height", value: number) => {
-      const updates = selectedKeyElements
-        .filter((el) => el.index !== undefined)
-        .map((el) => ({ index: el.index!, [dimension]: value }));
-
-      if (onKeyBatchUpdate && updates.length > 0) {
-        onKeyBatchUpdate(updates);
-      } else {
-        updates.forEach((update) => onKeyUpdate(update));
-      }
-    },
-    [selectedKeyElements, onKeyBatchUpdate, onKeyUpdate],
-  );
-
-  const handleBatchCounterUpdate = useCallback(
-    (updates: Partial<KeyCounterSettings>) => {
-      const batchUpdates = selectedKeyElements
-        .filter((el) => el.index !== undefined)
-        .map((el) => {
-          const pos = positions[selectedKeyType]?.[el.index!];
-          if (pos) {
-            const currentSettings = normalizeCounterSettings(pos.counter);
-            const newSettings = { ...currentSettings, ...updates };
-            return { index: el.index!, counter: newSettings };
-          }
-          return null;
-        })
-        .filter((update): update is { index: number; counter: KeyCounterSettings } => update !== null);
-
-      if (onKeyBatchUpdate && batchUpdates.length > 0) {
-        onKeyBatchUpdate(batchUpdates);
-      } else {
-        // 폴백: 개별 업데이트
-        batchUpdates.forEach((update) => onKeyUpdate(update));
-      }
-    },
-    [selectedKeyElements, positions, selectedKeyType, onKeyBatchUpdate, onKeyUpdate],
-  );
-
-  const handleBatchNoteColorChange = useCallback(
-    (newColor: any) => {
-      let colorValue: NoteColor;
-      if (
-        newColor &&
-        typeof newColor === "object" &&
-        newColor.type === "gradient"
-      ) {
-        colorValue = {
-          type: "gradient",
-          top: newColor.top,
-          bottom: newColor.bottom,
-        };
-      } else {
-        colorValue = newColor;
-      }
-
-      const updates = selectedKeyElements
-        .filter((el) => el.index !== undefined)
-        .map((el) => ({ index: el.index!, noteColor: colorValue }));
-
-      if (onKeyBatchPreview && updates.length > 0) {
-        onKeyBatchPreview(updates);
-      } else if (onKeyPreview) {
-        updates.forEach((update) => {
-          const { index, ...rest } = update;
-          onKeyPreview(index, rest);
-        });
-      }
-    },
-    [selectedKeyElements, onKeyBatchPreview, onKeyPreview],
-  );
-
-  const handleBatchNoteColorChangeComplete = useCallback(
-    (newColor: any) => {
-      let colorValue: NoteColor;
-      if (
-        newColor &&
-        typeof newColor === "object" &&
-        newColor.type === "gradient"
-      ) {
-        colorValue = {
-          type: "gradient",
-          top: newColor.top,
-          bottom: newColor.bottom,
-        };
-      } else {
-        colorValue = newColor;
-      }
-
-      const updates = selectedKeyElements
-        .filter((el) => el.index !== undefined)
-        .map((el) => ({ index: el.index!, noteColor: colorValue }));
-
-      if (onKeyBatchUpdate && updates.length > 0) {
-        onKeyBatchUpdate(updates);
-      } else {
-        updates.forEach((update) => onKeyUpdate(update));
-      }
-    },
-    [selectedKeyElements, onKeyBatchUpdate, onKeyUpdate],
-  );
-
-  const handleBatchGlowColorChange = useCallback(
-    (newColor: any) => {
-      let colorValue: NoteColor;
-      if (
-        newColor &&
-        typeof newColor === "object" &&
-        newColor.type === "gradient"
-      ) {
-        colorValue = {
-          type: "gradient",
-          top: newColor.top,
-          bottom: newColor.bottom,
-        };
-      } else {
-        colorValue = newColor;
-      }
-
-      const updates = selectedKeyElements
-        .filter((el) => el.index !== undefined)
-        .map((el) => ({ index: el.index!, noteGlowColor: colorValue }));
-
-      if (onKeyBatchPreview && updates.length > 0) {
-        onKeyBatchPreview(updates);
-      } else if (onKeyPreview) {
-        updates.forEach((update) => {
-          const { index, ...rest } = update;
-          onKeyPreview(index, rest);
-        });
-      }
-    },
-    [selectedKeyElements, onKeyBatchPreview, onKeyPreview],
-  );
-
-  const handleBatchGlowColorChangeComplete = useCallback(
-    (newColor: any) => {
-      let colorValue: NoteColor;
-      if (
-        newColor &&
-        typeof newColor === "object" &&
-        newColor.type === "gradient"
-      ) {
-        colorValue = {
-          type: "gradient",
-          top: newColor.top,
-          bottom: newColor.bottom,
-        };
-      } else {
-        colorValue = newColor;
-      }
-
-      const updates = selectedKeyElements
-        .filter((el) => el.index !== undefined)
-        .map((el) => ({ index: el.index!, noteGlowColor: colorValue }));
-
-      if (onKeyBatchUpdate && updates.length > 0) {
-        onKeyBatchUpdate(updates);
-      } else {
-        updates.forEach((update) => onKeyUpdate(update));
-      }
-    },
-    [selectedKeyElements, onKeyBatchUpdate, onKeyUpdate],
-  );
+  const {
+    handleBatchStyleChange,
+    handleBatchStyleChangeComplete,
+    handleBatchAlign,
+    handleBatchDistribute,
+    handleBatchResize,
+    handleBatchCounterUpdate,
+    handleBatchNoteColorChange,
+    handleBatchNoteColorChangeComplete,
+    handleBatchGlowColorChange,
+    handleBatchGlowColorChangeComplete,
+  } = useBatchHandlers({
+    selectedKeyElements,
+    positions,
+    selectedKeyType,
+    onKeyUpdate,
+    onKeyBatchUpdate,
+    onKeyPreview,
+    onKeyBatchPreview,
+  });
 
   // (사이드 패널) 일괄 편집에서도 전역 컬러피커를 쓰지 않음
   // - 노트/글로우는 NoteTabContent(단일 편집)에서 로컬 ColorPicker로 처리
@@ -1196,416 +754,21 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
               className={`properties-panel-overlay-viewport ${activeTab === TABS.STYLE ? "" : "hidden"}`}
             >
               <div className="p-[12px] flex flex-col gap-[12px]">
-                {/* 정렬 */}
-                <PropertyRow label={t("propertiesPanel.alignment") || "정렬"}>
-                  <div className="flex gap-[4px]">
-                    {/* 수평 정렬 */}
-                    <div className="flex">
-                      <button
-                        type="button"
-                        onClick={() => handleBatchAlign("left")}
-                        className="w-[24px] h-[23px] bg-[#2A2A30] border border-[#3A3943] rounded-l-[7px] border-r-0 flex items-center justify-center hover:bg-[#353540] transition-colors"
-                        title={t("propertiesPanel.alignLeft") || "왼쪽 정렬"}
-                      >
-                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                          <path d="M1 1V9" stroke="#DBDEE8" strokeWidth="1.5" strokeLinecap="round"/>
-                          <rect x="2.5" y="2.5" width="6" height="1.5" rx="0.5" fill="#DBDEE8"/>
-                          <rect x="2.5" y="6" width="4" height="1.5" rx="0.5" fill="#DBDEE8"/>
-                        </svg>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleBatchAlign("centerH")}
-                        className="w-[24px] h-[23px] bg-[#2A2A30] border border-[#3A3943] border-r-0 flex items-center justify-center hover:bg-[#353540] transition-colors"
-                        title={t("propertiesPanel.alignCenterH") || "수평 중앙 정렬"}
-                      >
-                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                          <path d="M5 1V9" stroke="#DBDEE8" strokeWidth="1.5" strokeLinecap="round"/>
-                          <rect x="1.5" y="2.5" width="7" height="1.5" rx="0.5" fill="#DBDEE8"/>
-                          <rect x="2.5" y="6" width="5" height="1.5" rx="0.5" fill="#DBDEE8"/>
-                        </svg>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleBatchAlign("right")}
-                        className="w-[24px] h-[23px] bg-[#2A2A30] border border-[#3A3943] rounded-r-[7px] flex items-center justify-center hover:bg-[#353540] transition-colors"
-                        title={t("propertiesPanel.alignRight") || "오른쪽 정렬"}
-                      >
-                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                          <path d="M9 1V9" stroke="#DBDEE8" strokeWidth="1.5" strokeLinecap="round"/>
-                          <rect x="1.5" y="2.5" width="6" height="1.5" rx="0.5" fill="#DBDEE8"/>
-                          <rect x="3.5" y="6" width="4" height="1.5" rx="0.5" fill="#DBDEE8"/>
-                        </svg>
-                      </button>
-                    </div>
-                    {/* 수직 정렬 */}
-                    <div className="flex">
-                      <button
-                        type="button"
-                        onClick={() => handleBatchAlign("top")}
-                        className="w-[24px] h-[23px] bg-[#2A2A30] border border-[#3A3943] rounded-l-[7px] border-r-0 flex items-center justify-center hover:bg-[#353540] transition-colors"
-                        title={t("propertiesPanel.alignTop") || "위쪽 정렬"}
-                      >
-                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                          <path d="M1 1H9" stroke="#DBDEE8" strokeWidth="1.5" strokeLinecap="round"/>
-                          <rect x="2.5" y="2.5" width="1.5" height="6" rx="0.5" fill="#DBDEE8"/>
-                          <rect x="6" y="2.5" width="1.5" height="4" rx="0.5" fill="#DBDEE8"/>
-                        </svg>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleBatchAlign("centerV")}
-                        className="w-[24px] h-[23px] bg-[#2A2A30] border border-[#3A3943] border-r-0 flex items-center justify-center hover:bg-[#353540] transition-colors"
-                        title={t("propertiesPanel.alignCenterV") || "수직 중앙 정렬"}
-                      >
-                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                          <path d="M1 5H9" stroke="#DBDEE8" strokeWidth="1.5" strokeLinecap="round"/>
-                          <rect x="2.5" y="1.5" width="1.5" height="7" rx="0.5" fill="#DBDEE8"/>
-                          <rect x="6" y="2.5" width="1.5" height="5" rx="0.5" fill="#DBDEE8"/>
-                        </svg>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleBatchAlign("bottom")}
-                        className="w-[24px] h-[23px] bg-[#2A2A30] border border-[#3A3943] rounded-r-[7px] flex items-center justify-center hover:bg-[#353540] transition-colors"
-                        title={t("propertiesPanel.alignBottom") || "아래쪽 정렬"}
-                      >
-                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                          <path d="M1 9H9" stroke="#DBDEE8" strokeWidth="1.5" strokeLinecap="round"/>
-                          <rect x="2.5" y="1.5" width="1.5" height="6" rx="0.5" fill="#DBDEE8"/>
-                          <rect x="6" y="3.5" width="1.5" height="4" rx="0.5" fill="#DBDEE8"/>
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                </PropertyRow>
-
-                {/* 분배 */}
-                <PropertyRow label={t("propertiesPanel.distribution") || "분배"}>
-                  <div className="flex gap-[4px]">
-                    <button
-                      type="button"
-                      onClick={() => handleBatchDistribute("horizontal")}
-                      disabled={selectedKeyElements.length < 3}
-                      className={`w-[24px] h-[23px] bg-[#2A2A30] border border-[#3A3943] rounded-[7px] flex items-center justify-center transition-colors ${
-                        selectedKeyElements.length < 3
-                          ? "opacity-40 cursor-not-allowed"
-                          : "hover:bg-[#353540]"
-                      }`}
-                      title={t("propertiesPanel.distributeH") || "수평 분배"}
-                    >
-                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                        <rect x="0.5" y="2.5" width="1.5" height="5" rx="0.5" fill="#DBDEE8"/>
-                        <rect x="4.25" y="2.5" width="1.5" height="5" rx="0.5" fill="#DBDEE8"/>
-                        <rect x="8" y="2.5" width="1.5" height="5" rx="0.5" fill="#DBDEE8"/>
-                      </svg>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleBatchDistribute("vertical")}
-                      disabled={selectedKeyElements.length < 3}
-                      className={`w-[24px] h-[23px] bg-[#2A2A30] border border-[#3A3943] rounded-[7px] flex items-center justify-center transition-colors ${
-                        selectedKeyElements.length < 3
-                          ? "opacity-40 cursor-not-allowed"
-                          : "hover:bg-[#353540]"
-                      }`}
-                      title={t("propertiesPanel.distributeV") || "수직 분배"}
-                    >
-                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                        <rect x="2.5" y="0.5" width="5" height="1.5" rx="0.5" fill="#DBDEE8"/>
-                        <rect x="2.5" y="4.25" width="5" height="1.5" rx="0.5" fill="#DBDEE8"/>
-                        <rect x="2.5" y="8" width="5" height="1.5" rx="0.5" fill="#DBDEE8"/>
-                      </svg>
-                    </button>
-                  </div>
-                </PropertyRow>
-
-                {/* 크기 */}
-                <PropertyRow label={t("propertiesPanel.size") || "크기"}>
-                  <NumberInput
-                    value={getMixedValue((pos) => pos.width, 60).value}
-                    onChange={(value) => handleBatchResize("width", value)}
-                    prefix="W"
-                    min={10}
-                    max={500}
-                    isMixed={getMixedValue((pos) => pos.width, 60).isMixed}
-                  />
-                  <NumberInput
-                    value={getMixedValue((pos) => pos.height, 60).value}
-                    onChange={(value) => handleBatchResize("height", value)}
-                    prefix="H"
-                    min={10}
-                    max={500}
-                    isMixed={getMixedValue((pos) => pos.height, 60).isMixed}
-                  />
-                </PropertyRow>
-
-                <SectionDivider />
-
-                {/* 배경색 */}
-                <PropertyRow
-                  label={t("propertiesPanel.backgroundColor") || "배경색"}
-                >
-                  {getMixedValue((pos) => pos.backgroundColor, "#2E2E2F")
-                    .isMixed ? (
-                    <span className="text-[#6B6D75] text-style-4 italic">
-                      Mixed
-                    </span>
-                  ) : null}
-                  <ColorInput
-                    value={
-                      getMixedValue(
-                        (pos) => pos.backgroundColor,
-                        "#2E2E2F",
-                      ).value
-                    }
-                    onChange={(color) =>
-                      handleBatchStyleChange("backgroundColor", color)
-                    }
-                    onChangeComplete={(color) =>
-                      handleBatchStyleChangeComplete(
-                          "backgroundColor",
-                          color,
-                        )
-                      }
-                      panelElement={panelElement}
-                    />
-                  </PropertyRow>
-
-                  {/* 테두리 색상 */}
-                  <PropertyRow
-                    label={
-                      t("propertiesPanel.borderColor") || "테두리 색상"
-                    }
-                  >
-                    {getMixedValue((pos) => pos.borderColor, "#717171")
-                      .isMixed ? (
-                      <span className="text-[#6B6D75] text-style-4 italic">
-                        Mixed
-                      </span>
-                    ) : null}
-                    <ColorInput
-                      value={
-                        getMixedValue((pos) => pos.borderColor, "#717171")
-                          .value
-                      }
-                      onChange={(color) =>
-                        handleBatchStyleChange("borderColor", color)
-                      }
-                      onChangeComplete={(color) =>
-                        handleBatchStyleChangeComplete("borderColor", color)
-                      }
-                      panelElement={panelElement}
-                    />
-                  </PropertyRow>
-
-                  {/* 테두리 두께 */}
-                  <PropertyRow
-                    label={
-                      t("propertiesPanel.borderWidth") || "테두리 두께"
-                    }
-                  >
-                    {getMixedValue((pos) => pos.borderWidth, 3).isMixed ? (
-                      <span className="text-[#6B6D75] text-style-4 italic">
-                        Mixed
-                      </span>
-                    ) : null}
-                    <NumberInput
-                      value={
-                        getMixedValue((pos) => pos.borderWidth, 3).value
-                      }
-                      onChange={(value) =>
-                        handleBatchStyleChangeComplete("borderWidth", value)
-                      }
-                      suffix="px"
-                      min={0}
-                      max={20}
-                    />
-                  </PropertyRow>
-
-                  {/* 모서리 반경 */}
-                  <PropertyRow
-                    label={
-                      t("propertiesPanel.borderRadius") || "모서리 반경"
-                    }
-                  >
-                    {getMixedValue((pos) => pos.borderRadius, 10)
-                      .isMixed ? (
-                      <span className="text-[#6B6D75] text-style-4 italic">
-                        Mixed
-                      </span>
-                    ) : null}
-                    <NumberInput
-                      value={
-                        getMixedValue((pos) => pos.borderRadius, 10).value
-                      }
-                      onChange={(value) =>
-                        handleBatchStyleChangeComplete(
-                          "borderRadius",
-                          value,
-                        )
-                      }
-                      suffix="px"
-                      min={0}
-                      max={100}
-                    />
-                  </PropertyRow>
-
-                  {/* 커스텀 이미지 */}
-                  <PropertyRow label={t("propertiesPanel.customImage") || "커스텀 이미지"}>
-                    <button
-                      ref={batchImageButtonRef}
-                      type="button"
-                      className={`px-[7px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] flex items-center justify-center ${
-                        showBatchImagePicker ? "border-[#459BF8]" : "border-[#3A3943]"
-                      } text-[#DBDEE8] text-style-4`}
-                      onClick={() => setShowBatchImagePicker(!showBatchImagePicker)}
-                    >
-                      {t("propertiesPanel.configure") || "설정하기"}
-                    </button>
-                  </PropertyRow>
-
-                  <SectionDivider />
-
-                  {/* 글꼴 크기 */}
-                  <PropertyRow
-                    label={t("propertiesPanel.fontSize") || "글꼴 크기"}
-                  >
-                    {getMixedValue((pos) => pos.fontSize, 14).isMixed ? (
-                      <span className="text-[#6B6D75] text-style-4 italic">
-                        Mixed
-                      </span>
-                    ) : null}
-                    <NumberInput
-                      value={getMixedValue((pos) => pos.fontSize, 14).value}
-                      onChange={(value) =>
-                        handleBatchStyleChangeComplete("fontSize", value)
-                      }
-                      suffix="px"
-                      min={8}
-                      max={72}
-                    />
-                  </PropertyRow>
-
-                  {/* 글꼴 색상 */}
-                  <PropertyRow
-                    label={t("propertiesPanel.fontColor") || "글꼴 색상"}
-                  >
-                    {getMixedValue((pos) => pos.fontColor, "#717171")
-                      .isMixed ? (
-                      <span className="text-[#6B6D75] text-style-4 italic">
-                        Mixed
-                      </span>
-                    ) : null}
-                    <ColorInput
-                      value={
-                        getMixedValue((pos) => pos.fontColor, "#717171")
-                          .value
-                      }
-                      onChange={(color) =>
-                        handleBatchStyleChange("fontColor", color)
-                      }
-                      onChangeComplete={(color) =>
-                        handleBatchStyleChangeComplete("fontColor", color)
-                      }
-                      panelElement={panelElement}
-                    />
-                  </PropertyRow>
-
-                  {/* 글꼴 스타일 */}
-                  <PropertyRow
-                    label={t("propertiesPanel.fontStyle") || "글꼴 스타일"}
-                  >
-                    <FontStyleToggle
-                      isBold={
-                        getMixedValue(
-                          (pos) => (pos.fontWeight ?? 700) >= 700,
-                          true,
-                        ).value
-                      }
-                      isItalic={
-                        getMixedValue((pos) => pos.fontItalic, false).value
-                      }
-                      isUnderline={
-                        getMixedValue((pos) => pos.fontUnderline, false)
-                          .value
-                      }
-                      isStrikethrough={
-                        getMixedValue((pos) => pos.fontStrikethrough, false)
-                          .value
-                      }
-                      onBoldChange={(value) =>
-                        handleBatchStyleChangeComplete(
-                          "fontWeight",
-                          value ? 700 : 400,
-                        )
-                      }
-                      onItalicChange={(value) =>
-                        handleBatchStyleChangeComplete("fontItalic", value)
-                      }
-                      onUnderlineChange={(value) =>
-                        handleBatchStyleChangeComplete(
-                          "fontUnderline",
-                          value,
-                        )
-                      }
-                      onStrikethroughChange={(value) =>
-                        handleBatchStyleChangeComplete(
-                          "fontStrikethrough",
-                          value,
-                        )
-                      }
-                    />
-                  </PropertyRow>
-
-                  {/* 커스텀 CSS 활성화 시에만 클래스명 및 CSS 우선순위 표시 */}
-                  {useCustomCSS && (
-                    <>
-                      <SectionDivider />
-                      
-                      {/* CSS 우선순위 토글 */}
-                      <div className="flex justify-between items-center w-full h-[23px]">
-                        <p className="text-white text-style-2">
-                          {t("propertiesPanel.useInlineStyles") || "인라인 스타일 우선"}
-                        </p>
-                        <Checkbox
-                          checked={
-                            getMixedValue((pos) => pos.useInlineStyles, false).value
-                          }
-                          onChange={() => {
-                            const currentValue = getMixedValue(
-                              (pos) => pos.useInlineStyles,
-                              false,
-                            ).value;
-                            handleBatchStyleChangeComplete(
-                              "useInlineStyles",
-                              !currentValue,
-                            );
-                          }}
-                        />
-                      </div>
-
-                      {/* 클래스명 */}
-                      <PropertyRow label={t("propertiesPanel.className") || "클래스"}>
-                        <TextInput
-                          value={
-                            getMixedValue((pos) => pos.className, "").isMixed
-                              ? ""
-                              : getMixedValue((pos) => pos.className, "").value
-                          }
-                          onChange={(value) => {
-                            handleBatchStyleChangeComplete("className", value);
-                          }}
-                          placeholder={
-                            getMixedValue((pos) => pos.className, "").isMixed
-                              ? "다중 값"
-                              : "className"
-                          }
-                          width="90px"
-                        />
-                      </PropertyRow>
-                    </>
-                  )}
+                <BatchStyleTabContent
+                  selectedCount={selectedKeyElements.length}
+                  getMixedValue={getMixedValue}
+                  handleBatchAlign={handleBatchAlign}
+                  handleBatchDistribute={handleBatchDistribute}
+                  handleBatchResize={handleBatchResize}
+                  handleBatchStyleChange={handleBatchStyleChange}
+                  handleBatchStyleChangeComplete={handleBatchStyleChangeComplete}
+                  showBatchImagePicker={showBatchImagePicker}
+                  onToggleBatchImagePicker={() => setShowBatchImagePicker(!showBatchImagePicker)}
+                  batchImageButtonRef={batchImageButtonRef}
+                  panelElement={panelElement}
+                  useCustomCSS={useCustomCSS}
+                  t={t}
+                />
               </div>
               <div className="properties-panel-overlay-bar">
                 <div
@@ -1622,211 +785,17 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
               className={`properties-panel-overlay-viewport ${activeTab === TABS.NOTE ? "" : "hidden"}`}
             >
               <div className="p-[12px] flex flex-col gap-[12px]">
-                {/* 노트 효과 표시 */}
-                <div className="flex justify-between items-center w-full h-[23px]">
-                  <p className="text-white text-style-2">
-                    {t("keySetting.noteEffectEnabled") ||
-                      "노트 효과 표시"}
-                  </p>
-                  <Checkbox
-                    checked={
-                      getMixedValue((pos) => pos.noteEffectEnabled, true)
-                        .value
-                    }
-                    onChange={() => {
-                      const currentValue = getMixedValue(
-                        (pos) => pos.noteEffectEnabled,
-                        true,
-                      ).value;
-                      handleBatchStyleChangeComplete(
-                        "noteEffectEnabled",
-                        !currentValue,
-                      );
-                    }}
-                  />
-                </div>
-
-                {/* Y축 자동 보정 */}
-                <div className="flex justify-between items-center w-full h-[23px]">
-                  <p className="text-white text-style-2">
-                    {t("keySetting.noteAutoYCorrection") ||
-                      "Y축 자동 보정"}
-                  </p>
-                  <Checkbox
-                    checked={
-                      getMixedValue(
-                        (pos) => pos.noteAutoYCorrection,
-                        true,
-                      ).value
-                    }
-                    onChange={() => {
-                      const currentValue = getMixedValue(
-                        (pos) => pos.noteAutoYCorrection,
-                        true,
-                      ).value;
-                      handleBatchStyleChangeComplete(
-                        "noteAutoYCorrection",
-                        !currentValue,
-                      );
-                    }}
-                  />
-                </div>
-
-                <SectionDivider />
-
-                {/* 노트 색상 */}
-                <PropertyRow
-                  label={t("keySetting.noteColor") || "노트 색상"}
-                >
-                  <button
-                    ref={batchNoteColorButtonRef}
-                    onClick={() => handleBatchPickerToggle("noteColor")}
-                    className="relative w-[80px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943] flex items-center justify-center text-[#DBDEE8] text-style-2"
-                  >
-                    <div
-                      className="absolute left-[6px] top-[4.5px] w-[11px] h-[11px] rounded-[2px] border border-[#3A3943]"
-                      style={getBatchNoteColorDisplay().style}
-                    />
-                    <span
-                      className={`ml-[16px] text-left text-style-4 ${getBatchNoteColorDisplay().isMixed ? "italic text-[#6B6D75]" : ""}`}
-                    >
-                      {getBatchNoteColorDisplay().label}
-                    </span>
-                  </button>
-                </PropertyRow>
-
-                {/* 노트 투명도 */}
-                <PropertyRow
-                  label={t("keySetting.noteOpacity") || "노트 투명도"}
-                >
-                  {getMixedValue((pos) => pos.noteOpacity, 80).isMixed ? (
-                    <span className="text-[#6B6D75] text-style-4 italic">
-                      Mixed
-                    </span>
-                  ) : null}
-                  <NumberInput
-                    value={
-                      getMixedValue((pos) => pos.noteOpacity, 80).value
-                    }
-                    onChange={(value) =>
-                      handleBatchStyleChangeComplete("noteOpacity", value)
-                    }
-                    suffix="%"
-                    min={0}
-                    max={100}
-                  />
-                </PropertyRow>
-
-                <SectionDivider />
-
-                {/* 글로우 효과 */}
-                <div className="flex justify-between items-center w-full h-[23px]">
-                  <p className="text-white text-style-2">
-                    {t("keySetting.noteGlow") || "글로우 효과"}
-                  </p>
-                  <Checkbox
-                    checked={
-                      getMixedValue((pos) => pos.noteGlowEnabled, false)
-                        .value
-                    }
-                    onChange={() => {
-                      const currentValue = getMixedValue(
-                        (pos) => pos.noteGlowEnabled,
-                        false,
-                      ).value;
-                      handleBatchStyleChangeComplete(
-                        "noteGlowEnabled",
-                        !currentValue,
-                      );
-                    }}
-                  />
-                </div>
-
-                {/* 글로우 색상/크기/투명도 */}
-                {getMixedValue((pos) => pos.noteGlowEnabled, false)
-                  .value && (
-                  <>
-                    <PropertyRow
-                      label={
-                        t("keySetting.noteGlowColor") || "글로우 색상"
-                      }
-                    >
-                      <button
-                        ref={batchGlowColorButtonRef}
-                        onClick={() =>
-                          handleBatchPickerToggle("glowColor")
-                        }
-                        className="relative w-[80px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943] flex items-center justify-center text-[#DBDEE8] text-style-2"
-                      >
-                        <div
-                          className="absolute left-[6px] top-[4.5px] w-[11px] h-[11px] rounded-[2px] border border-[#3A3943]"
-                          style={getBatchGlowColorDisplay().style}
-                        />
-                        <span
-                          className={`ml-[16px] text-left text-style-4 ${getBatchGlowColorDisplay().isMixed ? "italic text-[#6B6D75]" : ""}`}
-                        >
-                          {getBatchGlowColorDisplay().label}
-                        </span>
-                      </button>
-                    </PropertyRow>
-
-                    <PropertyRow
-                      label={
-                        t("keySetting.noteGlowSize") || "글로우 크기"
-                      }
-                    >
-                      {getMixedValue((pos) => pos.noteGlowSize, 20)
-                        .isMixed ? (
-                        <span className="text-[#6B6D75] text-style-4 italic">
-                          Mixed
-                        </span>
-                      ) : null}
-                      <NumberInput
-                        value={
-                          getMixedValue((pos) => pos.noteGlowSize, 20)
-                            .value
-                        }
-                        onChange={(value) =>
-                          handleBatchStyleChangeComplete(
-                            "noteGlowSize",
-                            value,
-                          )
-                        }
-                        suffix="px"
-                        min={0}
-                        max={50}
-                      />
-                    </PropertyRow>
-
-                    <PropertyRow
-                      label={
-                        t("keySetting.noteGlowOpacity") || "글로우 투명도"
-                      }
-                    >
-                      {getMixedValue((pos) => pos.noteGlowOpacity, 70)
-                        .isMixed ? (
-                        <span className="text-[#6B6D75] text-style-4 italic">
-                          Mixed
-                        </span>
-                      ) : null}
-                      <NumberInput
-                        value={
-                          getMixedValue((pos) => pos.noteGlowOpacity, 70)
-                            .value
-                        }
-                        onChange={(value) =>
-                          handleBatchStyleChangeComplete(
-                            "noteGlowOpacity",
-                            value,
-                          )
-                        }
-                        suffix="%"
-                        min={0}
-                        max={100}
-                      />
-                    </PropertyRow>
-                  </>
-                )}
+                <BatchNoteTabContent
+                  getMixedValue={getMixedValue}
+                  handleBatchStyleChangeComplete={handleBatchStyleChangeComplete}
+                  getBatchNoteColorDisplay={getBatchNoteColorDisplay}
+                  getBatchGlowColorDisplay={getBatchGlowColorDisplay}
+                  onNoteColorPickerToggle={() => handleBatchPickerToggle("noteColor")}
+                  onGlowColorPickerToggle={() => handleBatchPickerToggle("glowColor")}
+                  batchNoteColorButtonRef={batchNoteColorButtonRef}
+                  batchGlowColorButtonRef={batchGlowColorButtonRef}
+                  t={t}
+                />
               </div>
               <div className="properties-panel-overlay-bar">
                 <div
@@ -1843,186 +812,20 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
               className={`properties-panel-overlay-viewport ${activeTab === TABS.COUNTER ? "" : "hidden"}`}
             >
               <div className="p-[12px] flex flex-col gap-[12px]">
-                {/* 카운터 사용 */}
-                <div className="flex justify-between items-center w-full h-[23px]">
-                  <p className="text-white text-style-2">
-                    {t("counterSetting.counterEnabled") || "카운터 표시"}
-                  </p>
-                  <Checkbox
-                    checked={batchCounterSettings.enabled}
-                    onChange={() =>
-                      handleBatchCounterUpdate({
-                        enabled: !batchCounterSettings.enabled,
-                      })
-                    }
-                  />
-                </div>
-
-                <SectionDivider />
-
-                {/* 배치 영역 */}
-                <PropertyRow
-                  label={t("counterSetting.placementArea") || "배치 영역"}
-                >
-                  <Dropdown
-                    options={[
-                      {
-                        label:
-                          t("counterSetting.placementInside") || "내부",
-                        value: "inside",
-                      },
-                      {
-                        label:
-                          t("counterSetting.placementOutside") || "외부",
-                        value: "outside",
-                      },
-                    ]}
-                    value={batchCounterSettings.placement}
-                    onChange={(value) =>
-                      handleBatchCounterUpdate({
-                        placement: value as "inside" | "outside",
-                      })
-                    }
-                  />
-                </PropertyRow>
-
-                {/* 정렬 방향 */}
-                <PropertyRow
-                  label={
-                    t("counterSetting.alignDirection") || "정렬 방향"
-                  }
-                >
-                  <Dropdown
-                    options={[
-                      {
-                        label: t("counterSetting.alignTop") || "상단",
-                        value: "top",
-                      },
-                      {
-                        label: t("counterSetting.alignBottom") || "하단",
-                        value: "bottom",
-                      },
-                      {
-                        label: t("counterSetting.alignLeft") || "좌측",
-                        value: "left",
-                      },
-                      {
-                        label: t("counterSetting.alignRight") || "우측",
-                        value: "right",
-                      },
-                    ]}
-                    value={batchCounterSettings.align}
-                    onChange={(value) =>
-                      handleBatchCounterUpdate({
-                        align: value as
-                          | "top"
-                          | "bottom"
-                          | "left"
-                          | "right",
-                      })
-                    }
-                  />
-                </PropertyRow>
-
-                {/* 간격 */}
-                <PropertyRow label={t("counterSetting.gap") || "간격"}>
-                  <NumberInput
-                    value={batchCounterSettings.gap}
-                    onChange={(value) =>
-                      handleBatchCounterUpdate({ gap: value })
-                    }
-                    suffix="px"
-                    min={0}
-                    max={100}
-                    width="54px"
-                  />
-                </PropertyRow>
-
-                <SectionDivider />
-
-                {/* 채우기 색상 */}
-                <PropertyRow label={t("counterSetting.fill") || "채우기"}>
-                  <div className="flex items-center gap-[4px]">
-                    <button
-                      ref={batchCounterFillIdleButtonRef}
-                      onClick={() => handleBatchPickerToggle("fillIdle")}
-                      className="relative px-[7px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943] flex items-center justify-center text-[#DBDEE8] text-style-4"
-                    >
-                      <div
-                        className="absolute left-[6px] top-[4.5px] w-[11px] h-[11px] rounded-[2px] border border-[#3A3943]"
-                        style={{
-                          backgroundColor:
-                            getCounterColorDisplay("fillIdle"),
-                        }}
-                      />
-                      <span className="ml-[16px] text-left">
-                        {t("counterSetting.idle") || "대기"}
-                      </span>
-                    </button>
-                    <button
-                      ref={batchCounterFillActiveButtonRef}
-                      onClick={() =>
-                        handleBatchPickerToggle("fillActive")
-                      }
-                      className="relative px-[7px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943] flex items-center justify-center text-[#DBDEE8] text-style-4"
-                    >
-                      <div
-                        className="absolute left-[6px] top-[4.5px] w-[11px] h-[11px] rounded-[2px] border border-[#3A3943]"
-                        style={{
-                          backgroundColor:
-                            getCounterColorDisplay("fillActive"),
-                        }}
-                      />
-                      <span className="ml-[16px] text-left">
-                        {t("counterSetting.active") || "입력"}
-                      </span>
-                    </button>
-                  </div>
-                </PropertyRow>
-
-                {/* 외곽선 색상 */}
-                <PropertyRow
-                  label={t("counterSetting.stroke") || "외곽선"}
-                >
-                  <div className="flex items-center gap-[4px]">
-                    <button
-                      ref={batchCounterStrokeIdleButtonRef}
-                      onClick={() =>
-                        handleBatchPickerToggle("strokeIdle")
-                      }
-                      className="relative px-[7px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943] flex items-center justify-center text-[#DBDEE8] text-style-4"
-                    >
-                      <div
-                        className="absolute left-[6px] top-[4.5px] w-[11px] h-[11px] rounded-[2px] border border-[#3A3943]"
-                        style={{
-                          backgroundColor:
-                            getCounterColorDisplay("strokeIdle"),
-                        }}
-                      />
-                      <span className="ml-[16px] text-left">
-                        {t("counterSetting.idle") || "대기"}
-                      </span>
-                    </button>
-                    <button
-                      ref={batchCounterStrokeActiveButtonRef}
-                      onClick={() =>
-                        handleBatchPickerToggle("strokeActive")
-                      }
-                      className="relative px-[7px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943] flex items-center justify-center text-[#DBDEE8] text-style-4"
-                    >
-                      <div
-                        className="absolute left-[6px] top-[4.5px] w-[11px] h-[11px] rounded-[2px] border border-[#3A3943]"
-                        style={{
-                          backgroundColor:
-                            getCounterColorDisplay("strokeActive"),
-                        }}
-                      />
-                      <span className="ml-[16px] text-left">
-                        {t("counterSetting.active") || "입력"}
-                      </span>
-                    </button>
-                  </div>
-                </PropertyRow>
+                <BatchCounterTabContent
+                  batchCounterSettings={batchCounterSettings}
+                  handleBatchCounterUpdate={handleBatchCounterUpdate}
+                  getCounterColorDisplay={getCounterColorDisplay}
+                  onFillIdlePickerToggle={() => handleBatchPickerToggle("fillIdle")}
+                  onFillActivePickerToggle={() => handleBatchPickerToggle("fillActive")}
+                  onStrokeIdlePickerToggle={() => handleBatchPickerToggle("strokeIdle")}
+                  onStrokeActivePickerToggle={() => handleBatchPickerToggle("strokeActive")}
+                  batchCounterFillIdleButtonRef={batchCounterFillIdleButtonRef}
+                  batchCounterFillActiveButtonRef={batchCounterFillActiveButtonRef}
+                  batchCounterStrokeIdleButtonRef={batchCounterStrokeIdleButtonRef}
+                  batchCounterStrokeActiveButtonRef={batchCounterStrokeActiveButtonRef}
+                  t={t}
+                />
               </div>
               <div className="properties-panel-overlay-bar">
                 <div
