@@ -30,12 +30,14 @@ import {
   FontStyleToggle,
   Tabs,
   SidebarToggleIcon,
+  ModeToggleIcon,
   StyleTabContent,
   NoteTabContent,
   CounterTabContent,
   BatchStyleTabContent,
   BatchNoteTabContent,
   BatchCounterTabContent,
+  LayerPanel,
   useBatchHandlers,
   usePanelScroll,
 } from "./PropertiesPanel/index";
@@ -128,7 +130,10 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   const [panelElement, setPanelElement] = useState<HTMLDivElement | null>(null);
 
   // 패널 가시성 상태 (선택과 별개로 패널만 닫을 수 있음)
-  const [isPanelVisible, setIsPanelVisible] = useState(true);
+  const [isPanelVisible, setIsPanelVisible] = useState(false);
+
+  // 패널 모드 상태 (layer: 레이어 패널, property: 속성 패널)
+  const [panelMode, setPanelMode] = useState<"layer" | "property">("property");
 
   // 탭 상태
   const [activeTab, setActiveTab] = useState<TabType>(TABS.STYLE);
@@ -188,15 +193,18 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     singleKeyPosition?.height,
   ]);
 
-  // 선택된 키가 변경될 때만 패널 열기
+  // 선택된 키가 변경될 때 패널 열기/닫기
   useEffect(() => {
     if (singleKeyIndex !== null) {
       setIsPanelVisible(true);
+    } else if (selectedKeyElements.length === 0 && selectedElements.length === 0) {
+      // 선택이 모두 해제되면 패널 닫기
+      setIsPanelVisible(false);
     }
     setShowImagePicker(false);
     setShowBatchImagePicker(false);
     setIsListening(false);
-  }, [singleKeyIndex]);
+  }, [singleKeyIndex, selectedKeyElements.length, selectedElements.length]);
 
   // 다중 선택 시 패널 자동 열기
   useEffect(() => {
@@ -295,6 +303,10 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
       setShowBatchImagePicker(false);
     }
   }, [isPanelVisible]);
+
+  const handleToggleMode = useCallback(() => {
+    setPanelMode((prev) => (prev === "layer" ? "property" : "layer"));
+  }, []);
 
   const handleClose = useCallback(() => {
     clearSelection();
@@ -552,9 +564,25 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   // 렌더링
   // ============================================================================
 
-  // 선택된 키 요소가 없으면 렌더링하지 않음
-  if (selectedKeyElements.length === 0) {
-    return null;
+  // 선택된 키 요소가 없으면 레이어 패널 또는 토글 버튼 표시
+  if (selectedKeyElements.length === 0 && selectedElements.length === 0) {
+    // 패널이 닫혀있을 때는 토글 버튼만 표시
+    if (!isPanelVisible) {
+      return (
+        <div className="absolute right-0 top-0 z-30">
+          <button
+            onClick={handleTogglePanel}
+            className="m-[8px] w-[32px] h-[32px] bg-[#1F1F24] border border-[#3A3943] rounded-[7px] flex items-center justify-center hover:bg-[#2A2A30] hover:border-[#505058] transition-colors shadow-lg"
+            title={t("propertiesPanel.openPanel") || "속성 패널 열기"}
+          >
+            <SidebarToggleIcon isOpen={false} />
+          </button>
+        </div>
+      );
+    }
+    
+    // 패널이 열려있을 때는 레이어 패널 표시
+    return <LayerPanel onClose={handleTogglePanel} />;
   }
 
   // 다중 선택인 경우
@@ -571,6 +599,17 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
             <SidebarToggleIcon isOpen={false} />
           </button>
         </div>
+      );
+    }
+
+    // 레이어 모드일 때는 레이어 패널 표시
+    if (panelMode === "layer") {
+      return (
+        <LayerPanel 
+          onClose={handleTogglePanel} 
+          onSwitchToProperty={handleToggleMode}
+          hasSelection={true}
+        />
       );
     }
 
@@ -736,13 +775,24 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                 ({selectedKeyElements.length})
               </span>
             </div>
-            <button
-              onClick={handleTogglePanel}
-              className="w-[24px] h-[24px] flex items-center justify-center hover:bg-[#2A2A30] rounded-[4px] transition-colors"
-              title={t("propertiesPanel.closePanel") || "속성 패널 닫기"}
-            >
-              <SidebarToggleIcon isOpen={true} />
-            </button>
+            <div className="flex items-center gap-[4px]">
+              {/* 레이어 모드로 전환 버튼 */}
+              <button
+                onClick={handleToggleMode}
+                className="w-[24px] h-[24px] flex items-center justify-center hover:bg-[#2A2A30] rounded-[4px] transition-colors"
+                title={t("propertiesPanel.switchToLayer") || "Switch to Layer"}
+              >
+                <ModeToggleIcon mode="layer" />
+              </button>
+              {/* 패널 닫기 버튼 */}
+              <button
+                onClick={handleTogglePanel}
+                className="w-[24px] h-[24px] flex items-center justify-center hover:bg-[#2A2A30] rounded-[4px] transition-colors"
+                title={t("propertiesPanel.closePanel") || "속성 패널 닫기"}
+              >
+                <SidebarToggleIcon isOpen={true} />
+              </button>
+            </div>
           </div>
 
           {/* 탭 */}
@@ -952,6 +1002,17 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     );
   }
 
+  // 단일 선택 레이어 모드일 때는 레이어 패널 표시
+  if (panelMode === "layer") {
+    return (
+      <LayerPanel 
+        onClose={handleTogglePanel} 
+        onSwitchToProperty={handleToggleMode}
+        hasSelection={true}
+      />
+    );
+  }
+
   return (
     <div
       ref={setPanelElement}
@@ -965,13 +1026,24 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
             {singleKeyInfo?.displayName || singleKeyCode || "Key"}
           </span>
 
-          <button
-            onClick={handleTogglePanel}
-            className="w-[24px] h-[24px] flex items-center justify-center hover:bg-[#2A2A30] rounded-[4px] transition-colors"
-            title={t("propertiesPanel.closePanel") || "속성 패널 닫기"}
-          >
-            <SidebarToggleIcon isOpen={true} />
-          </button>
+          <div className="flex items-center gap-[4px]">
+            {/* 레이어 모드로 전환 버튼 */}
+            <button
+              onClick={handleToggleMode}
+              className="w-[24px] h-[24px] flex items-center justify-center hover:bg-[#2A2A30] rounded-[4px] transition-colors"
+              title={t("propertiesPanel.switchToLayer") || "Switch to Layer"}
+            >
+              <ModeToggleIcon mode="layer" />
+            </button>
+            {/* 패널 닫기 버튼 */}
+            <button
+              onClick={handleTogglePanel}
+              className="w-[24px] h-[24px] flex items-center justify-center hover:bg-[#2A2A30] rounded-[4px] transition-colors"
+              title={t("propertiesPanel.closePanel") || "속성 패널 닫기"}
+            >
+              <SidebarToggleIcon isOpen={true} />
+            </button>
+          </div>
         </div>
 
         {/* 탭 */}

@@ -14,6 +14,7 @@ export {
   SectionDivider,
   CloseIcon,
   SidebarToggleIcon,
+  ModeToggleIcon,
 } from "./PropertyInputs";
 
 // Tab Content Components (Single Selection)
@@ -25,6 +26,9 @@ export { default as CounterTabContent } from "./CounterTabContent";
 export { default as BatchStyleTabContent } from "./BatchStyleTabContent";
 export { default as BatchNoteTabContent } from "./BatchNoteTabContent";
 export { default as BatchCounterTabContent } from "./BatchCounterTabContent";
+
+// Layer Panel
+export { default as LayerPanel } from "./LayerPanel";
 
 // Custom Hooks
 export { useBatchHandlers } from "./useBatchHandlers";

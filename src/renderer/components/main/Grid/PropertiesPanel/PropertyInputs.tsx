@@ -731,3 +731,77 @@ export const SidebarToggleIcon: React.FC<{ isOpen: boolean }> = ({
     )}
   </svg>
 );
+
+// 레이어/속성 모드 전환 토글 아이콘
+export const ModeToggleIcon: React.FC<{
+  mode: "layer" | "property";
+  disabled?: boolean;
+}> = ({ mode, disabled = false }) => {
+  const strokeColor = disabled ? "#4A4A50" : "#6B6D75";
+  const fillColor = disabled ? "#4A4A50" : "#6B6D75";
+
+  if (mode === "layer") {
+    // 레이어 아이콘 (쌓인 레이어)
+    return (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path
+          d="M8 2L14 5.5L8 9L2 5.5L8 2Z"
+          stroke={strokeColor}
+          strokeWidth="1.2"
+          strokeLinejoin="round"
+          fill="none"
+        />
+        <path
+          d="M2 8L8 11.5L14 8"
+          stroke={strokeColor}
+          strokeWidth="1.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M2 10.5L8 14L14 10.5"
+          stroke={strokeColor}
+          strokeWidth="1.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    );
+  }
+
+  // 속성 아이콘 (슬라이더/설정)
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <line
+        x1="2"
+        y1="4"
+        x2="14"
+        y2="4"
+        stroke={strokeColor}
+        strokeWidth="1.2"
+        strokeLinecap="round"
+      />
+      <circle cx="5" cy="4" r="1.5" fill={fillColor} />
+      <line
+        x1="2"
+        y1="8"
+        x2="14"
+        y2="8"
+        stroke={strokeColor}
+        strokeWidth="1.2"
+        strokeLinecap="round"
+      />
+      <circle cx="11" cy="8" r="1.5" fill={fillColor} />
+      <line
+        x1="2"
+        y1="12"
+        x2="14"
+        y2="12"
+        stroke={strokeColor}
+        strokeWidth="1.2"
+        strokeLinecap="round"
+      />
+      <circle cx="7" cy="12" r="1.5" fill={fillColor} />
+    </svg>
+  );
+};

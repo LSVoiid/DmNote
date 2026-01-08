@@ -350,6 +350,11 @@
     "distributeH": "Distribute Horizontally",
     "distributeV": "Distribute Vertically",
     "width": "Width",
-    "height": "Height"
+    "height": "Height",
+    "canvas": "Canvas",
+    "layers": "Layers",
+    "noLayers": "No layers",
+    "switchToLayer": "Switch to Layer Panel",
+    "switchToProperty": "Switch to Property Panel"
   }
 }
