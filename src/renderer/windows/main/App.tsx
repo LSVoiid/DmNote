@@ -223,6 +223,9 @@ export default function App() {
       );
       if (hasModal) return;
 
+      // 키 리스닝 중이면 탭 전환 차단
+      if ((window as any).__dmn_isKeyListening) return;
+
       const defaults = ["4key", "5key", "6key", "8key"];
       if (!isBootstrapped || !defaults.includes(selectedKeyType)) return;
       e.preventDefault();

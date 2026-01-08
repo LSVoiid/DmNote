@@ -10,6 +10,13 @@ import {
 } from "./index";
 import Checkbox from "@components/main/common/Checkbox";
 
+interface KeyData {
+  index: number;
+  position: KeyPosition | undefined;
+  keyCode: string | null;
+  keyInfo: { globalKey: string; displayName: string } | null;
+}
+
 interface BatchStyleTabContentProps {
   // 다중 선택 정보
   selectedCount: number;
@@ -18,6 +25,8 @@ interface BatchStyleTabContentProps {
     getter: (pos: KeyPosition) => T | undefined,
     defaultValue: T,
   ) => { isMixed: boolean; value: T };
+  // getSelectedKeysData 함수 (displayText Mixed 판단용)
+  getSelectedKeysData: () => KeyData[];
   // 핸들러
   handleBatchAlign: (direction: "left" | "centerH" | "right" | "top" | "centerV" | "bottom") => void;
   handleBatchDistribute: (direction: "horizontal" | "vertical") => void;
@@ -37,6 +46,7 @@ interface BatchStyleTabContentProps {
 const BatchStyleTabContent: React.FC<BatchStyleTabContentProps> = ({
   selectedCount,
   getMixedValue,
+  getSelectedKeysData,
   handleBatchAlign,
   handleBatchDistribute,
   handleBatchResize,
@@ -49,6 +59,23 @@ const BatchStyleTabContent: React.FC<BatchStyleTabContentProps> = ({
   useCustomCSS,
   t,
 }) => {
+  // displayText의 실제 표시 값(displayText || keyInfo.displayName)을 기준으로 Mixed 판단
+  const getDisplayTextMixed = (): { isMixed: boolean; value: string } => {
+    const keysData = getSelectedKeysData();
+    if (keysData.length === 0) return { isMixed: false, value: "" };
+
+    const getEffectiveDisplayText = (data: KeyData): string => {
+      const displayText = data.position?.displayText;
+      if (displayText) return displayText;
+      return data.keyInfo?.displayName || "";
+    };
+
+    const firstValue = getEffectiveDisplayText(keysData[0]);
+    const isMixed = keysData.some((data) => getEffectiveDisplayText(data) !== firstValue);
+
+    return { isMixed, value: firstValue };
+  };
+
   return (
     <>
       {/* 정렬 */}
@@ -275,6 +302,24 @@ const BatchStyleTabContent: React.FC<BatchStyleTabContentProps> = ({
 
       <SectionDivider />
 
+      {/* 표시 텍스트 */}
+      <PropertyRow label={t("propertiesPanel.displayText") || "표시 텍스트"}>
+        {(() => {
+          const { isMixed, value } = getDisplayTextMixed();
+          const displayTextValue = getMixedValue((pos) => pos.displayText, "").value;
+          // displayText가 직접 설정되어 있으면 그 값을 value에, 아니면 placeholder에 기본값 표시
+          return (
+            <TextInput
+              value={isMixed ? "" : displayTextValue}
+              onChange={(v) => handleBatchStyleChangeComplete("displayText", v)}
+              placeholder={isMixed ? "Mixed" : value}
+              width="54px"
+              isMixed={isMixed}
+            />
+          );
+        })()}
+      </PropertyRow>
+
       {/* 글꼴 크기 */}
       <PropertyRow label={t("propertiesPanel.fontSize") || "글꼴 크기"}>
         {getMixedValue((pos) => pos.fontSize, 14).isMixed ? (
@@ -372,10 +417,11 @@ const BatchStyleTabContent: React.FC<BatchStyleTabContentProps> = ({
               }}
               placeholder={
                 getMixedValue((pos) => pos.className, "").isMixed
-                  ? "다중 값"
+                  ? "Mixed"
                   : "className"
               }
               width="90px"
+              isMixed={getMixedValue((pos) => pos.className, "").isMixed}
             />
           </PropertyRow>
         </>

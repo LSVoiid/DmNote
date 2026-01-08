@@ -70,6 +70,7 @@ export interface TextInputProps {
   onBlur?: () => void;
   placeholder?: string;
   width?: string;
+  isMixed?: boolean;
 }
 
 export interface TabButtonProps {

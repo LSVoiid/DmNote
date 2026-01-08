@@ -418,7 +418,7 @@ const StyleTabContent: React.FC<StyleTabContentInternalProps> = ({
           value={keyPosition.displayText || ""}
           onChange={handleDisplayTextChange}
           onBlur={handleDisplayTextBlur}
-          placeholder={keyInfo?.displayName || t("propertiesPanel.displayTextPlaceholder") || "Custom text"}
+          placeholder={keyInfo?.displayName || ""}
           width="54px"
         />
       </PropertyRow>

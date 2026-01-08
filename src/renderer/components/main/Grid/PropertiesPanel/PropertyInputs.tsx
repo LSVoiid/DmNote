@@ -65,6 +65,45 @@ export const NumberInput: React.FC<NumberInputProps> = ({
     }
   }, [value, isFocused, hasSuffix, suffix, isMixed]);
 
+  // 숫자, 마이너스, 백스페이스, Delete, 화살표, Tab, Enter만 허용
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const allowedKeys = [
+      "Backspace",
+      "Delete",
+      "ArrowLeft",
+      "ArrowRight",
+      "ArrowUp",
+      "ArrowDown",
+      "Tab",
+      "Enter",
+      "Home",
+      "End",
+    ];
+    
+    // 허용된 특수 키
+    if (allowedKeys.includes(e.key)) {
+      return;
+    }
+    
+    // Ctrl/Cmd 조합 허용 (복사, 붙여넣기, 전체선택 등)
+    if (e.ctrlKey || e.metaKey) {
+      return;
+    }
+    
+    // 숫자 0-9
+    if (/^[0-9]$/.test(e.key)) {
+      return;
+    }
+    
+    // 마이너스 (첫 번째 위치에서만)
+    if (e.key === "-" && e.currentTarget.selectionStart === 0) {
+      return;
+    }
+    
+    // 그 외 모든 키 입력 차단
+    e.preventDefault();
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value.replace(/[^0-9-]/g, "");
     setLocalValue(newValue);
@@ -123,8 +162,10 @@ export const NumberInput: React.FC<NumberInputProps> = ({
     return (
       <input
         type="text"
+        inputMode="numeric"
         value={localValue}
         onChange={handleChange}
+        onKeyDown={handleKeyDown}
         onFocus={handleFocus}
         onBlur={handleBlur}
         placeholder={showMixedPlaceholder ? mixedPlaceholder : undefined}
@@ -150,8 +191,10 @@ export const NumberInput: React.FC<NumberInputProps> = ({
       )}
       <input
         type="text"
+        inputMode="numeric"
         value={localValue}
         onChange={handleChange}
+        onKeyDown={handleKeyDown}
         onFocus={handleFocus}
         onBlur={handleBlur}
         placeholder={showMixedPlaceholder ? mixedPlaceholder : undefined}
@@ -175,6 +218,7 @@ export const TextInput: React.FC<TextInputProps> = ({
   onBlur,
   placeholder,
   width = "90px",
+  isMixed = false,
 }) => {
   const [localValue, setLocalValue] = useState(value);
   const [isFocused, setIsFocused] = useState(false);
@@ -205,7 +249,7 @@ export const TextInput: React.FC<TextInputProps> = ({
       placeholder={placeholder}
       className={`text-center h-[23px] p-[6px] bg-[#2A2A30] rounded-[7px] border-[1px] ${
         isFocused ? "border-[#459BF8]" : "border-[#3A3943]"
-      } text-style-4 text-[#DBDEE8]`}
+      } text-style-4 ${isMixed ? "text-[#DBDEE8] placeholder:text-[#6B6D75] placeholder:italic" : "text-[#DBDEE8]"}`}
       style={{ width }}
     />
   );

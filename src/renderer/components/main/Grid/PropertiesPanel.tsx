@@ -205,6 +205,14 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     }
   }, [selectedKeyElements.length]);
 
+  // 키 리스닝 상태를 전역으로 노출 (App.tsx의 Tab 단축키 등에서 체크)
+  useEffect(() => {
+    (window as any).__dmn_isKeyListening = isListening;
+    return () => {
+      (window as any).__dmn_isKeyListening = false;
+    };
+  }, [isListening]);
+
   // 키 리스닝 중 브라우저 기본 동작 차단
   useEffect(() => {
     if (!isListening) return undefined;
@@ -757,6 +765,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                 <BatchStyleTabContent
                   selectedCount={selectedKeyElements.length}
                   getMixedValue={getMixedValue}
+                  getSelectedKeysData={getSelectedKeysData}
                   handleBatchAlign={handleBatchAlign}
                   handleBatchDistribute={handleBatchDistribute}
                   handleBatchResize={handleBatchResize}
