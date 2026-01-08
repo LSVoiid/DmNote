@@ -395,7 +395,7 @@ export const ToggleSwitch: React.FC<ToggleSwitchProps> = ({
 // ============================================================================
 
 export const SectionDivider: React.FC = () => (
-  <div className="w-full h-[1px] bg-[#3A3943] my-[5.5px]" />
+  <div className="w-full h-[1px] bg-[#3A3943]" />
 );
 
 // ============================================================================
@@ -403,7 +403,7 @@ export const SectionDivider: React.FC = () => (
 // ============================================================================
 
 const BoldIcon: React.FC = () => (
-  <svg width="10" height="12" viewBox="0 0 10 12" fill="none">
+  <svg width="9" height="11" viewBox="0 0 10 12" fill="none">
     <path
       d="M1 1H5.5C7.433 1 9 2.343 9 4C9 5.657 7.433 6 5.5 6H1V1Z"
       stroke="currentColor"
@@ -420,7 +420,7 @@ const BoldIcon: React.FC = () => (
 );
 
 const ItalicIcon: React.FC = () => (
-  <svg width="8" height="12" viewBox="0 0 8 12" fill="none">
+  <svg width="7" height="11" viewBox="0 0 8 12" fill="none">
     <line
       x1="3"
       y1="1"
@@ -452,7 +452,7 @@ const ItalicIcon: React.FC = () => (
 );
 
 const UnderlineIcon: React.FC = () => (
-  <svg width="12" height="14" viewBox="0 0 12 14" fill="none">
+  <svg width="11" height="13" viewBox="0 0 12 14" fill="none">
     <path
       d="M2 1V6C2 8.209 3.791 10 6 10C8.209 10 10 8.209 10 6V1"
       stroke="currentColor"
@@ -472,7 +472,7 @@ const UnderlineIcon: React.FC = () => (
 );
 
 const StrikethroughIcon: React.FC = () => (
-  <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+  <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
     <path
       d="M3 3C3 1.895 4.343 1 6 1C7.657 1 9 1.895 9 3C9 4 8 4.5 6 5"
       stroke="currentColor"
@@ -512,14 +512,14 @@ export const FontStyleToggle: React.FC<FontStyleToggleProps> = ({
   onStrikethroughChange,
 }) => {
   const buttonClass = (active: boolean) =>
-    `w-[26px] h-[23px] flex items-center justify-center rounded-[5px] transition-colors ${
+    `w-[24px] h-[21px] flex items-center justify-center transition-colors ${
       active
         ? "bg-[#493C1D] text-[#FFB400]"
         : "bg-[#2A2A30] text-[#6B6D75] hover:bg-[#32323A] hover:text-[#97999E]"
     }`;
 
   return (
-    <div className="flex items-center gap-[2px] bg-[#1F1F24] rounded-[7px] p-[2px] border border-[#3A3943]">
+    <div className="flex items-center h-[23px] bg-[#2A2A30] rounded-[7px] border border-[#3A3943] overflow-hidden">
       <button
         onClick={() => onBoldChange(!isBold)}
         className={buttonClass(isBold)}
