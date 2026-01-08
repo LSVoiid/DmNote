@@ -29,6 +29,7 @@ export default function DraggableKey({
   onPositionChange,
   onClick,
   onCtrlClick,
+  onShiftClick,
   isSelected = false,
   selectedElements = [],
   onMultiDrag,
@@ -399,6 +400,8 @@ export default function DraggableKey({
   const handleClick = (e) => {
     // 선택된 상태에서 Ctrl+클릭으로 선택 해제
     const isPrimaryModifierPressed = macOS ? e.metaKey : e.ctrlKey;
+    const isShiftPressed = e.shiftKey;
+    
     if (isSelectionMode && isPrimaryModifierPressed && onCtrlClick) {
       e.stopPropagation();
       onCtrlClick(e);
@@ -418,6 +421,12 @@ export default function DraggableKey({
 
     // 드래그 중이 아니었을 때만 선택 처리
     if (!draggable.wasMoved) {
+      // Shift+클릭이면 범위 선택
+      if (isShiftPressed && onShiftClick) {
+        e.stopPropagation();
+        onShiftClick(e);
+        return;
+      }
       // Ctrl+클릭이면 다중 선택 (추가/제거 토글)
       if (isPrimaryModifierPressed && onCtrlClick) {
         e.stopPropagation();

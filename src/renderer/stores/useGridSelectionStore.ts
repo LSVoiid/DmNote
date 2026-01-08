@@ -29,6 +29,9 @@ interface GridSelectionState {
   // 선택된 요소들
   selectedElements: SelectedElement[];
 
+  // 마지막으로 선택된 키의 좌표 (Shift+클릭 범위 선택용)
+  lastSelectedKeyBounds: { x: number; y: number; width: number; height: number } | null;
+
   // 클립보드 (복사된 요소들)
   clipboard: ClipboardItem[];
 
@@ -50,6 +53,7 @@ interface GridSelectionState {
   clearSelection: () => void;
   setSelectedElements: (elements: SelectedElement[]) => void;
   isSelected: (id: string) => boolean;
+  setLastSelectedKeyBounds: (bounds: { x: number; y: number; width: number; height: number } | null) => void;
 
   // 클립보드 Actions
   setClipboard: (items: ClipboardItem[]) => void;
@@ -72,6 +76,7 @@ interface GridSelectionState {
 
 export const useGridSelectionStore = create<GridSelectionState>((set, get) => ({
   selectedElements: [],
+  lastSelectedKeyBounds: null,
   clipboard: [],
   isMarqueeSelecting: false,
   marqueeStart: null,
@@ -141,6 +146,10 @@ export const useGridSelectionStore = create<GridSelectionState>((set, get) => ({
 
   isSelected: (id) => {
     return get().selectedElements.some((el) => el.id === id);
+  },
+
+  setLastSelectedKeyBounds: (bounds) => {
+    set({ lastSelectedKeyBounds: bounds });
   },
 
   setClipboard: (items) => {

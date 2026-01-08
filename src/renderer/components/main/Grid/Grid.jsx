@@ -23,7 +23,7 @@ import MarqueeSelectionOverlay from "./MarqueeSelectionOverlay";
 import ResizeHandles from "./ResizeHandles";
 import GroupResizeHandles, { isElementResizable } from "./GroupResizeHandles";
 import KeyCounterPreviewLayer from "./KeyCounterPreviewLayer";
-import { useGridSelectionStore } from "@stores/useGridSelectionStore";
+import { useGridSelectionStore, isElementInMarquee } from "@stores/useGridSelectionStore";
 import { useHistoryStore } from "@stores/useHistoryStore";
 import { useUIStore } from "@stores/useUIStore";
 import { useSmartGuidesStore } from "@stores/useSmartGuidesStore";
@@ -118,6 +118,15 @@ export default function Grid({
     (state) => state.toggleSelection
   );
   const clearSelection = useGridSelectionStore((state) => state.clearSelection);
+  const setSelectedElements = useGridSelectionStore(
+    (state) => state.setSelectedElements
+  );
+  const lastSelectedKeyBounds = useGridSelectionStore(
+    (state) => state.lastSelectedKeyBounds
+  );
+  const setLastSelectedKeyBounds = useGridSelectionStore(
+    (state) => state.setLastSelectedKeyBounds
+  );
 
   // 클립보드 상태 (복사/붙여넣기용)
   const clipboard = useGridSelectionStore((state) => state.clipboard);
@@ -303,10 +312,97 @@ export default function Grid({
           // 단일 선택: 기존 선택을 해제하고 이 키만 선택
           clearSelection();
           toggleSelection({ type: "key", id: `key-${index}`, index });
+          // 마지막 선택 키 좌표 저장 (Shift+클릭 범위 선택용)
+          const pos = positions[selectedKeyType]?.[index];
+          if (pos) {
+            setLastSelectedKeyBounds({
+              x: pos.dx,
+              y: pos.dy,
+              width: pos.width || 60,
+              height: pos.height || 60,
+            });
+          }
         }}
         onCtrlClick={() => {
           // 다중 선택: 기존 선택 유지하면서 추가/제거
           toggleSelection({ type: "key", id: `key-${index}`, index });
+          // 마지막 선택 키 좌표 저장 (Shift+클릭 범위 선택용)
+          const pos = positions[selectedKeyType]?.[index];
+          if (pos) {
+            setLastSelectedKeyBounds({
+              x: pos.dx,
+              y: pos.dy,
+              width: pos.width || 60,
+              height: pos.height || 60,
+            });
+          }
+        }}
+        onShiftClick={() => {
+          // 좌표 기반 범위 선택
+          if (!lastSelectedKeyBounds) {
+            // 이전 선택이 없으면 단일 선택처럼 동작
+            clearSelection();
+            toggleSelection({ type: "key", id: `key-${index}`, index });
+            const pos = positions[selectedKeyType]?.[index];
+            if (pos) {
+              setLastSelectedKeyBounds({
+                x: pos.dx,
+                y: pos.dy,
+                width: pos.width || 60,
+                height: pos.height || 60,
+              });
+            }
+            return;
+          }
+
+          const clickedPos = positions[selectedKeyType]?.[index];
+          if (!clickedPos) return;
+
+          // 두 키 사이의 사각형 영역 계산
+          const clickedBounds = {
+            x: clickedPos.dx,
+            y: clickedPos.dy,
+            width: clickedPos.width || 60,
+            height: clickedPos.height || 60,
+          };
+
+          const minX = Math.min(lastSelectedKeyBounds.x, clickedBounds.x);
+          const maxX = Math.max(
+            lastSelectedKeyBounds.x + lastSelectedKeyBounds.width,
+            clickedBounds.x + clickedBounds.width
+          );
+          const minY = Math.min(lastSelectedKeyBounds.y, clickedBounds.y);
+          const maxY = Math.max(
+            lastSelectedKeyBounds.y + lastSelectedKeyBounds.height,
+            clickedBounds.y + clickedBounds.height
+          );
+
+          const rangeRect = {
+            left: minX,
+            top: minY,
+            width: maxX - minX,
+            height: maxY - minY,
+          };
+
+          // 범위 내 모든 키 선택
+          const newSelectedElements = [];
+          positions[selectedKeyType]?.forEach((pos, i) => {
+            const elementBounds = {
+              x: pos.dx,
+              y: pos.dy,
+              width: pos.width || 60,
+              height: pos.height || 60,
+            };
+            if (isElementInMarquee(elementBounds, rangeRect)) {
+              newSelectedElements.push({
+                type: "key",
+                id: `key-${i}`,
+                index: i,
+              });
+            }
+          });
+
+          setSelectedElements(newSelectedElements);
         }}
         isSelected={selectedElements.some(
           (el) => el.type === "key" && el.index === index
