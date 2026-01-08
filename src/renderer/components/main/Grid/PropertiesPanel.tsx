@@ -23,6 +23,7 @@ import {
 import Checkbox from "@components/main/common/Checkbox";
 import Dropdown from "@components/main/common/Dropdown";
 import ColorPicker from "@components/main/Modal/content/ColorPicker";
+import ImagePicker from "@components/main/Modal/content/ImagePicker";
 
 type ScrollThumbState = { top: number; height: number; visible: boolean };
 
@@ -33,6 +34,7 @@ import {
   PropertyRow,
   NumberInput,
   ColorInput,
+  TextInput,
   Tabs,
   SectionDivider,
   SidebarToggleIcon,
@@ -109,6 +111,10 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   // 이미지 픽커 상태
   const [showImagePicker, setShowImagePicker] = useState(false);
   const imageButtonRef = useRef<HTMLButtonElement>(null);
+
+  // 다중 선택용 이미지 픽커 상태
+  const [showBatchImagePicker, setShowBatchImagePicker] = useState(false);
+  const batchImageButtonRef = useRef<HTMLButtonElement>(null);
 
   // 일괄 편집용 컬러 버튼 refs
   const batchNoteColorButtonRef = useRef<HTMLButtonElement>(null);
@@ -332,6 +338,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
       setIsPanelVisible(true);
     }
     setShowImagePicker(false);
+    setShowBatchImagePicker(false);
     setIsListening(false);
   }, [singleKeyIndex]);
 
@@ -421,6 +428,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     setIsPanelVisible((prev) => !prev);
     if (isPanelVisible) {
       setShowImagePicker(false);
+      setShowBatchImagePicker(false);
     }
   }, [isPanelVisible]);
 
@@ -1164,6 +1172,20 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                     />
                   </PropertyRow>
 
+                  {/* 커스텀 이미지 */}
+                  <PropertyRow label={t("propertiesPanel.customImage") || "커스텀 이미지"}>
+                    <button
+                      ref={batchImageButtonRef}
+                      type="button"
+                      className={`px-[7px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] flex items-center justify-center ${
+                        showBatchImagePicker ? "border-[#459BF8]" : "border-[#3A3943]"
+                      } text-[#DBDEE8] text-style-4`}
+                      onClick={() => setShowBatchImagePicker(!showBatchImagePicker)}
+                    >
+                      {t("propertiesPanel.configure") || "설정하기"}
+                    </button>
+                  </PropertyRow>
+
                   <SectionDivider />
 
                   {/* 글꼴 크기 */}
@@ -1256,6 +1278,55 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                       }
                     />
                   </PropertyRow>
+
+                  {/* 커스텀 CSS 활성화 시에만 클래스명 및 CSS 우선순위 표시 */}
+                  {useCustomCSS && (
+                    <>
+                      <SectionDivider />
+                      
+                      {/* CSS 우선순위 토글 */}
+                      <div className="flex justify-between items-center w-full h-[23px]">
+                        <p className="text-white text-style-2">
+                          {t("propertiesPanel.useInlineStyles") || "인라인 스타일 우선"}
+                        </p>
+                        <Checkbox
+                          checked={
+                            getMixedValue((pos) => pos.useInlineStyles, false).value
+                          }
+                          onChange={() => {
+                            const currentValue = getMixedValue(
+                              (pos) => pos.useInlineStyles,
+                              false,
+                            ).value;
+                            handleBatchStyleChangeComplete(
+                              "useInlineStyles",
+                              !currentValue,
+                            );
+                          }}
+                        />
+                      </div>
+
+                      {/* 클래스명 */}
+                      <PropertyRow label={t("propertiesPanel.className") || "클래스"}>
+                        <TextInput
+                          value={
+                            getMixedValue((pos) => pos.className, "").isMixed
+                              ? ""
+                              : getMixedValue((pos) => pos.className, "").value
+                          }
+                          onChange={(value) => {
+                            handleBatchStyleChangeComplete("className", value);
+                          }}
+                          placeholder={
+                            getMixedValue((pos) => pos.className, "").isMixed
+                              ? "다중 값"
+                              : "className"
+                          }
+                          width="90px"
+                        />
+                      </PropertyRow>
+                    </>
+                  )}
               </div>
               <div className="properties-panel-overlay-bar">
                 <div
@@ -1272,6 +1343,58 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
               className={`properties-panel-overlay-viewport ${activeTab === TABS.NOTE ? "" : "hidden"}`}
             >
               <div className="p-[12px] flex flex-col gap-[12px]">
+                {/* 노트 효과 표시 */}
+                <div className="flex justify-between items-center w-full h-[23px]">
+                  <p className="text-white text-style-2">
+                    {t("keySetting.noteEffectEnabled") ||
+                      "노트 효과 표시"}
+                  </p>
+                  <Checkbox
+                    checked={
+                      getMixedValue((pos) => pos.noteEffectEnabled, true)
+                        .value
+                    }
+                    onChange={() => {
+                      const currentValue = getMixedValue(
+                        (pos) => pos.noteEffectEnabled,
+                        true,
+                      ).value;
+                      handleBatchStyleChangeComplete(
+                        "noteEffectEnabled",
+                        !currentValue,
+                      );
+                    }}
+                  />
+                </div>
+
+                {/* Y축 자동 보정 */}
+                <div className="flex justify-between items-center w-full h-[23px]">
+                  <p className="text-white text-style-2">
+                    {t("keySetting.noteAutoYCorrection") ||
+                      "Y축 자동 보정"}
+                  </p>
+                  <Checkbox
+                    checked={
+                      getMixedValue(
+                        (pos) => pos.noteAutoYCorrection,
+                        true,
+                      ).value
+                    }
+                    onChange={() => {
+                      const currentValue = getMixedValue(
+                        (pos) => pos.noteAutoYCorrection,
+                        true,
+                      ).value;
+                      handleBatchStyleChangeComplete(
+                        "noteAutoYCorrection",
+                        !currentValue,
+                      );
+                    }}
+                  />
+                </div>
+
+                <SectionDivider />
+
                 {/* 노트 색상 */}
                 <PropertyRow
                   label={t("keySetting.noteColor") || "노트 색상"}
@@ -1390,6 +1513,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                             value,
                           )
                         }
+                        suffix="px"
                         min={0}
                         max={50}
                       />
@@ -1424,58 +1548,6 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                     </PropertyRow>
                   </>
                 )}
-
-                <SectionDivider />
-
-                {/* 노트 효과 표시 */}
-                <div className="flex justify-between items-center w-full h-[23px]">
-                  <p className="text-white text-style-2">
-                    {t("keySetting.noteEffectEnabled") ||
-                      "노트 효과 표시"}
-                  </p>
-                  <Checkbox
-                    checked={
-                      getMixedValue((pos) => pos.noteEffectEnabled, true)
-                        .value
-                    }
-                    onChange={() => {
-                      const currentValue = getMixedValue(
-                        (pos) => pos.noteEffectEnabled,
-                        true,
-                      ).value;
-                      handleBatchStyleChangeComplete(
-                        "noteEffectEnabled",
-                        !currentValue,
-                      );
-                    }}
-                  />
-                </div>
-
-                {/* Y축 자동 보정 */}
-                <div className="flex justify-between items-center w-full h-[23px]">
-                  <p className="text-white text-style-2">
-                    {t("keySetting.noteAutoYCorrection") ||
-                      "Y축 자동 보정"}
-                  </p>
-                  <Checkbox
-                    checked={
-                      getMixedValue(
-                        (pos) => pos.noteAutoYCorrection,
-                        true,
-                      ).value
-                    }
-                    onChange={() => {
-                      const currentValue = getMixedValue(
-                        (pos) => pos.noteAutoYCorrection,
-                        true,
-                      ).value;
-                      handleBatchStyleChangeComplete(
-                        "noteAutoYCorrection",
-                        !currentValue,
-                      );
-                    }}
-                  />
-                </div>
               </div>
               <div className="properties-panel-overlay-bar">
                 <div
@@ -1492,6 +1564,23 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
               className={`properties-panel-overlay-viewport ${activeTab === TABS.COUNTER ? "" : "hidden"}`}
             >
               <div className="p-[12px] flex flex-col gap-[12px]">
+                {/* 카운터 사용 */}
+                <div className="flex justify-between items-center w-full h-[23px]">
+                  <p className="text-white text-style-2">
+                    {t("counterSetting.counterEnabled") || "카운터 표시"}
+                  </p>
+                  <Checkbox
+                    checked={batchCounterSettings.enabled}
+                    onChange={() =>
+                      handleBatchCounterUpdate({
+                        enabled: !batchCounterSettings.enabled,
+                      })
+                    }
+                  />
+                </div>
+
+                <SectionDivider />
+
                 {/* 배치 영역 */}
                 <PropertyRow
                   label={t("counterSetting.placementArea") || "배치 영역"}
@@ -1566,6 +1655,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                     suffix="px"
                     min={0}
                     max={100}
+                    width="54px"
                   />
                 </PropertyRow>
 
@@ -1654,23 +1744,6 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                     </button>
                   </div>
                 </PropertyRow>
-
-                <SectionDivider />
-
-                {/* 카운터 사용 */}
-                <div className="flex justify-between items-center w-full h-[23px]">
-                  <p className="text-white text-style-2">
-                    {t("counterSetting.counterEnabled") || "카운터 표시"}
-                  </p>
-                  <Checkbox
-                    checked={batchCounterSettings.enabled}
-                    onChange={() =>
-                      handleBatchCounterUpdate({
-                        enabled: !batchCounterSettings.enabled,
-                      })
-                    }
-                  />
-                </div>
               </div>
               <div className="properties-panel-overlay-bar">
                 <div
@@ -1697,6 +1770,38 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                 batchPickerFor !== "noteColor" &&
                 batchPickerFor !== "glowColor"
               }
+            />
+          )}
+
+          {/* 다중 선택용 ImagePicker */}
+          {showBatchImagePicker && batchImageButtonRef.current && (
+            <ImagePicker
+              open={showBatchImagePicker}
+              referenceRef={batchImageButtonRef}
+              panelElement={panelElement}
+              idleImage={getMixedValue((pos) => pos.inactiveImage, "").isMixed ? "" : getMixedValue((pos) => pos.inactiveImage, "").value}
+              activeImage={getMixedValue((pos) => pos.activeImage, "").isMixed ? "" : getMixedValue((pos) => pos.activeImage, "").value}
+              idleTransparent={getMixedValue((pos) => pos.idleTransparent, false).value}
+              activeTransparent={getMixedValue((pos) => pos.activeTransparent, false).value}
+              onIdleImageChange={(imageUrl: string) => {
+                handleBatchStyleChangeComplete("inactiveImage", imageUrl);
+              }}
+              onActiveImageChange={(imageUrl: string) => {
+                handleBatchStyleChangeComplete("activeImage", imageUrl);
+              }}
+              onIdleTransparentChange={(value: boolean) => {
+                handleBatchStyleChangeComplete("idleTransparent", value);
+              }}
+              onActiveTransparentChange={(value: boolean) => {
+                handleBatchStyleChangeComplete("activeTransparent", value);
+              }}
+              onIdleImageReset={() => {
+                handleBatchStyleChangeComplete("inactiveImage", "");
+              }}
+              onActiveImageReset={() => {
+                handleBatchStyleChangeComplete("activeImage", "");
+              }}
+              onClose={() => setShowBatchImagePicker(false)}
             />
           )}
         </>
