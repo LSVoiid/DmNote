@@ -355,6 +355,7 @@
     "layers": "Layers",
     "noLayers": "No layers",
     "switchToLayer": "Switch to Layer Panel",
-    "switchToProperty": "Switch to Property Panel"
+    "switchToProperty": "Switch to Property Panel",
+    "delete": "Delete"
   }
 }

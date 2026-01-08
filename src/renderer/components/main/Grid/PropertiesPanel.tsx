@@ -198,13 +198,15 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     if (singleKeyIndex !== null) {
       setIsPanelVisible(true);
     } else if (selectedKeyElements.length === 0 && selectedElements.length === 0) {
-      // 선택이 모두 해제되면 패널 닫기
-      setIsPanelVisible(false);
+      // 선택이 모두 해제되면 패널 닫기 (레이어 모드에서는 유지)
+      if (panelMode !== "layer") {
+        setIsPanelVisible(false);
+      }
     }
     setShowImagePicker(false);
     setShowBatchImagePicker(false);
     setIsListening(false);
-  }, [singleKeyIndex, selectedKeyElements.length, selectedElements.length]);
+  }, [singleKeyIndex, selectedKeyElements.length, selectedElements.length, panelMode]);
 
   // 다중 선택 시 패널 자동 열기
   useEffect(() => {
@@ -564,56 +566,40 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   // 렌더링
   // ============================================================================
 
-  // 선택된 키 요소가 없으면 레이어 패널 또는 토글 버튼 표시
+  // 패널이 닫혀있을 때는 토글 버튼만 표시
+  if (!isPanelVisible) {
+    return (
+      <div className="absolute right-0 top-0 z-30">
+        <button
+          onClick={handleTogglePanel}
+          className="m-[8px] w-[32px] h-[32px] bg-[#1F1F24] border border-[#3A3943] rounded-[7px] flex items-center justify-center hover:bg-[#2A2A30] hover:border-[#505058] transition-colors shadow-lg"
+          title={t("propertiesPanel.openPanel") || "속성 패널 열기"}
+        >
+          <SidebarToggleIcon isOpen={false} />
+        </button>
+      </div>
+    );
+  }
+
+  // 레이어 모드일 때는 선택 여부와 관계없이 레이어 패널 표시
+  if (panelMode === "layer") {
+    const hasAnySelection = selectedKeyElements.length > 0 || selectedElements.length > 0;
+    return (
+      <LayerPanel 
+        onClose={handleTogglePanel} 
+        onSwitchToProperty={hasAnySelection ? handleToggleMode : undefined}
+        hasSelection={hasAnySelection}
+      />
+    );
+  }
+
+  // 선택된 키 요소가 없으면 레이어 패널 표시 (panelMode가 property여도)
   if (selectedKeyElements.length === 0 && selectedElements.length === 0) {
-    // 패널이 닫혀있을 때는 토글 버튼만 표시
-    if (!isPanelVisible) {
-      return (
-        <div className="absolute right-0 top-0 z-30">
-          <button
-            onClick={handleTogglePanel}
-            className="m-[8px] w-[32px] h-[32px] bg-[#1F1F24] border border-[#3A3943] rounded-[7px] flex items-center justify-center hover:bg-[#2A2A30] hover:border-[#505058] transition-colors shadow-lg"
-            title={t("propertiesPanel.openPanel") || "속성 패널 열기"}
-          >
-            <SidebarToggleIcon isOpen={false} />
-          </button>
-        </div>
-      );
-    }
-    
-    // 패널이 열려있을 때는 레이어 패널 표시
     return <LayerPanel onClose={handleTogglePanel} />;
   }
 
   // 다중 선택인 경우
   if (selectedKeyElements.length > 1) {
-    // 패널이 닫혀있을 때는 토글 버튼만 표시
-    if (!isPanelVisible) {
-      return (
-        <div className="absolute right-0 top-0 z-30">
-          <button
-            onClick={handleTogglePanel}
-            className="m-[8px] w-[32px] h-[32px] bg-[#1F1F24] border border-[#3A3943] rounded-[7px] flex items-center justify-center hover:bg-[#2A2A30] hover:border-[#505058] transition-colors shadow-lg"
-            title={t("propertiesPanel.openPanel") || "속성 패널 열기"}
-          >
-            <SidebarToggleIcon isOpen={false} />
-          </button>
-        </div>
-      );
-    }
-
-    // 레이어 모드일 때는 레이어 패널 표시
-    if (panelMode === "layer") {
-      return (
-        <LayerPanel 
-          onClose={handleTogglePanel} 
-          onSwitchToProperty={handleToggleMode}
-          hasSelection={true}
-        />
-      );
-    }
-
-    // 혼합 값 표시 함수 (피커가 열려있을 때는 로컬 상태 사용)
     const getBatchNoteColorDisplay = () => {
       // 노트 피커가 열려있으면 로컬 상태 사용
       if (batchPickerFor === "noteColor") {
@@ -985,32 +971,6 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   // 단일 키 선택인 경우
   if (!singleKeyPosition) {
     return null;
-  }
-
-  // 패널이 닫혀있을 때는 토글 버튼만 표시
-  if (!isPanelVisible) {
-    return (
-      <div className="absolute right-0 top-0 z-30">
-        <button
-          onClick={handleTogglePanel}
-          className="m-[8px] w-[32px] h-[32px] bg-[#1F1F24] border border-[#3A3943] rounded-[7px] flex items-center justify-center hover:bg-[#2A2A30] hover:border-[#505058] transition-colors shadow-lg"
-          title={t("propertiesPanel.openPanel") || "속성 패널 열기"}
-        >
-          <SidebarToggleIcon isOpen={false} />
-        </button>
-      </div>
-    );
-  }
-
-  // 단일 선택 레이어 모드일 때는 레이어 패널 표시
-  if (panelMode === "layer") {
-    return (
-      <LayerPanel 
-        onClose={handleTogglePanel} 
-        onSwitchToProperty={handleToggleMode}
-        hasSelection={true}
-      />
-    );
   }
 
   return (

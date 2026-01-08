@@ -1,11 +1,14 @@
 import React, { useCallback, useMemo, useRef, useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "@contexts/I18nContext";
 import { useGridSelectionStore } from "@stores/useGridSelectionStore";
 import { useKeyStore } from "@stores/useKeyStore";
 import { usePluginDisplayElementStore } from "@stores/usePluginDisplayElementStore";
 import { useHistoryStore } from "@stores/useHistoryStore";
 import { getKeyInfoByGlobalKey } from "@utils/KeyMaps";
+import { useLenis } from "@hooks/useLenis";
 import { SidebarToggleIcon, ModeToggleIcon } from "./PropertyInputs";
+import ListPopup, { type ListItem } from "@components/main/Modal/ListPopup";
 
 // ============================================================================
 // 레이어 아이템 타입
@@ -30,21 +33,6 @@ interface LayerPanelProps {
 }
 
 // ============================================================================
-// 드래그 아이콘 컴포넌트
-// ============================================================================
-
-const DragHandleIcon: React.FC = () => (
-  <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-    <circle cx="4" cy="3" r="1" fill="#6B6D75" />
-    <circle cx="8" cy="3" r="1" fill="#6B6D75" />
-    <circle cx="4" cy="6" r="1" fill="#6B6D75" />
-    <circle cx="8" cy="6" r="1" fill="#6B6D75" />
-    <circle cx="4" cy="9" r="1" fill="#6B6D75" />
-    <circle cx="8" cy="9" r="1" fill="#6B6D75" />
-  </svg>
-);
-
-// ============================================================================
 // 키 아이콘 컴포넌트
 // ============================================================================
 
@@ -56,10 +44,10 @@ const KeyIcon: React.FC = () => (
       width="10"
       height="8"
       rx="2"
-      stroke="#6B6D75"
+      stroke="currentColor"
       strokeWidth="1.2"
     />
-    <rect x="5" y="6" width="4" height="2" rx="0.5" fill="#6B6D75" />
+    <rect x="5" y="6" width="4" height="2" rx="0.5" fill="currentColor" />
   </svg>
 );
 
@@ -71,11 +59,11 @@ const PluginIcon: React.FC = () => (
   <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
     <path
       d="M7 2L12 5V9L7 12L2 9V5L7 2Z"
-      stroke="#6B6D75"
+      stroke="currentColor"
       strokeWidth="1.2"
       strokeLinejoin="round"
     />
-    <circle cx="7" cy="7" r="1.5" fill="#6B6D75" />
+    <circle cx="7" cy="7" r="1.5" fill="currentColor" />
   </svg>
 );
 
@@ -91,14 +79,72 @@ const LayerPanel: React.FC<LayerPanelProps> = ({ onClose, onSwitchToProperty, ha
   const pluginElements = usePluginDisplayElementStore((state) => state.elements);
   
   const selectedElements = useGridSelectionStore((state) => state.selectedElements);
-  const setSelectedElements = useGridSelectionStore((state) => state.setSelectedElements);
   const clearSelection = useGridSelectionStore((state) => state.clearSelection);
   const toggleSelection = useGridSelectionStore((state) => state.toggleSelection);
 
   // 드래그 상태
-  const [draggedItem, setDraggedItem] = useState<LayerItem | null>(null);
+  const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
-  const listRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  
+  // Shift 선택을 위한 마지막 클릭 인덱스
+  const [lastClickedIndex, setLastClickedIndex] = useState<number | null>(null);
+
+  // 컨텍스트 메뉴 상태
+  const [contextMenuOpen, setContextMenuOpen] = useState(false);
+  const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
+  const [contextMenuItem, setContextMenuItem] = useState<LayerItem | null>(null);
+  
+  // 드래그 상태를 ref로도 저장 (이벤트 핸들러에서 최신 값 참조용)
+  const dragStateRef = useRef<{
+    startIndex: number;
+    itemHeight: number;
+    currentOverIndex: number | null;
+  } | null>(null);
+  
+  // 스크롤 상태
+  const scrollElementRef = useRef<HTMLDivElement | null>(null);
+  const thumbRef = useRef<HTMLDivElement | null>(null);
+
+  // Lenis 스크롤 적용
+  const calculateThumb = useCallback((el: HTMLDivElement) => {
+    const { scrollTop, scrollHeight, clientHeight } = el;
+    const canScroll = scrollHeight > clientHeight + 1;
+    if (!canScroll) return { top: 0, height: 0, visible: false };
+
+    const minThumbHeight = 16;
+    const height = Math.max(
+      minThumbHeight,
+      (clientHeight / scrollHeight) * clientHeight,
+    );
+    const maxTop = clientHeight - height;
+    const top =
+      maxTop <= 0 ? 0 : (scrollTop / (scrollHeight - clientHeight)) * maxTop;
+
+    return { top, height, visible: true };
+  }, []);
+
+  const updateThumbDOM = useCallback(() => {
+    if (!thumbRef.current || !scrollElementRef.current) return;
+    const thumb = calculateThumb(scrollElementRef.current);
+    thumbRef.current.style.top = `${thumb.top}px`;
+    thumbRef.current.style.height = `${thumb.height}px`;
+    thumbRef.current.style.display = thumb.visible ? "block" : "none";
+  }, [calculateThumb]);
+
+  const { scrollContainerRef: lenisRef } = useLenis({
+    onScroll: updateThumbDOM,
+  });
+
+  const setScrollRef = useCallback((node: HTMLDivElement | null) => {
+    scrollElementRef.current = node;
+    lenisRef(node);
+  }, [lenisRef]);
+
+  // 초기 thumb 업데이트
+  useEffect(() => {
+    updateThumbDOM();
+  }, [updateThumbDOM]);
 
   // 레이어 아이템 목록 생성 (z-index 순서로 정렬)
   const layerItems = useMemo(() => {
@@ -136,12 +182,54 @@ const LayerPanel: React.FC<LayerPanelProps> = ({ onClose, onSwitchToProperty, ha
     return items;
   }, [positions, selectedKeyType, keyMappings, pluginElements]);
 
-  // 아이템 클릭 핸들러
+  // layerItems를 ref로도 저장 (이벤트 핸들러에서 최신 값 참조용)
+  const layerItemsRef = useRef(layerItems);
+  layerItemsRef.current = layerItems;
+
+  // 선택된 요소들 설정
+  const setSelectedElements = useGridSelectionStore((state) => state.setSelectedElements);
+
+  // 아이템 클릭 핸들러 (드래그 중이 아닐 때만 선택)
   const handleItemClick = useCallback(
-    (item: LayerItem, e: React.MouseEvent) => {
+    (item: LayerItem, index: number, e: React.MouseEvent) => {
+      // 드래그 중이면 클릭 무시
+      if (isDragging) return;
+
       const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
       const isPrimaryModifierPressed = isMac ? e.metaKey : e.ctrlKey;
+      const isShiftPressed = e.shiftKey;
 
+      // Shift+클릭: 범위 선택
+      if (isShiftPressed && lastClickedIndex !== null) {
+        const startIdx = Math.min(lastClickedIndex, index);
+        const endIdx = Math.max(lastClickedIndex, index);
+        const currentItems = layerItemsRef.current;
+        
+        // 범위 내의 모든 아이템 선택
+        const rangeElements: typeof selectedElements = [];
+        for (let i = startIdx; i <= endIdx; i++) {
+          const rangeItem = currentItems[i];
+          if (rangeItem.type === "key" && rangeItem.index !== undefined) {
+            rangeElements.push({ type: "key", id: rangeItem.id, index: rangeItem.index });
+          } else if (rangeItem.type === "plugin") {
+            rangeElements.push({ type: "plugin", id: rangeItem.id });
+          }
+        }
+        
+        if (isPrimaryModifierPressed) {
+          // Ctrl+Shift+클릭: 기존 선택에 범위 추가
+          const existingIds = new Set(selectedElements.map(el => el.id));
+          const newElements = rangeElements.filter(el => !existingIds.has(el.id));
+          setSelectedElements([...selectedElements, ...newElements]);
+        } else {
+          // Shift+클릭: 범위만 선택
+          setSelectedElements(rangeElements);
+        }
+        // Shift 선택 시에는 lastClickedIndex를 유지
+        return;
+      }
+
+      // Ctrl+클릭 또는 일반 클릭
       if (item.type === "key" && item.index !== undefined) {
         if (isPrimaryModifierPressed) {
           // Ctrl+클릭: 다중 선택
@@ -159,8 +247,11 @@ const LayerPanel: React.FC<LayerPanelProps> = ({ onClose, onSwitchToProperty, ha
           toggleSelection({ type: "plugin", id: item.id });
         }
       }
+
+      // 마지막 클릭 인덱스 업데이트 (Shift 선택의 기준점)
+      setLastClickedIndex(index);
     },
-    [clearSelection, toggleSelection]
+    [clearSelection, toggleSelection, isDragging, lastClickedIndex, selectedElements, setSelectedElements]
   );
 
   // 아이템이 선택되었는지 확인
@@ -171,47 +262,120 @@ const LayerPanel: React.FC<LayerPanelProps> = ({ onClose, onSwitchToProperty, ha
     [selectedElements]
   );
 
-  // 드래그 시작
-  const handleDragStart = useCallback(
-    (e: React.DragEvent, item: LayerItem) => {
-      setDraggedItem(item);
-      e.dataTransfer.effectAllowed = "move";
-      e.dataTransfer.setData("text/plain", item.id);
-    },
-    []
-  );
+  // 컨텍스트 메뉴 아이템
+  const contextMenuItems = useMemo<ListItem[]>(() => {
+    return [
+      { id: "delete", label: t("propertiesPanel.delete") || "Delete" },
+    ];
+  }, [t]);
 
-  // 드래그 종료
-  const handleDragEnd = useCallback(() => {
-    setDraggedItem(null);
-    setDragOverIndex(null);
-  }, []);
-
-  // 드래그 오버
-  const handleDragOver = useCallback(
-    (e: React.DragEvent, index: number) => {
+  // 우클릭 핸들러
+  const handleContextMenu = useCallback(
+    (e: React.MouseEvent, item: LayerItem, index: number) => {
       e.preventDefault();
-      e.dataTransfer.dropEffect = "move";
-      setDragOverIndex(index);
-    },
-    []
-  );
+      e.stopPropagation();
 
-  // 드롭
-  const handleDrop = useCallback(
-    (e: React.DragEvent, targetIndex: number) => {
-      e.preventDefault();
-      
-      if (!draggedItem) return;
-
-      const items = [...layerItems];
-      const draggedIndex = items.findIndex((item) => item.id === draggedItem.id);
-      
-      if (draggedIndex === -1 || draggedIndex === targetIndex) {
-        setDraggedItem(null);
-        setDragOverIndex(null);
-        return;
+      // 우클릭한 아이템이 선택되어 있지 않으면 해당 아이템만 선택
+      if (!isItemSelected(item)) {
+        clearSelection();
+        if (item.type === "key" && item.index !== undefined) {
+          toggleSelection({ type: "key", id: item.id, index: item.index });
+        } else if (item.type === "plugin") {
+          toggleSelection({ type: "plugin", id: item.id });
+        }
+        setLastClickedIndex(index);
       }
+
+      setContextMenuItem(item);
+      setContextMenuPosition({ x: e.clientX, y: e.clientY });
+      setContextMenuOpen(true);
+    },
+    [isItemSelected, clearSelection, toggleSelection]
+  );
+
+  // 컨텍스트 메뉴 선택 핸들러
+  const handleContextMenuSelect = useCallback(
+    async (itemId: string) => {
+      if (itemId === "delete") {
+        // 선택된 요소들 삭제
+        if (selectedElements.length === 0) return;
+
+        const keysToDelete = selectedElements
+          .filter((el) => el.type === "key" && el.index !== undefined)
+          .map((el) => el.index as number);
+
+        const pluginsToDelete = selectedElements
+          .filter((el) => el.type === "plugin")
+          .map((el) => el.id);
+
+        // 히스토리 저장
+        if (keysToDelete.length > 0 || pluginsToDelete.length > 0) {
+          const { keyMappings: km, positions: pos } = useKeyStore.getState();
+          const currentPluginElements = usePluginDisplayElementStore.getState().elements;
+          useHistoryStore.getState().pushState(km, pos, currentPluginElements);
+        }
+
+        // 선택 해제
+        clearSelection();
+
+        // 키 배치 삭제
+        if (keysToDelete.length > 0) {
+          const { keyMappings: km, positions: pos } = useKeyStore.getState();
+          const mapping = km[selectedKeyType] || [];
+          const posArray = pos[selectedKeyType] || [];
+
+          const deleteSet = new Set(keysToDelete);
+
+          const updatedMappings = {
+            ...km,
+            [selectedKeyType]: mapping.filter((_, index) => !deleteSet.has(index)),
+          };
+
+          const updatedPositions = {
+            ...pos,
+            [selectedKeyType]: posArray.filter((_, index) => !deleteSet.has(index)),
+          };
+
+          useKeyStore.getState().setLocalUpdateInProgress(true);
+
+          useKeyStore
+            .getState()
+            .setKeyMappingsAndPositions(updatedMappings, updatedPositions);
+
+          try {
+            await window.api.keys.update(updatedMappings);
+            await window.api.keys.updatePositions(updatedPositions);
+          } catch (error) {
+            console.error("Failed to delete keys", error);
+          } finally {
+            useKeyStore.getState().setLocalUpdateInProgress(false);
+          }
+        }
+
+        // 플러그인 요소 배치 삭제
+        if (pluginsToDelete.length > 0) {
+          const currentElements = usePluginDisplayElementStore.getState().elements;
+          const deleteSet = new Set(pluginsToDelete);
+          const newElements = currentElements.filter(
+            (el) => !deleteSet.has(el.fullId)
+          );
+          usePluginDisplayElementStore.getState().setElements(newElements);
+        }
+      }
+
+      setContextMenuOpen(false);
+    },
+    [selectedElements, selectedKeyType, clearSelection]
+  );
+
+  // 드롭 처리
+  const performDrop = useCallback(
+    (fromIndex: number, toIndex: number) => {
+      if (fromIndex === toIndex) return;
+
+      const items = [...layerItemsRef.current];
+      
+      if (fromIndex === -1 || fromIndex === toIndex) return;
 
       // 히스토리 저장
       const currentPositions = useKeyStore.getState().positions;
@@ -220,8 +384,8 @@ const LayerPanel: React.FC<LayerPanelProps> = ({ onClose, onSwitchToProperty, ha
       useHistoryStore.getState().pushState(km, currentPositions, currentPluginElements);
 
       // 아이템 재정렬
-      const [removed] = items.splice(draggedIndex, 1);
-      items.splice(targetIndex, 0, removed);
+      const [removed] = items.splice(fromIndex, 1);
+      items.splice(toIndex, 0, removed);
 
       // 새 z-index 계산 및 적용
       const maxZIndex = items.length - 1;
@@ -252,11 +416,70 @@ const LayerPanel: React.FC<LayerPanelProps> = ({ onClose, onSwitchToProperty, ha
       // 키 positions 일괄 업데이트
       updatedPositions[selectedKeyType] = currentModePositions;
       useKeyStore.getState().setPositions(updatedPositions);
-
-      setDraggedItem(null);
-      setDragOverIndex(null);
     },
-    [draggedItem, layerItems, selectedKeyType]
+    [selectedKeyType]
+  );
+
+  // 드래그 시작 (마우스 다운)
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent, item: LayerItem, index: number) => {
+      e.preventDefault();
+      
+      const target = e.currentTarget as HTMLElement;
+      const rect = target.getBoundingClientRect();
+      
+      dragStateRef.current = {
+        startIndex: index,
+        itemHeight: rect.height,
+        currentOverIndex: null,
+      };
+      
+      setDraggedItemId(item.id);
+      setIsDragging(true);
+      
+      // 마우스 이동 이벤트 핸들러
+      const handleMouseMove = (moveEvent: MouseEvent) => {
+        if (!dragStateRef.current || !scrollElementRef.current) return;
+        
+        const scrollRect = scrollElementRef.current.getBoundingClientRect();
+        const relativeY = moveEvent.clientY - scrollRect.top + scrollElementRef.current.scrollTop;
+        const newIndex = Math.max(0, Math.min(
+          layerItemsRef.current.length,
+          Math.floor(relativeY / dragStateRef.current.itemHeight)
+        ));
+        
+        dragStateRef.current.currentOverIndex = newIndex;
+        setDragOverIndex(newIndex);
+      };
+      
+      // 마우스 업 이벤트 핸들러
+      const handleMouseUp = () => {
+        if (dragStateRef.current) {
+          const fromIndex = dragStateRef.current.startIndex;
+          const toIndex = dragStateRef.current.currentOverIndex;
+          
+          if (toIndex !== null && fromIndex !== toIndex) {
+            // 드롭 위치 계산: toIndex가 fromIndex보다 크면 -1
+            const actualToIndex = toIndex > fromIndex ? toIndex - 1 : toIndex;
+            if (fromIndex !== actualToIndex) {
+              performDrop(fromIndex, actualToIndex);
+            }
+          }
+        }
+        
+        dragStateRef.current = null;
+        setDraggedItemId(null);
+        setDragOverIndex(null);
+        setIsDragging(false);
+        
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", handleMouseUp);
+      };
+      
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+    },
+    [performDrop]
   );
 
   return (
@@ -298,65 +521,91 @@ const LayerPanel: React.FC<LayerPanelProps> = ({ onClose, onSwitchToProperty, ha
         </span>
       </div>
 
-      {/* 레이어 리스트 */}
-      <div
-        ref={listRef}
-        className="flex-1 overflow-y-auto overflow-x-hidden"
-        style={{ scrollbarGutter: "stable" }}
-      >
-        {layerItems.length === 0 ? (
-          <div className="flex items-center justify-center h-full p-[16px]">
-            <p className="text-[#6B6D75] text-style-4 text-center">
-              {t("propertiesPanel.noLayers") || "No layers"}
-            </p>
-          </div>
-        ) : (
-          <div className="py-[4px]">
-            {layerItems.map((item, index) => (
-              <div
-                key={item.id}
-                draggable
-                onDragStart={(e) => handleDragStart(e, item)}
-                onDragEnd={handleDragEnd}
-                onDragOver={(e) => handleDragOver(e, index)}
-                onDrop={(e) => handleDrop(e, index)}
-                onClick={(e) => handleItemClick(item, e)}
-                className={`
-                  flex items-center gap-[8px] px-[12px] py-[6px] cursor-pointer
-                  transition-colors select-none
-                  ${isItemSelected(item) ? "bg-[#3B82F6]/20" : "hover:bg-[#2A2A30]"}
-                  ${draggedItem?.id === item.id ? "opacity-50" : ""}
-                  ${dragOverIndex === index ? "border-t-2 border-[#3B82F6]" : ""}
-                `}
-              >
-                {/* 드래그 핸들 */}
-                <div className="cursor-grab active:cursor-grabbing">
-                  <DragHandleIcon />
-                </div>
-
-                {/* 아이콘 */}
-                <div className="flex-shrink-0">
-                  {item.type === "key" ? <KeyIcon /> : <PluginIcon />}
-                </div>
-
-                {/* 이름 */}
-                <span
-                  className={`flex-1 text-[12px] truncate ${
-                    isItemSelected(item) ? "text-[#DBDEE8]" : "text-[#8B8D95]"
-                  }`}
+      {/* 레이어 리스트 - 속성 패널 스타일 스크롤 */}
+      <div className="flex-1 properties-panel-overlay-scroll">
+        <div
+          ref={setScrollRef}
+          className="properties-panel-overlay-viewport"
+        >
+          {layerItems.length === 0 ? (
+            <div className="flex items-center justify-center h-full p-[16px]">
+              <p className="text-[#6B6D75] text-style-4 text-center">
+                {t("propertiesPanel.noLayers") || "No layers"}
+              </p>
+            </div>
+          ) : (
+            <div className="py-[4px] relative">
+              {layerItems.map((item, index) => (
+                <div
+                  key={item.id}
+                  onMouseDown={(e) => handleMouseDown(e, item, index)}
+                  onClick={(e) => handleItemClick(item, index, e)}
+                  onContextMenu={(e) => handleContextMenu(e, item, index)}
+                  className={`
+                    relative flex items-center gap-[8px] px-[12px] py-[8px]
+                    select-none
+                    ${isItemSelected(item) 
+                      ? "bg-[#3B82F6]/20 text-[#DBDEE8]" 
+                      : isDragging 
+                        ? "text-[#8B8D95]" 
+                        : "hover:bg-[#2A2A30] text-[#8B8D95]"
+                    }
+                    ${draggedItemId === item.id ? "opacity-50" : ""}
+                    ${isDragging ? "cursor-grabbing" : "cursor-grab"}
+                  `}
                 >
-                  {item.name}
-                </span>
+                  {/* 드롭 인디케이터 (피그마 스타일 선) - 위쪽 */}
+                  {dragOverIndex === index && draggedItemId !== item.id && (
+                    <div className="absolute left-0 right-0 top-0 h-[2px] bg-[#3B82F6] z-10" />
+                  )}
 
-                {/* 선택 표시 */}
-                {isItemSelected(item) && (
-                  <div className="w-[6px] h-[6px] rounded-full bg-[#3B82F6]" />
-                )}
-              </div>
-            ))}
+                  {/* 아이콘 */}
+                  <div className="flex-shrink-0">
+                    {item.type === "key" ? <KeyIcon /> : <PluginIcon />}
+                  </div>
+
+                  {/* 이름 */}
+                  <span className="flex-1 text-[12px] truncate">
+                    {item.name}
+                  </span>
+
+                  {/* 선택 표시 */}
+                  {isItemSelected(item) && (
+                    <div className="w-[6px] h-[6px] rounded-full bg-[#3B82F6] flex-shrink-0" />
+                  )}
+                </div>
+              ))}
+              
+              {/* 마지막 아이템 뒤 드롭 인디케이터 */}
+              {dragOverIndex === layerItems.length && (
+                <div className="absolute left-0 right-0 bottom-0 h-[2px] bg-[#3B82F6] z-10" />
+              )}
+            </div>
+          )}
+          
+          {/* 커스텀 스크롤바 */}
+          <div className="properties-panel-overlay-bar">
+            <div
+              ref={thumbRef}
+              className="properties-panel-overlay-thumb"
+              style={{ display: 'none' }}
+            />
           </div>
-        )}
+        </div>
       </div>
+
+      {/* 컨텍스트 메뉴 */}
+      {contextMenuOpen && createPortal(
+        <ListPopup
+          open={contextMenuOpen}
+          position={contextMenuPosition}
+          onClose={() => setContextMenuOpen(false)}
+          items={contextMenuItems}
+          onSelect={handleContextMenuSelect}
+          className="!z-[10000]"
+        />,
+        document.body
+      )}
     </div>
   );
 };
