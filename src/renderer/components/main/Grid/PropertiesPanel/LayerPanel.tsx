@@ -100,7 +100,7 @@ const LayerPanel: React.FC<LayerPanelProps> = ({ onClose, onSwitchToProperty, ha
   // 드래그 상태
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
-  const [, setIsDragging] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
   const isDraggingRef = useRef(false);
   const didDragRef = useRef(false);
@@ -625,13 +625,16 @@ const LayerPanel: React.FC<LayerPanelProps> = ({ onClose, onSwitchToProperty, ha
                   key={item.id}
                   onMouseDown={(e) => handleMouseDown(e, item, index)}
                   onClick={(e) => handleItemClick(item, index, e)}
+                  onDoubleClick={(e) => handleItemDoubleClick(item, index, e)}
                   onContextMenu={(e) => handleContextMenu(e, item, index)}
                   className={`
                     relative flex items-center gap-[8px] px-[12px] py-[8px]
                     select-none cursor-grab
                     ${isItemSelected(item) 
                       ? "bg-[#3B82F6]/20 text-[#DBDEE8]" 
-                      : "hover:bg-[#2A2A30] text-[#8B8D95]"
+                      : isDragging 
+                        ? "text-[#8B8D95]" 
+                        : "hover:bg-[#2A2A30] text-[#8B8D95]"
                     }
                   `}
                 >
