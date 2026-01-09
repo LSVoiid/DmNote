@@ -1314,6 +1314,16 @@ export const PluginElement: React.FC<PluginElementProps> = ({
       return;
     }
 
+    const settingsUI = definition?.settingsUI ?? "panel";
+    if (windowType === "main" && settingsUI !== "modal") {
+      e.stopPropagation();
+      useGridSelectionStore.getState().selectElement({
+        type: "plugin",
+        id: element.fullId,
+      });
+      return;
+    }
+
     // 선택된 상태에서는 일반 클릭 이벤트 무시
     if (isSelectionMode) {
       e.stopPropagation();

@@ -9,8 +9,13 @@ import { useTranslation } from "@contexts/I18nContext";
 import { useGridSelectionStore } from "@stores/useGridSelectionStore";
 import { useKeyStore } from "@stores/useKeyStore";
 import { useSettingsStore } from "@stores/useSettingsStore";
+import { useHistoryStore } from "@stores/useHistoryStore";
+import { usePluginDisplayElementStore } from "@stores/usePluginDisplayElementStore";
+import { usePropertiesPanelStore } from "@stores/usePropertiesPanelStore";
 import { getKeyInfoByGlobalKey } from "@utils/KeyMaps";
+import { translatePluginMessage } from "@utils/pluginI18n";
 import type { KeyPosition, KeyCounterSettings } from "@src/types/keys";
+import type { PluginSettingSchema, PluginMessages } from "@src/types/api";
 import {
   createDefaultCounterSettings,
   normalizeCounterSettings,
@@ -26,6 +31,8 @@ import {
   NumberInput,
   ColorInput,
   TextInput,
+  SelectInput,
+  ToggleSwitch,
   SectionDivider,
   FontStyleToggle,
   Tabs,
@@ -70,20 +77,52 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   onKeyBatchPreview,
   onKeyMappingChange,
 }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const selectedElements = useGridSelectionStore(
     (state) => state.selectedElements,
   );
-  const clearSelection = useGridSelectionStore((state) => state.clearSelection);
+  const pushHistoryState = useHistoryStore((state) => state.pushState);
   const selectedKeyType = useKeyStore((state) => state.selectedKeyType);
   const positions = useKeyStore((state) => state.positions);
   const keyMappings = useKeyStore((state) => state.keyMappings);
   const { useCustomCSS } = useSettingsStore();
+  const pluginElements = usePluginDisplayElementStore((state) => state.elements);
+  const pluginDefinitions = usePluginDisplayElementStore(
+    (state) => state.definitions,
+  );
+  const updatePluginElement = usePluginDisplayElementStore(
+    (state) => state.updateElement,
+  );
+  const pluginSettingsPanel = usePropertiesPanelStore(
+    (state) => state.pluginSettingsPanel,
+  );
+  const closePluginSettingsPanel = usePropertiesPanelStore(
+    (state) => state.closePluginSettingsPanel,
+  );
+  const locale = i18n.language;
 
   // 선택된 키 요소 필터링
   const selectedKeyElements = selectedElements.filter(
     (el) => el.type === "key",
   );
+  const selectedPluginElements = selectedElements.filter(
+    (el) => el.type === "plugin",
+  );
+
+  const selectedPluginElement = useMemo(() => {
+    if (selectedPluginElements.length !== 1) return null;
+    return (
+      pluginElements.find((el) => el.fullId === selectedPluginElements[0].id) ||
+      null
+    );
+  }, [selectedPluginElements, pluginElements]);
+
+  const selectedPluginDefinition = useMemo(() => {
+    if (!selectedPluginElement?.definitionId) return null;
+    return pluginDefinitions.get(selectedPluginElement.definitionId) || null;
+  }, [selectedPluginElement?.definitionId, pluginDefinitions]);
+
+  const pluginSettingsUI = selectedPluginDefinition?.settingsUI ?? "panel";
 
   // 단일 키 선택인 경우의 데이터
   const singleKeyIndex =
@@ -103,6 +142,10 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   // 로컬 상태 (실시간 편집용)
   const [localState, setLocalState] = useState<
     Partial<KeyPosition> & { dx?: number; dy?: number }
+  >({});
+  const pluginSettingsHistoryRef = useRef<string | null>(null);
+  const [pluginPanelSettings, setPluginPanelSettings] = useState<
+    Record<string, any>
   >({});
 
   // 키 리스닝 상태
@@ -220,10 +263,25 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     singleKeyPosition?.height,
   ]);
 
+  useEffect(() => {
+    if (pluginSettingsPanel) {
+      setPluginPanelSettings(pluginSettingsPanel.settings || {});
+    }
+  }, [pluginSettingsPanel]);
+
+  useEffect(() => {
+    pluginSettingsHistoryRef.current = null;
+  }, [selectedPluginElement?.fullId]);
+
   // 선택된 키가 변경될 때 패널 열기/닫기
   useEffect(() => {
     const hasSelection = selectedKeyElements.length > 0 || selectedElements.length > 0;
     const hadSelection = prevHasSelectionRef.current;
+
+    if (pluginSettingsPanel) {
+      prevHasSelectionRef.current = hasSelection;
+      return;
+    }
     
     if (hasSelection) {
       // 선택이 생겼을 때
@@ -267,7 +325,13 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     setShowImagePicker(false);
     setShowBatchImagePicker(false);
     setIsListening(false);
-  }, [singleKeyIndex, selectedKeyElements.length, selectedElements.length, isPanelVisible]);
+  }, [
+    singleKeyIndex,
+    selectedKeyElements.length,
+    selectedElements.length,
+    isPanelVisible,
+    pluginSettingsPanel,
+  ]);
 
   // 다중 선택 시 패널 자동 열기
   useEffect(() => {
@@ -276,6 +340,14 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
       setIsPanelVisible(true);
     }
   }, [selectedKeyElements.length, isPanelVisible]);
+
+  useEffect(() => {
+    if (pluginSettingsPanel) {
+      manuallyClosedRef.current = false;
+      setPanelMode("property");
+      setIsPanelVisible(true);
+    }
+  }, [pluginSettingsPanel]);
 
   // 레이어 패널이 열려있고 선택이 없는 상태에서 그리드 빈 공간 클릭 시 패널 닫기
   useEffect(() => {
@@ -426,9 +498,103 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     setPanelMode((prev) => (prev === "layer" ? "property" : "layer"));
   }, []);
 
-  const handleClose = useCallback(() => {
-    clearSelection();
-  }, [clearSelection]);
+  const pluginDefaultSettings = useMemo(() => {
+    const defaults: Record<string, any> = {};
+    if (selectedPluginDefinition?.settings) {
+      Object.entries(selectedPluginDefinition.settings).forEach(
+        ([key, schema]) => {
+          defaults[key] = (schema as any).default;
+        }
+      );
+    }
+    return defaults;
+  }, [selectedPluginDefinition?.settings]);
+
+  const resolvedPluginSettings = useMemo(
+    () => ({
+      ...pluginDefaultSettings,
+      ...(selectedPluginElement?.settings || {}),
+    }),
+    [pluginDefaultSettings, selectedPluginElement?.settings]
+  );
+
+  const ensurePluginSettingsHistory = useCallback(() => {
+    if (!selectedPluginElement) return;
+    if (pluginSettingsHistoryRef.current === selectedPluginElement.fullId) {
+      return;
+    }
+    pushHistoryState(keyMappings, positions, pluginElements);
+    pluginSettingsHistoryRef.current = selectedPluginElement.fullId;
+  }, [
+    keyMappings,
+    positions,
+    pluginElements,
+    pushHistoryState,
+    selectedPluginElement,
+  ]);
+
+  const handlePluginSettingChange = useCallback(
+    (key: string, value: any) => {
+      if (!selectedPluginElement) return;
+      ensurePluginSettingsHistory();
+      updatePluginElement(selectedPluginElement.fullId, {
+        settings: {
+          ...resolvedPluginSettings,
+          [key]: value,
+        },
+      });
+    },
+    [
+      ensurePluginSettingsHistory,
+      resolvedPluginSettings,
+      selectedPluginElement,
+      updatePluginElement,
+    ]
+  );
+
+  const handlePluginSettingsPanelChange = useCallback(
+    (key: string, value: any) => {
+      if (!pluginSettingsPanel) return;
+      setPluginPanelSettings((prev) => {
+        const next = { ...prev, [key]: value };
+        pluginSettingsPanel.onChange(next);
+        return next;
+      });
+    },
+    [pluginSettingsPanel]
+  );
+
+  const handlePluginSettingsPanelConfirm = useCallback(async () => {
+    if (!pluginSettingsPanel) return;
+    try {
+      await pluginSettingsPanel.onConfirm(
+        pluginPanelSettings,
+        pluginSettingsPanel.originalSettings
+      );
+      pluginSettingsPanel.resolve(true);
+    } catch (error) {
+      console.error("[Plugin Settings] Failed to apply settings:", error);
+      pluginSettingsPanel.resolve(false);
+    } finally {
+      closePluginSettingsPanel();
+    }
+  }, [
+    closePluginSettingsPanel,
+    pluginPanelSettings,
+    pluginSettingsPanel,
+  ]);
+
+  const handlePluginSettingsPanelCancel = useCallback(() => {
+    if (!pluginSettingsPanel) return;
+    try {
+      pluginSettingsPanel.onCancel(pluginSettingsPanel.originalSettings);
+    } catch (error) {
+      console.error("[Plugin Settings] Failed to cancel settings:", error);
+    } finally {
+      pluginSettingsPanel.resolve(false);
+      closePluginSettingsPanel();
+    }
+  }, [closePluginSettingsPanel, pluginSettingsPanel]);
 
   const handleKeyListen = useCallback(() => {
     if (justAssignedRef.current) return;
@@ -508,6 +674,136 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     onKeyPreview,
     onKeyBatchPreview,
   });
+
+  const renderPluginSettingsForm = useCallback(
+    (
+      schema: Record<string, PluginSettingSchema> | undefined,
+      values: Record<string, any>,
+      messages: PluginMessages | undefined,
+      colorIdPrefix: string,
+      onChange: (key: string, value: any) => void
+    ) => {
+      if (!schema || Object.keys(schema).length === 0) {
+        return (
+          <p className="text-[#6B6D75] text-style-4 text-center">
+            {t("propertiesPanel.pluginNoSettings") || "설정할 항목이 없습니다."}
+          </p>
+        );
+      }
+
+      const translate = (key?: string, fallback?: string) => {
+        if (!key) return fallback || "";
+        return translatePluginMessage({
+          messages,
+          locale,
+          key,
+          fallback,
+        });
+      };
+
+      return (
+        <div className="flex flex-col gap-[12px]">
+          {Object.entries(schema).map(([key, setting]) => {
+            const schemaValue = setting as PluginSettingSchema;
+            const rawValue =
+              values[key] !== undefined ? values[key] : schemaValue.default;
+            const labelText = translate(schemaValue.label, schemaValue.label);
+            const placeholderText =
+              typeof schemaValue.placeholder === "string"
+                ? translate(schemaValue.placeholder, schemaValue.placeholder)
+                : schemaValue.placeholder;
+
+            let control: React.ReactNode = null;
+
+            if (schemaValue.type === "boolean") {
+              control = (
+                <ToggleSwitch
+                  checked={!!rawValue}
+                  onChange={(checked) => onChange(key, checked)}
+                />
+              );
+            } else if (schemaValue.type === "color") {
+              const colorValue =
+                typeof rawValue === "string"
+                  ? rawValue
+                  : (schemaValue.default as string) || "#FFFFFF";
+              control = (
+                <ColorInput
+                  value={colorValue}
+                  onChange={(color) => onChange(key, color)}
+                  colorId={`${colorIdPrefix}-${key}`}
+                  panelElement={panelElement}
+                  solidOnly={true}
+                />
+              );
+            } else if (schemaValue.type === "number") {
+              const numericValue = Number(rawValue);
+              const normalizedValue = Number.isFinite(numericValue)
+                ? numericValue
+                : typeof schemaValue.default === "number"
+                ? schemaValue.default
+                : 0;
+              control = (
+                <NumberInput
+                  value={normalizedValue}
+                  min={schemaValue.min}
+                  max={schemaValue.max}
+                  onChange={(nextValue) => onChange(key, nextValue)}
+                />
+              );
+            } else if (schemaValue.type === "string") {
+              const stringValue =
+                rawValue === undefined || rawValue === null
+                  ? ""
+                  : String(rawValue);
+              control = (
+                <TextInput
+                  value={stringValue}
+                  onChange={(nextValue) => onChange(key, nextValue)}
+                  placeholder={
+                    typeof placeholderText === "string"
+                      ? placeholderText
+                      : undefined
+                  }
+                  width="120px"
+                />
+              );
+            } else if (schemaValue.type === "select") {
+              const options = (schemaValue.options || []).map((option) => ({
+                label: translate(option.label, option.label),
+                value: String(option.value),
+              }));
+              const optionMap = new Map(
+                (schemaValue.options || []).map((option) => [
+                  String(option.value),
+                  option.value,
+                ])
+              );
+              const selectedValue = optionMap.has(String(rawValue))
+                ? String(rawValue)
+                : String(schemaValue.default ?? "");
+              control = (
+                <SelectInput
+                  value={selectedValue}
+                  options={options}
+                  onChange={(nextValue) =>
+                    onChange(key, optionMap.get(nextValue) ?? nextValue)
+                  }
+                />
+              );
+            }
+
+            return (
+              <PropertyRow key={key} label={labelText}>
+                {control}
+              </PropertyRow>
+            );
+          })}
+        </div>
+      );
+    },
+    [locale, panelElement, t]
+  );
 
   // (사이드 패널) 일괄 편집에서도 전역 컬러피커를 쓰지 않음
   // - 노트/글로우는 NoteTabContent(단일 편집)에서 로컬 ColorPicker로 처리
@@ -683,7 +979,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   // ============================================================================
 
   // 패널이 닫혀있을 때는 토글 버튼만 표시
-  if (!isPanelVisible) {
+  if (!isPanelVisible && !pluginSettingsPanel) {
     return (
       <div className="absolute right-0 top-0 z-30">
         <button
@@ -693,6 +989,58 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
         >
           <SidebarToggleIcon isOpen={false} />
         </button>
+      </div>
+    );
+  }
+
+  if (pluginSettingsPanel) {
+    return (
+      <div
+        ref={setPanelElement}
+        className="absolute right-0 top-0 bottom-0 w-[220px] bg-[#1F1F24] border-l border-[#3A3943] flex flex-col z-30 shadow-lg"
+      >
+        <div className="flex items-center justify-between p-[12px] border-b border-[#3A3943]">
+          <div className="flex flex-col gap-[2px]">
+            <span className="text-[#DBDEE8] text-style-2">
+              {t("propertiesPanel.pluginSettings") || "플러그인 설정"}
+            </span>
+            <span className="text-[#6B6D75] text-style-4 truncate max-w-[150px]">
+              {pluginSettingsPanel.pluginId}
+            </span>
+          </div>
+          <button
+            onClick={handlePluginSettingsPanelCancel}
+            className="w-[24px] h-[24px] flex items-center justify-center hover:bg-[#2A2A30] rounded-[4px] transition-colors"
+            title={t("propertiesPanel.closePanel") || "속성 패널 닫기"}
+          >
+            <SidebarToggleIcon isOpen={true} />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-[12px]">
+          {renderPluginSettingsForm(
+            pluginSettingsPanel.definition.settings,
+            pluginPanelSettings,
+            pluginSettingsPanel.definition.messages,
+            `plugin-settings-${pluginSettingsPanel.pluginId}`,
+            handlePluginSettingsPanelChange
+          )}
+        </div>
+        <div className="border-t border-[#3A3943] p-[12px]">
+          <div className="flex gap-[8px]">
+            <button
+              onClick={handlePluginSettingsPanelCancel}
+              className="flex-1 h-[30px] bg-[#2A2A30] border border-[#3A3943] rounded-[7px] text-style-3 text-[#DBDEE8] hover:bg-[#303036] transition-colors"
+            >
+              {t("common.cancel") || "취소"}
+            </button>
+            <button
+              onClick={handlePluginSettingsPanelConfirm}
+              className="flex-1 h-[30px] bg-[#2A2A30] border border-[#3A3943] rounded-[7px] text-style-3 text-[#DBDEE8] hover:bg-[#303036] transition-colors"
+            >
+              {t("common.save") || "저장"}
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -1055,31 +1403,65 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
 
   // 플러그인 요소가 선택된 경우
   if (selectedElements.length > 0 && selectedKeyElements.length === 0) {
+    const pluginTitle =
+      selectedPluginDefinition?.name ||
+      selectedPluginElement?.definitionId ||
+      t("propertiesPanel.pluginElement") ||
+      "Plugin";
+    const hasSinglePluginSelection =
+      selectedPluginElements.length === 1 && selectedPluginElement;
+    const showModalHint =
+      hasSinglePluginSelection && pluginSettingsUI === "modal";
+    const showSettings =
+      hasSinglePluginSelection && pluginSettingsUI !== "modal";
+
     return (
-      <div className="absolute right-0 top-0 bottom-0 w-[220px] bg-[#1F1F24] border-l border-[#3A3943] flex flex-col z-30 shadow-lg">
+      <div
+        ref={setPanelElement}
+        className="absolute right-0 top-0 bottom-0 w-[220px] bg-[#1F1F24] border-l border-[#3A3943] flex flex-col z-30 shadow-lg"
+      >
         <div className="flex items-center justify-between p-[12px] border-b border-[#3A3943]">
-          <span className="text-[#DBDEE8] text-style-2">
-            {t("propertiesPanel.pluginElement") || "플러그인 요소"}
+          <span className="text-[#DBDEE8] text-style-2 truncate max-w-[120px]">
+            {pluginTitle}
           </span>
-          <button
-            onClick={handleClose}
-            className="w-[20px] h-[20px] flex items-center justify-center hover:bg-[#2A2A30] rounded-[4px] transition-colors"
-          >
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-              <path
-                d="M1 1L9 9M9 1L1 9"
-                stroke="#6B6D75"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
-            </svg>
-          </button>
+          <div className="flex items-center gap-[4px]">
+            <button
+              onClick={handleToggleMode}
+              className="w-[24px] h-[24px] flex items-center justify-center hover:bg-[#2A2A30] rounded-[4px] transition-colors"
+              title={t("propertiesPanel.switchToLayer") || "Switch to Layer"}
+            >
+              <ModeToggleIcon mode="layer" />
+            </button>
+            <button
+              onClick={handleTogglePanel}
+              className="w-[24px] h-[24px] flex items-center justify-center hover:bg-[#2A2A30] rounded-[4px] transition-colors"
+              title={t("propertiesPanel.closePanel") || "속성 패널 닫기"}
+            >
+              <SidebarToggleIcon isOpen={true} />
+            </button>
+          </div>
         </div>
-        <div className="flex-1 flex items-center justify-center p-[16px]">
-          <p className="text-[#6B6D75] text-style-4 text-center">
-            {t("propertiesPanel.pluginHint") ||
-              "플러그인 요소는 플러그인 설정에서 편집할 수 있습니다."}
-          </p>
+        <div className="flex-1 overflow-y-auto p-[12px]">
+          {!hasSinglePluginSelection && (
+            <p className="text-[#6B6D75] text-style-4 text-center">
+              {t("propertiesPanel.pluginMultiSelection") ||
+                "플러그인 요소는 한 번에 하나만 편집할 수 있습니다."}
+            </p>
+          )}
+          {hasSinglePluginSelection && showModalHint && (
+            <p className="text-[#6B6D75] text-style-4 text-center">
+              {t("propertiesPanel.pluginModalHint") ||
+                "이 플러그인은 설정 모달을 사용합니다. 요소를 클릭해 설정하세요."}
+            </p>
+          )}
+          {showSettings &&
+            renderPluginSettingsForm(
+              selectedPluginDefinition?.settings,
+              resolvedPluginSettings,
+              selectedPluginDefinition?.messages,
+              `plugin-element-${selectedPluginElement?.fullId ?? "unknown"}`,
+              handlePluginSettingChange
+            )}
         </div>
       </div>
     );

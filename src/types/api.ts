@@ -359,6 +359,12 @@ export interface PluginDefinition {
     delete?: string; // 요소 메뉴 라벨 (예: "KPS 패널 삭제")
     items?: PluginDefinitionContextMenuItem[];
   };
+  /**
+   * 설정 UI 표시 방식
+   * - "panel": 속성 패널 (기본값)
+   * - "modal": 기존 모달
+   */
+  settingsUI?: "panel" | "modal";
   settings?: Record<string, PluginSettingSchema>;
   messages?: PluginMessages;
   template: (
@@ -385,6 +391,12 @@ export interface PluginSettingsDefinition {
   settings: Record<string, PluginSettingSchema>;
   /** 다국어 메시지 번들 */
   messages?: PluginMessages;
+  /**
+   * 설정 UI 표시 방식
+   * - "panel": 속성 패널 (기본값)
+   * - "modal": 기존 모달
+   */
+  settingsUI?: "panel" | "modal";
   /** 설정 변경 시 호출되는 콜백 */
   onChange?: (
     newSettings: Record<string, any>,

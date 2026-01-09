@@ -4,6 +4,7 @@
  */
 
 import { usePluginDisplayElementStore } from "@stores/usePluginDisplayElementStore";
+import { usePropertiesPanelStore } from "@stores/usePropertiesPanelStore";
 import { translatePluginMessage } from "@utils/pluginI18n";
 import { handlerRegistry } from "../handlers";
 import type { NamespacedStorage } from "../context";
@@ -138,7 +139,7 @@ export const createDefineSettings = (deps: DefineSettingsDependencies) => {
     };
 
     // 설정 다이얼로그 열기
-    const openSettingsDialog = async (): Promise<boolean> => {
+    const openSettingsDialogModal = async (): Promise<boolean> => {
       if (!isInitialized) {
         await loadSettings();
       }
@@ -346,6 +347,83 @@ export const createDefineSettings = (deps: DefineSettingsDependencies) => {
 
         return false;
       }
+    };
+
+    // 설정 패널 열기 (속성 패널 방식)
+    const openSettingsPanel = async (): Promise<boolean> => {
+      if (!isInitialized) {
+        await loadSettings();
+      }
+
+      const panelSettings = { ...currentSettings };
+      const originalSettings = { ...currentSettings };
+
+      const applyPreview = (newSettings: Record<string, any>) => {
+        currentSettings = { ...newSettings };
+        triggerPanelRerender();
+        notifyOverlay(currentSettings);
+      };
+
+      return new Promise((resolve) => {
+        usePropertiesPanelStore.getState().openPluginSettingsPanel({
+          pluginId,
+          definition,
+          settings: panelSettings,
+          originalSettings,
+          onChange: (nextSettings) => {
+            const prev = (window as any).__dmn_current_plugin_id;
+            (window as any).__dmn_current_plugin_id = pluginId;
+            try {
+              applyPreview(nextSettings);
+            } finally {
+              (window as any).__dmn_current_plugin_id = prev;
+            }
+          },
+          onConfirm: async (nextSettings, prevSettings) => {
+            currentSettings = { ...nextSettings };
+            await saveSettings();
+
+            if (definition.onChange) {
+              try {
+                definition.onChange(currentSettings, prevSettings);
+              } catch (err) {
+                console.error(
+                  `[Plugin ${pluginId}] Error in onChange callback:`,
+                  err
+                );
+              }
+            }
+
+            notifySubscribers(currentSettings, prevSettings);
+          },
+          onCancel: (prevSettings) => {
+            currentSettings = { ...prevSettings };
+            triggerPanelRerender();
+            notifyOverlay(currentSettings);
+          },
+          resolve,
+        });
+      });
+    };
+
+    const openSettingsDialog = async (): Promise<boolean> => {
+      const settingsUI = definition.settingsUI ?? "panel";
+      const canUsePanel =
+        settingsUI !== "modal" &&
+        (window as any).__dmn_window_type === "main";
+
+      if (canUsePanel) {
+        try {
+          return await openSettingsPanel();
+        } catch (error) {
+          console.error(
+            `[Plugin ${pluginId}] Failed to open settings panel:`,
+            error
+          );
+        }
+      }
+
+      return openSettingsDialogModal();
     };
 
     // 오버레이에서 설정 변경 메시지 수신 리스너

@@ -200,6 +200,8 @@ export const createDefineElement = (deps: DefineElementDependencies) => {
         },
       }));
 
+    const useModalSettings = definition.settingsUI === "modal";
+
     const openInstanceSettings = async (instanceId: string) => {
       const element = usePluginDisplayElementStore
         .getState()
@@ -394,6 +396,7 @@ export const createDefineElement = (deps: DefineElementDependencies) => {
     };
 
     const handleElementClick = (e: Event) => {
+      if (!useModalSettings) return;
       const target = e.currentTarget as HTMLElement;
       const instanceId = target.getAttribute("data-plugin-element");
       if (instanceId) {
@@ -447,7 +450,7 @@ export const createDefineElement = (deps: DefineElementDependencies) => {
             definitionId: defId,
             settings: { ...defaultSettings },
             state: definition.previewState || {},
-            onClick: handleElementClick,
+            onClick: useModalSettings ? handleElementClick : undefined,
             contextMenu: {
               enableDelete: true,
               deleteLabel: definition.contextMenu?.delete || "삭제",
@@ -468,10 +471,9 @@ export const createDefineElement = (deps: DefineElementDependencies) => {
       (window as any).__dmn_current_plugin_id = pluginId;
 
       try {
-        const onClickId = handlerRegistry.register(
-          pluginId,
-          handleElementClick
-        );
+        const onClickId = useModalSettings
+          ? handlerRegistry.register(pluginId, handleElementClick)
+          : undefined;
 
         const restoredElement = {
           ...savedElement,
@@ -545,7 +547,7 @@ export const createDefineElement = (deps: DefineElementDependencies) => {
                 state: definition.previewState || {},
                 measuredSize: inst.measuredSize,
                 tabId: inst.tabId,
-                onClick: handleElementClick,
+                onClick: useModalSettings ? handleElementClick : undefined,
                 contextMenu: {
                   enableDelete: true,
                   deleteLabel: definition.contextMenu?.delete || "삭제",
