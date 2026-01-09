@@ -134,6 +134,10 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
 
   // 패널 모드 상태 (layer: 레이어 패널, property: 속성 패널)
   const [panelMode, setPanelMode] = useState<"layer" | "property">("property");
+  
+  // panelMode를 ref로도 유지 (useEffect에서 최신 값 참조용)
+  const panelModeRef = useRef(panelMode);
+  panelModeRef.current = panelMode;
 
   // 탭 상태
   const [activeTab, setActiveTab] = useState<TabType>(TABS.STYLE);
@@ -199,14 +203,15 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
       setIsPanelVisible(true);
     } else if (selectedKeyElements.length === 0 && selectedElements.length === 0) {
       // 선택이 모두 해제되면 패널 닫기 (레이어 모드에서는 유지)
-      if (panelMode !== "layer") {
+      // ref를 사용하여 최신 panelMode 값 참조 (클로저 문제 방지)
+      if (panelModeRef.current !== "layer") {
         setIsPanelVisible(false);
       }
     }
     setShowImagePicker(false);
     setShowBatchImagePicker(false);
     setIsListening(false);
-  }, [singleKeyIndex, selectedKeyElements.length, selectedElements.length, panelMode]);
+  }, [singleKeyIndex, selectedKeyElements.length, selectedElements.length]);
 
   // 다중 선택 시 패널 자동 열기
   useEffect(() => {
@@ -299,12 +304,20 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   // ============================================================================
 
   const handleTogglePanel = useCallback(() => {
-    setIsPanelVisible((prev) => !prev);
-    if (isPanelVisible) {
+    const willOpen = !isPanelVisible;
+    setIsPanelVisible(willOpen);
+    
+    if (willOpen) {
+      // 패널을 열 때 선택이 없으면 레이어 모드로 설정
+      const hasSelection = selectedElements.length > 0;
+      if (!hasSelection) {
+        setPanelMode("layer");
+      }
+    } else {
       setShowImagePicker(false);
       setShowBatchImagePicker(false);
     }
-  }, [isPanelVisible]);
+  }, [isPanelVisible, selectedElements.length]);
 
   const handleToggleMode = useCallback(() => {
     setPanelMode((prev) => (prev === "layer" ? "property" : "layer"));
