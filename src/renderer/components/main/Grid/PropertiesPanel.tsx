@@ -144,6 +144,20 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   
   // 레이어 패널 내부에서 선택이 발생했는지 추적 (모드 전환 방지용)
   const selectionFromLayerPanelRef = useRef(false);
+  
+  // 이전 키 타입 추적 (탭 전환 감지용)
+  const prevKeyTypeRef = useRef(selectedKeyType);
+  
+  // 탭 전환으로 인한 선택 해제인지 추적
+  const keyTypeChangedRef = useRef(false);
+  
+  // selectedKeyType 변경 감지 (clearSelection보다 먼저 플래그 설정)
+  useEffect(() => {
+    if (prevKeyTypeRef.current !== selectedKeyType) {
+      keyTypeChangedRef.current = true;
+      prevKeyTypeRef.current = selectedKeyType;
+    }
+  }, [selectedKeyType]);
 
   // 탭 상태
   const [activeTab, setActiveTab] = useState<TabType>(TABS.STYLE);
@@ -221,15 +235,21 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
       }
       // 속성 패널이 이미 열려있으면 현재 모드 유지
     } else if (hadSelection) {
-      // 선택이 있었다가 해제된 경우에만 패널 닫기
-      // (처음부터 선택이 없는 상태에서 토글로 열린 경우는 닫지 않음)
-      setIsPanelVisible(false);
+      // 선택이 있었다가 해제된 경우
+      if (keyTypeChangedRef.current && isPanelVisible) {
+        // 탭 전환으로 인한 선택 해제 → 패널 닫지 않고 레이어 모드로 전환
+        setPanelMode("layer");
+      } else {
+        // 일반적인 선택 해제 → 패널 닫기
+        setIsPanelVisible(false);
+      }
     }
     
-    // 이전 선택 상태 업데이트
+    // 이전 상태 업데이트
     prevHasSelectionRef.current = hasSelection;
     // 플래그 리셋
     selectionFromLayerPanelRef.current = false;
+    keyTypeChangedRef.current = false;
     
     setShowImagePicker(false);
     setShowBatchImagePicker(false);
@@ -248,7 +268,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   useEffect(() => {
     // 레이어 모드이고 패널이 열려있고 선택이 없는 경우에만 리스너 등록
     const hasSelection = selectedKeyElements.length > 0 || selectedElements.length > 0;
-    if (panelModeRef.current !== "layer" || !isPanelVisible || hasSelection) {
+    if (panelMode !== "layer" || !isPanelVisible || hasSelection) {
       return undefined;
     }
 
@@ -283,7 +303,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     return () => {
       document.removeEventListener("mousedown", handleGridClick);
     };
-  }, [isPanelVisible, selectedKeyElements.length, selectedElements.length]);
+  }, [isPanelVisible, selectedKeyElements.length, selectedElements.length, panelMode]);
 
   // 키 리스닝 상태를 전역으로 노출 (App.tsx의 Tab 단축키 등에서 체크)
   useEffect(() => {
