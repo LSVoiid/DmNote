@@ -34,37 +34,51 @@ interface LayerPanelProps {
 }
 
 // ============================================================================
-// 키 아이콘 컴포넌트
+// 키 아이콘 컴포넌트 (키캡 + 문자)
 // ============================================================================
 
 const KeyIcon: React.FC = () => (
   <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
     <rect
       x="2"
-      y="3"
+      y="2"
       width="10"
-      height="8"
-      rx="2"
+      height="10"
+      rx="2.5"
       stroke="currentColor"
       strokeWidth="1.2"
     />
-    <rect x="5" y="6" width="4" height="2" rx="0.5" fill="currentColor" />
+    <circle
+      cx="7"
+      cy="7"
+      r="2"
+      fill="currentColor"
+    />
   </svg>
 );
 
 // ============================================================================
-// 플러그인 아이콘 컴포넌트
+// 플러그인 아이콘 컴포넌트 (퍼즐 조각)
 // ============================================================================
 
 const PluginIcon: React.FC = () => (
   <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-    <path
-      d="M7 2L12 5V9L7 12L2 9V5L7 2Z"
+    <rect
+      x="7"
+      y="0.05"
+      width="9.8"
+      height="9.8"
+      rx="2"
       stroke="currentColor"
       strokeWidth="1.2"
-      strokeLinejoin="round"
+      transform="rotate(45 7 0.05)"
     />
-    <circle cx="7" cy="7" r="1.5" fill="currentColor" />
+    <circle
+      cx="7"
+      cy="7"
+      r="2"
+      fill="currentColor"
+    />
   </svg>
 );
 
@@ -234,21 +248,33 @@ const LayerPanel: React.FC<LayerPanelProps> = ({ onClose, onSwitchToProperty, ha
       }
 
       // Ctrl+클릭 또는 일반 클릭
+      const isAlreadySelected = selectedElements.some((el) => el.id === item.id);
+
       if (item.type === "key" && item.index !== undefined) {
         if (isPrimaryModifierPressed) {
-          // Ctrl+클릭: 다중 선택
+          // Ctrl+클릭: 다중 선택/해제 토글
           toggleSelection({ type: "key", id: item.id, index: item.index });
         } else {
-          // 일반 클릭: 단일 선택
-          clearSelection();
-          toggleSelection({ type: "key", id: item.id, index: item.index });
+          // 일반 클릭: 이미 선택된 경우 해제, 아니면 단일 선택
+          if (isAlreadySelected) {
+            onSelectionFromPanel?.(); // 패널 닫힘 방지
+            clearSelection();
+          } else {
+            clearSelection();
+            toggleSelection({ type: "key", id: item.id, index: item.index });
+          }
         }
       } else if (item.type === "plugin") {
         if (isPrimaryModifierPressed) {
           toggleSelection({ type: "plugin", id: item.id });
         } else {
-          clearSelection();
-          toggleSelection({ type: "plugin", id: item.id });
+          if (isAlreadySelected) {
+            onSelectionFromPanel?.(); // 패널 닫힘 방지
+            clearSelection();
+          } else {
+            clearSelection();
+            toggleSelection({ type: "plugin", id: item.id });
+          }
         }
       }
 
@@ -264,6 +290,29 @@ const LayerPanel: React.FC<LayerPanelProps> = ({ onClose, onSwitchToProperty, ha
       return selectedElements.some((el) => el.id === item.id);
     },
     [selectedElements]
+  );
+
+  // 더블클릭 핸들러 - 속성 패널로 전환
+  const handleItemDoubleClick = useCallback(
+    (item: LayerItem, index: number, e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      // 레이어 패널에서 선택했음을 알림
+      onSelectionFromPanel?.();
+
+      // 해당 아이템 선택
+      clearSelection();
+      if (item.type === "key" && item.index !== undefined) {
+        toggleSelection({ type: "key", id: item.id, index: item.index });
+      } else if (item.type === "plugin") {
+        toggleSelection({ type: "plugin", id: item.id });
+      }
+
+      // 속성 패널로 전환
+      onSwitchToProperty?.();
+    },
+    [clearSelection, toggleSelection, onSelectionFromPanel, onSwitchToProperty]
   );
 
   // 컨텍스트 메뉴 아이템
@@ -544,6 +593,7 @@ const LayerPanel: React.FC<LayerPanelProps> = ({ onClose, onSwitchToProperty, ha
                   key={item.id}
                   onMouseDown={(e) => handleMouseDown(e, item, index)}
                   onClick={(e) => handleItemClick(item, index, e)}
+                  onDoubleClick={(e) => handleItemDoubleClick(item, index, e)}
                   onContextMenu={(e) => handleContextMenu(e, item, index)}
                   className={`
                     relative flex items-center gap-[8px] px-[12px] py-[8px]

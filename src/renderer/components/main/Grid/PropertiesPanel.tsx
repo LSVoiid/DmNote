@@ -239,6 +239,9 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
       if (keyTypeChangedRef.current && isPanelVisible) {
         // 탭 전환으로 인한 선택 해제 → 패널 닫지 않고 레이어 모드로 전환
         setPanelMode("layer");
+      } else if (selectionFromLayerPanelRef.current && isPanelVisible) {
+        // 레이어 패널에서 선택 해제 → 패널 닫지 않고 레이어 모드 유지
+        setPanelMode("layer");
       } else {
         // 일반적인 선택 해제 → 패널 닫기
         setIsPanelVisible(false);
