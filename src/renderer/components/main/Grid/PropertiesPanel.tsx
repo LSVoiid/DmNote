@@ -22,6 +22,7 @@ import {
 } from "@src/types/keys";
 import ColorPicker from "@components/main/Modal/content/ColorPicker";
 import ImagePicker from "@components/main/Modal/content/ImagePicker";
+import { useLenis } from "@hooks/useLenis";
 
 // 분리된 컴포넌트들 및 훅
 import {
@@ -31,8 +32,6 @@ import {
   NumberInput,
   ColorInput,
   TextInput,
-  SelectInput,
-  ToggleSwitch,
   SectionDivider,
   FontStyleToggle,
   Tabs,
@@ -123,6 +122,10 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   }, [selectedPluginElement?.definitionId, pluginDefinitions]);
 
   const pluginSettingsUI = selectedPluginDefinition?.settingsUI ?? "panel";
+  const hasSinglePluginSelection =
+    selectedPluginElements.length === 1 && !!selectedPluginElement;
+  const showModalHint = hasSinglePluginSelection && pluginSettingsUI === "modal";
+  const showSettings = hasSinglePluginSelection && pluginSettingsUI !== "modal";
 
   // 단일 키 선택인 경우의 데이터
   const singleKeyIndex =
@@ -215,6 +218,92 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     singleScrollRefFor,
     singleThumbRefFor,
   } = usePanelScroll(activeTab, selectedElements.length);
+
+  // 플러그인 패널 스크롤 (레이어/키 패널과 동일한 overlay 스크롤)
+  const pluginScrollElementRef = useRef<HTMLDivElement | null>(null);
+  const pluginThumbRef = useRef<HTMLDivElement | null>(null);
+
+  const calculatePluginThumb = useCallback((el: HTMLDivElement) => {
+    const { scrollTop, scrollHeight, clientHeight } = el;
+    const canScroll = scrollHeight > clientHeight + 1;
+    if (!canScroll) return { top: 0, height: 0, visible: false };
+
+    const minThumbHeight = 16;
+    const height = Math.max(
+      minThumbHeight,
+      (clientHeight / scrollHeight) * clientHeight,
+    );
+    const maxTop = clientHeight - height;
+    const top =
+      maxTop <= 0 ? 0 : (scrollTop / (scrollHeight - clientHeight)) * maxTop;
+
+    return { top, height, visible: true };
+  }, []);
+
+  const updatePluginThumbDOM = useCallback(() => {
+    if (!pluginThumbRef.current || !pluginScrollElementRef.current) return;
+    const thumb = calculatePluginThumb(pluginScrollElementRef.current);
+    pluginThumbRef.current.style.top = `${thumb.top}px`;
+    pluginThumbRef.current.style.height = `${thumb.height}px`;
+    pluginThumbRef.current.style.display = thumb.visible ? "block" : "none";
+  }, [calculatePluginThumb]);
+
+  const { scrollContainerRef: pluginLenisRef } = useLenis({
+    onScroll: updatePluginThumbDOM,
+  });
+
+  const setPluginScrollRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      pluginScrollElementRef.current = node;
+      pluginLenisRef(node);
+    },
+    [pluginLenisRef],
+  );
+
+  const setPluginThumbRef = useCallback((node: HTMLDivElement | null) => {
+    pluginThumbRef.current = node;
+  }, []);
+
+  const pluginSettingsSchemaCount = useMemo(
+    () =>
+      pluginSettingsPanel?.definition?.settings
+        ? Object.keys(pluginSettingsPanel.definition.settings).length
+        : 0,
+    [pluginSettingsPanel?.definition?.settings],
+  );
+
+  const pluginElementSchemaCount = useMemo(
+    () =>
+      selectedPluginDefinition?.settings
+        ? Object.keys(selectedPluginDefinition.settings).length
+        : 0,
+    [selectedPluginDefinition?.settings],
+  );
+
+  useEffect(() => {
+    const hasPluginPanel =
+      !!pluginSettingsPanel ||
+      (selectedPluginElements.length > 0 && selectedKeyElements.length === 0);
+
+    if (!hasPluginPanel) return;
+
+    const raf = requestAnimationFrame(() => {
+      updatePluginThumbDOM();
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [
+    pluginSettingsPanel?.pluginId,
+    pluginSettingsSchemaCount,
+    selectedPluginElement?.fullId,
+    selectedPluginDefinition?.id,
+    pluginElementSchemaCount,
+    showSettings,
+    showModalHint,
+    hasSinglePluginSelection,
+    selectedPluginElements.length,
+    selectedKeyElements.length,
+    updatePluginThumbDOM,
+  ]);
 
   // 배치 편집용 로컬 ColorPicker 상태
   type BatchPickerTarget =
@@ -701,6 +790,19 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
         });
       };
 
+      const getPluginInputWidth = (
+        type: "string" | "number",
+        value: any
+      ): string => {
+        if (type === "number") {
+          return "60px";
+        }
+        const strVal = String(value ?? "");
+        if (strVal.length <= 4) return "60px";
+        if (strVal.length <= 10) return "100px";
+        return "200px";
+      };
+
       return (
         <div className="flex flex-col gap-[12px]">
           {Object.entries(schema).map(([key, setting]) => {
@@ -716,10 +818,11 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
             let control: React.ReactNode = null;
 
             if (schemaValue.type === "boolean") {
+              const checked = !!rawValue;
               control = (
-                <ToggleSwitch
-                  checked={!!rawValue}
-                  onChange={(checked) => onChange(key, checked)}
+                <Checkbox
+                  checked={checked}
+                  onChange={() => onChange(key, !checked)}
                 />
               );
             } else if (schemaValue.type === "color") {
@@ -749,6 +852,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                   min={schemaValue.min}
                   max={schemaValue.max}
                   onChange={(nextValue) => onChange(key, nextValue)}
+                  width={getPluginInputWidth("number", rawValue)}
                 />
               );
             } else if (schemaValue.type === "string") {
@@ -765,7 +869,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                       ? placeholderText
                       : undefined
                   }
-                  width="120px"
+                  width={getPluginInputWidth("string", stringValue)}
                 />
               );
             } else if (schemaValue.type === "select") {
@@ -783,9 +887,15 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                 ? String(rawValue)
                 : String(schemaValue.default ?? "");
               control = (
-                <SelectInput
+                <Dropdown
                   value={selectedValue}
                   options={options}
+                  placeholder={
+                    typeof placeholderText === "string" &&
+                    placeholderText.trim().length > 0
+                      ? placeholderText
+                      : undefined
+                  }
                   onChange={(nextValue) =>
                     onChange(key, optionMap.get(nextValue) ?? nextValue)
                   }
@@ -1016,14 +1126,25 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
             <SidebarToggleIcon isOpen={true} />
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto p-[12px]">
-          {renderPluginSettingsForm(
-            pluginSettingsPanel.definition.settings,
-            pluginPanelSettings,
-            pluginSettingsPanel.definition.messages,
-            `plugin-settings-${pluginSettingsPanel.pluginId}`,
-            handlePluginSettingsPanelChange
-          )}
+        <div className="flex-1 properties-panel-overlay-scroll">
+          <div ref={setPluginScrollRef} className="properties-panel-overlay-viewport">
+            <div className="p-[12px]">
+              {renderPluginSettingsForm(
+                pluginSettingsPanel.definition.settings,
+                pluginPanelSettings,
+                pluginSettingsPanel.definition.messages,
+                `plugin-settings-${pluginSettingsPanel.pluginId}`,
+                handlePluginSettingsPanelChange
+              )}
+            </div>
+          </div>
+          <div className="properties-panel-overlay-bar">
+            <div
+              ref={setPluginThumbRef}
+              className="properties-panel-overlay-thumb"
+              style={{ display: "none" }}
+            />
+          </div>
         </div>
         <div className="border-t border-[#3A3943] p-[12px]">
           <div className="flex gap-[8px]">
@@ -1408,12 +1529,6 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
       selectedPluginElement?.definitionId ||
       t("propertiesPanel.pluginElement") ||
       "Plugin";
-    const hasSinglePluginSelection =
-      selectedPluginElements.length === 1 && selectedPluginElement;
-    const showModalHint =
-      hasSinglePluginSelection && pluginSettingsUI === "modal";
-    const showSettings =
-      hasSinglePluginSelection && pluginSettingsUI !== "modal";
 
     return (
       <div
@@ -1441,27 +1556,38 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
             </button>
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto p-[12px]">
-          {!hasSinglePluginSelection && (
-            <p className="text-[#6B6D75] text-style-4 text-center">
-              {t("propertiesPanel.pluginMultiSelection") ||
-                "플러그인 요소는 한 번에 하나만 편집할 수 있습니다."}
-            </p>
-          )}
-          {hasSinglePluginSelection && showModalHint && (
-            <p className="text-[#6B6D75] text-style-4 text-center">
-              {t("propertiesPanel.pluginModalHint") ||
-                "이 플러그인은 설정 모달을 사용합니다. 요소를 클릭해 설정하세요."}
-            </p>
-          )}
-          {showSettings &&
-            renderPluginSettingsForm(
-              selectedPluginDefinition?.settings,
-              resolvedPluginSettings,
-              selectedPluginDefinition?.messages,
-              `plugin-element-${selectedPluginElement?.fullId ?? "unknown"}`,
-              handlePluginSettingChange
-            )}
+        <div className="flex-1 properties-panel-overlay-scroll">
+          <div ref={setPluginScrollRef} className="properties-panel-overlay-viewport">
+            <div className="p-[12px]">
+              {!hasSinglePluginSelection && (
+                <p className="text-[#6B6D75] text-style-4 text-center">
+                  {t("propertiesPanel.pluginMultiSelection") ||
+                    "플러그인 요소는 한 번에 하나만 편집할 수 있습니다."}
+                </p>
+              )}
+              {hasSinglePluginSelection && showModalHint && (
+                <p className="text-[#6B6D75] text-style-4 text-center">
+                  {t("propertiesPanel.pluginModalHint") ||
+                    "이 플러그인은 설정 모달을 사용합니다. 요소를 클릭해 설정하세요."}
+                </p>
+              )}
+              {showSettings &&
+                renderPluginSettingsForm(
+                  selectedPluginDefinition?.settings,
+                  resolvedPluginSettings,
+                  selectedPluginDefinition?.messages,
+                  `plugin-element-${selectedPluginElement?.fullId ?? "unknown"}`,
+                  handlePluginSettingChange
+                )}
+            </div>
+          </div>
+          <div className="properties-panel-overlay-bar">
+            <div
+              ref={setPluginThumbRef}
+              className="properties-panel-overlay-thumb"
+              style={{ display: "none" }}
+            />
+          </div>
         </div>
       </div>
     );
