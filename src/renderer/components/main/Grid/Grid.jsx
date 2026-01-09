@@ -564,6 +564,7 @@ export default function Grid({
         gridRef.current = node;
         gridContainerRef.current = node;
       }}
+      data-grid-container
       className="relative w-full h-full bg-[#3A3943] rounded-[0px] overflow-hidden"
       style={{ backgroundColor: color === "transparent" ? "#3A3943" : color }}
       onContextMenu={(e) => {

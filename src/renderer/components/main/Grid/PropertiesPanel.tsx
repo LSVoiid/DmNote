@@ -139,6 +139,9 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   const panelModeRef = useRef(panelMode);
   panelModeRef.current = panelMode;
 
+  // 이전 선택 상태 추적 (선택 해제 감지용)
+  const prevHasSelectionRef = useRef(false);
+
   // 탭 상태
   const [activeTab, setActiveTab] = useState<TabType>(TABS.STYLE);
 
@@ -199,26 +202,73 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
 
   // 선택된 키가 변경될 때 패널 열기/닫기
   useEffect(() => {
-    if (singleKeyIndex !== null) {
-      setIsPanelVisible(true);
-    } else if (selectedKeyElements.length === 0 && selectedElements.length === 0) {
-      // 선택이 모두 해제되면 패널 닫기 (레이어 모드에서는 유지)
-      // ref를 사용하여 최신 panelMode 값 참조 (클로저 문제 방지)
-      if (panelModeRef.current !== "layer") {
-        setIsPanelVisible(false);
+    const hasSelection = selectedKeyElements.length > 0 || selectedElements.length > 0;
+    const hadSelection = prevHasSelectionRef.current;
+    
+    if (hasSelection) {
+      // 선택이 생겼을 때
+      if (!isPanelVisible) {
+        // 패널이 닫힌 상태에서 선택하면 → 속성 패널로 열기
+        setPanelMode("property");
+        setIsPanelVisible(true);
       }
+      // 패널이 이미 열려있으면 현재 모드 유지
+    } else if (hadSelection) {
+      // 선택이 있었다가 해제된 경우에만 패널 닫기
+      // (처음부터 선택이 없는 상태에서 토글로 열린 경우는 닫지 않음)
+      setIsPanelVisible(false);
     }
+    
+    // 이전 선택 상태 업데이트
+    prevHasSelectionRef.current = hasSelection;
+    
     setShowImagePicker(false);
     setShowBatchImagePicker(false);
     setIsListening(false);
-  }, [singleKeyIndex, selectedKeyElements.length, selectedElements.length]);
+  }, [singleKeyIndex, selectedKeyElements.length, selectedElements.length, isPanelVisible]);
 
   // 다중 선택 시 패널 자동 열기
   useEffect(() => {
-    if (selectedKeyElements.length > 1) {
+    if (selectedKeyElements.length > 1 && !isPanelVisible) {
+      setPanelMode("property");
       setIsPanelVisible(true);
     }
-  }, [selectedKeyElements.length]);
+  }, [selectedKeyElements.length, isPanelVisible]);
+
+  // 레이어 패널이 열려있고 선택이 없는 상태에서 그리드 클릭 시 패널 닫기
+  useEffect(() => {
+    // 레이어 모드이고 패널이 열려있고 선택이 없는 경우에만 리스너 등록
+    const hasSelection = selectedKeyElements.length > 0 || selectedElements.length > 0;
+    if (panelModeRef.current !== "layer" || !isPanelVisible || hasSelection) {
+      return undefined;
+    }
+
+    const handleGridClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      
+      // 그리드 컨테이너 내부 클릭인지 확인
+      const gridContainer = target.closest('[data-grid-container]');
+      if (!gridContainer) {
+        return; // 그리드 영역 외부 클릭은 무시
+      }
+      
+      // 프로퍼티 패널 내부 클릭은 무시
+      if (target.closest('[class*="properties-panel"]') || 
+          target.closest('[class*="PropertiesPanel"]') ||
+          target.closest('.absolute.right-0.top-0.bottom-0')) {
+        return;
+      }
+      
+      // 그리드 영역 클릭 시 패널 닫기
+      setIsPanelVisible(false);
+    };
+
+    // mousedown으로 감지 (click보다 먼저 발생)
+    document.addEventListener("mousedown", handleGridClick);
+    return () => {
+      document.removeEventListener("mousedown", handleGridClick);
+    };
+  }, [isPanelVisible, selectedKeyElements.length, selectedElements.length]);
 
   // 키 리스닝 상태를 전역으로 노출 (App.tsx의 Tab 단축키 등에서 체크)
   useEffect(() => {
