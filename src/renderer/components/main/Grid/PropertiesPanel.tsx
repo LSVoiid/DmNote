@@ -151,6 +151,9 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   // 탭 전환으로 인한 선택 해제인지 추적
   const keyTypeChangedRef = useRef(false);
   
+  // 사용자가 명시적으로 패널을 닫았는지 추적
+  const manuallyClosedRef = useRef(false);
+  
   // selectedKeyType 변경 감지 (clearSelection보다 먼저 플래그 설정)
   useEffect(() => {
     if (prevKeyTypeRef.current !== selectedKeyType) {
@@ -224,11 +227,18 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     
     if (hasSelection) {
       // 선택이 생겼을 때
-      if (!isPanelVisible) {
-        // 패널이 닫힌 상태에서 선택하면 → 속성 패널로 열기
+      if (!hadSelection) {
+        // 새로운 선택이 발생 → 명시적 닫기 플래그 리셋하고 패널 열기
+        manuallyClosedRef.current = false;
+        if (!isPanelVisible) {
+          setPanelMode("property");
+          setIsPanelVisible(true);
+        }
+      } else if (!isPanelVisible && !manuallyClosedRef.current) {
+        // 선택이 이미 있었고 패널이 닫혀있는데 명시적 닫기가 아닌 경우
         setPanelMode("property");
         setIsPanelVisible(true);
-      } else if (panelModeRef.current === "layer" && !selectionFromLayerPanelRef.current) {
+      } else if (panelModeRef.current === "layer" && !selectionFromLayerPanelRef.current && isPanelVisible) {
         // 레이어 패널 열린 상태에서 그리드에서 선택하면 → 속성 패널로 전환
         // (레이어 패널 내부에서 선택한 경우는 제외)
         setPanelMode("property");
@@ -242,7 +252,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
       } else if (selectionFromLayerPanelRef.current && isPanelVisible) {
         // 레이어 패널에서 선택 해제 → 패널 닫지 않고 레이어 모드 유지
         setPanelMode("layer");
-      } else {
+      } else if (!manuallyClosedRef.current) {
         // 일반적인 선택 해제 → 패널 닫기
         setIsPanelVisible(false);
       }
@@ -261,7 +271,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
 
   // 다중 선택 시 패널 자동 열기
   useEffect(() => {
-    if (selectedKeyElements.length > 1 && !isPanelVisible) {
+    if (selectedKeyElements.length > 1 && !isPanelVisible && !manuallyClosedRef.current) {
       setPanelMode("property");
       setIsPanelVisible(true);
     }
@@ -393,15 +403,20 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
 
   const handleTogglePanel = useCallback(() => {
     const willOpen = !isPanelVisible;
-    setIsPanelVisible(willOpen);
     
     if (willOpen) {
-      // 패널을 열 때 선택이 없으면 레이어 모드로 설정
+      // 패널을 열 때
+      manuallyClosedRef.current = false;
+      setIsPanelVisible(true);
+      // 선택이 없으면 레이어 모드로 설정
       const hasSelection = selectedElements.length > 0;
       if (!hasSelection) {
         setPanelMode("layer");
       }
     } else {
+      // 패널을 닫을 때 - 명시적 닫기 플래그 설정
+      manuallyClosedRef.current = true;
+      setIsPanelVisible(false);
       setShowImagePicker(false);
       setShowBatchImagePicker(false);
     }
