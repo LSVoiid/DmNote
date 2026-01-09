@@ -126,6 +126,22 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     selectedPluginElements.length === 1 && !!selectedPluginElement;
   const showModalHint = hasSinglePluginSelection && pluginSettingsUI === "modal";
   const showSettings = hasSinglePluginSelection && pluginSettingsUI !== "modal";
+  const isPluginResizable =
+    hasSinglePluginSelection && !!selectedPluginDefinition?.resizable;
+
+  const pluginDisplaySize = useMemo(() => {
+    const measured = selectedPluginElement?.measuredSize;
+    const estimated = selectedPluginElement?.estimatedSize;
+    return {
+      width: measured?.width ?? estimated?.width ?? 200,
+      height: measured?.height ?? estimated?.height ?? 150,
+    };
+  }, [
+    selectedPluginElement?.measuredSize?.width,
+    selectedPluginElement?.measuredSize?.height,
+    selectedPluginElement?.estimatedSize?.width,
+    selectedPluginElement?.estimatedSize?.height,
+  ]);
 
   // 단일 키 선택인 경우의 데이터
   const singleKeyIndex =
@@ -147,6 +163,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     Partial<KeyPosition> & { dx?: number; dy?: number }
   >({});
   const pluginSettingsHistoryRef = useRef<string | null>(null);
+  const pluginTransformHistoryRef = useRef<string | null>(null);
   const [pluginPanelSettings, setPluginPanelSettings] = useState<
     Record<string, any>
   >({});
@@ -360,6 +377,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
 
   useEffect(() => {
     pluginSettingsHistoryRef.current = null;
+    pluginTransformHistoryRef.current = null;
   }, [selectedPluginElement?.fullId]);
 
   // 선택된 키가 변경될 때 패널 열기/닫기
@@ -622,6 +640,107 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     selectedPluginElement,
   ]);
 
+  const ensurePluginTransformHistory = useCallback(() => {
+    if (!selectedPluginElement) return;
+    if (pluginTransformHistoryRef.current === selectedPluginElement.fullId) {
+      return;
+    }
+    pushHistoryState(keyMappings, positions, pluginElements);
+    pluginTransformHistoryRef.current = selectedPluginElement.fullId;
+  }, [
+    keyMappings,
+    positions,
+    pluginElements,
+    pushHistoryState,
+    selectedPluginElement,
+  ]);
+
+  const handlePluginPositionXChange = useCallback(
+    (value: number) => {
+      if (!selectedPluginElement) return;
+      ensurePluginTransformHistory();
+      updatePluginElement(selectedPluginElement.fullId, {
+        position: {
+          x: value,
+          y: selectedPluginElement.position.y,
+        },
+      });
+    },
+    [
+      ensurePluginTransformHistory,
+      selectedPluginElement?.fullId,
+      selectedPluginElement?.position.y,
+      updatePluginElement,
+    ],
+  );
+
+  const handlePluginPositionYChange = useCallback(
+    (value: number) => {
+      if (!selectedPluginElement) return;
+      ensurePluginTransformHistory();
+      updatePluginElement(selectedPluginElement.fullId, {
+        position: {
+          x: selectedPluginElement.position.x,
+          y: value,
+        },
+      });
+    },
+    [
+      ensurePluginTransformHistory,
+      selectedPluginElement?.fullId,
+      selectedPluginElement?.position.x,
+      updatePluginElement,
+    ],
+  );
+
+  const handlePluginWidthChange = useCallback(
+    (value: number) => {
+      if (!selectedPluginElement) return;
+      ensurePluginTransformHistory();
+      const baseHeight =
+        selectedPluginElement.measuredSize?.height ??
+        selectedPluginElement.estimatedSize?.height ??
+        150;
+      updatePluginElement(selectedPluginElement.fullId, {
+        measuredSize: {
+          width: value,
+          height: baseHeight,
+        },
+      });
+    },
+    [
+      ensurePluginTransformHistory,
+      selectedPluginElement?.estimatedSize?.height,
+      selectedPluginElement?.fullId,
+      selectedPluginElement?.measuredSize?.height,
+      updatePluginElement,
+    ],
+  );
+
+  const handlePluginHeightChange = useCallback(
+    (value: number) => {
+      if (!selectedPluginElement) return;
+      ensurePluginTransformHistory();
+      const baseWidth =
+        selectedPluginElement.measuredSize?.width ??
+        selectedPluginElement.estimatedSize?.width ??
+        200;
+      updatePluginElement(selectedPluginElement.fullId, {
+        measuredSize: {
+          width: baseWidth,
+          height: value,
+        },
+      });
+    },
+    [
+      ensurePluginTransformHistory,
+      selectedPluginElement?.estimatedSize?.width,
+      selectedPluginElement?.fullId,
+      selectedPluginElement?.measuredSize?.width,
+      updatePluginElement,
+    ],
+  );
+
   const handlePluginSettingChange = useCallback(
     (key: string, value: any) => {
       if (!selectedPluginElement) return;
@@ -770,7 +889,8 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
       values: Record<string, any>,
       messages: PluginMessages | undefined,
       colorIdPrefix: string,
-      onChange: (key: string, value: any) => void
+      onChange: (key: string, value: any) => void,
+      options?: { wrap?: boolean }
     ) => {
       if (!schema || Object.keys(schema).length === 0) {
         return (
@@ -803,114 +923,117 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
         return "200px";
       };
 
-      return (
-        <div className="flex flex-col gap-[12px]">
-          {Object.entries(schema).map(([key, setting]) => {
-            const schemaValue = setting as PluginSettingSchema;
-            const rawValue =
-              values[key] !== undefined ? values[key] : schemaValue.default;
-            const labelText = translate(schemaValue.label, schemaValue.label);
-            const placeholderText =
-              typeof schemaValue.placeholder === "string"
-                ? translate(schemaValue.placeholder, schemaValue.placeholder)
-                : schemaValue.placeholder;
+      const wrap = options?.wrap !== false;
+      const rows = Object.entries(schema).map(([key, setting]) => {
+        const schemaValue = setting as PluginSettingSchema;
+        const rawValue =
+          values[key] !== undefined ? values[key] : schemaValue.default;
+        const labelText = translate(schemaValue.label, schemaValue.label);
+        const placeholderText =
+          typeof schemaValue.placeholder === "string"
+            ? translate(schemaValue.placeholder, schemaValue.placeholder)
+            : schemaValue.placeholder;
 
-            let control: React.ReactNode = null;
+        let control: React.ReactNode = null;
 
-            if (schemaValue.type === "boolean") {
-              const checked = !!rawValue;
-              control = (
-                <Checkbox
-                  checked={checked}
-                  onChange={() => onChange(key, !checked)}
-                />
-              );
-            } else if (schemaValue.type === "color") {
-              const colorValue =
-                typeof rawValue === "string"
-                  ? rawValue
-                  : (schemaValue.default as string) || "#FFFFFF";
-              control = (
-                <ColorInput
-                  value={colorValue}
-                  onChange={(color) => onChange(key, color)}
-                  colorId={`${colorIdPrefix}-${key}`}
-                  panelElement={panelElement}
-                  solidOnly={true}
-                />
-              );
-            } else if (schemaValue.type === "number") {
-              const numericValue = Number(rawValue);
-              const normalizedValue = Number.isFinite(numericValue)
-                ? numericValue
-                : typeof schemaValue.default === "number"
-                ? schemaValue.default
-                : 0;
-              control = (
-                <NumberInput
-                  value={normalizedValue}
-                  min={schemaValue.min}
-                  max={schemaValue.max}
-                  onChange={(nextValue) => onChange(key, nextValue)}
-                  width={getPluginInputWidth("number", rawValue)}
-                />
-              );
-            } else if (schemaValue.type === "string") {
-              const stringValue =
-                rawValue === undefined || rawValue === null
-                  ? ""
-                  : String(rawValue);
-              control = (
-                <TextInput
-                  value={stringValue}
-                  onChange={(nextValue) => onChange(key, nextValue)}
-                  placeholder={
-                    typeof placeholderText === "string"
-                      ? placeholderText
-                      : undefined
-                  }
-                  width={getPluginInputWidth("string", stringValue)}
-                />
-              );
-            } else if (schemaValue.type === "select") {
-              const options = (schemaValue.options || []).map((option) => ({
-                label: translate(option.label, option.label),
-                value: String(option.value),
-              }));
-              const optionMap = new Map(
-                (schemaValue.options || []).map((option) => [
-                  String(option.value),
-                  option.value,
-                ])
-              );
-              const selectedValue = optionMap.has(String(rawValue))
-                ? String(rawValue)
-                : String(schemaValue.default ?? "");
-              control = (
-                <Dropdown
-                  value={selectedValue}
-                  options={options}
-                  placeholder={
-                    typeof placeholderText === "string" &&
-                    placeholderText.trim().length > 0
-                      ? placeholderText
-                      : undefined
-                  }
-                  onChange={(nextValue) =>
-                    onChange(key, optionMap.get(nextValue) ?? nextValue)
-                  }
-                />
-              );
-            }
+        if (schemaValue.type === "boolean") {
+          const checked = !!rawValue;
+          control = (
+            <Checkbox
+              checked={checked}
+              onChange={() => onChange(key, !checked)}
+            />
+          );
+        } else if (schemaValue.type === "color") {
+          const colorValue =
+            typeof rawValue === "string"
+              ? rawValue
+              : (schemaValue.default as string) || "#FFFFFF";
+          control = (
+            <ColorInput
+              value={colorValue}
+              onChange={(color) => onChange(key, color)}
+              colorId={`${colorIdPrefix}-${key}`}
+              panelElement={panelElement}
+              solidOnly={true}
+            />
+          );
+        } else if (schemaValue.type === "number") {
+          const numericValue = Number(rawValue);
+          const normalizedValue = Number.isFinite(numericValue)
+            ? numericValue
+            : typeof schemaValue.default === "number"
+            ? schemaValue.default
+            : 0;
+          control = (
+            <NumberInput
+              value={normalizedValue}
+              min={schemaValue.min}
+              max={schemaValue.max}
+              onChange={(nextValue) => onChange(key, nextValue)}
+              width={getPluginInputWidth("number", rawValue)}
+            />
+          );
+        } else if (schemaValue.type === "string") {
+          const stringValue =
+            rawValue === undefined || rawValue === null
+              ? ""
+              : String(rawValue);
+          control = (
+            <TextInput
+              value={stringValue}
+              onChange={(nextValue) => onChange(key, nextValue)}
+              placeholder={
+                typeof placeholderText === "string"
+                  ? placeholderText
+                  : undefined
+              }
+              width={getPluginInputWidth("string", stringValue)}
+            />
+          );
+        } else if (schemaValue.type === "select") {
+          const options = (schemaValue.options || []).map((option) => ({
+            label: translate(option.label, option.label),
+            value: String(option.value),
+          }));
+          const optionMap = new Map(
+            (schemaValue.options || []).map((option) => [
+              String(option.value),
+              option.value,
+            ])
+          );
+          const selectedValue = optionMap.has(String(rawValue))
+            ? String(rawValue)
+            : String(schemaValue.default ?? "");
+          control = (
+            <Dropdown
+              value={selectedValue}
+              options={options}
+              placeholder={
+                typeof placeholderText === "string" &&
+                placeholderText.trim().length > 0
+                  ? placeholderText
+                  : undefined
+              }
+              onChange={(nextValue) =>
+                onChange(key, optionMap.get(nextValue) ?? nextValue)
+              }
+            />
+          );
+        }
 
-            return (
-              <PropertyRow key={key} label={labelText}>
-                {control}
-              </PropertyRow>
-            );
-          })}
-        </div>
-      );
+        return (
+          <PropertyRow key={key} label={labelText}>
+            {control}
+          </PropertyRow>
+        );
+      });
+
+      if (!wrap) {
+        return <>{rows}</>;
+      }
+
+      return <div className="flex flex-col gap-[12px]">{rows}</div>;
     },
     [locale, panelElement, t]
   );
@@ -1137,13 +1260,13 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                 handlePluginSettingsPanelChange
               )}
             </div>
-          </div>
-          <div className="properties-panel-overlay-bar">
-            <div
-              ref={setPluginThumbRef}
-              className="properties-panel-overlay-thumb"
-              style={{ display: "none" }}
-            />
+            <div className="properties-panel-overlay-bar">
+              <div
+                ref={setPluginThumbRef}
+                className="properties-panel-overlay-thumb"
+                style={{ display: "none" }}
+              />
+            </div>
           </div>
         </div>
         <div className="border-t border-[#3A3943] p-[12px]">
@@ -1172,7 +1295,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     return (
       <LayerPanel 
         onClose={handleTogglePanel} 
-        onSwitchToProperty={hasAnySelection ? handleToggleMode : undefined}
+        onSwitchToProperty={handleToggleMode}
         hasSelection={hasAnySelection}
         onSelectionFromPanel={() => { selectionFromLayerPanelRef.current = true; }}
       />
@@ -1181,7 +1304,13 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
 
   // 선택된 키 요소가 없으면 레이어 패널 표시 (panelMode가 property여도)
   if (selectedKeyElements.length === 0 && selectedElements.length === 0) {
-    return <LayerPanel onClose={handleTogglePanel} onSelectionFromPanel={() => { selectionFromLayerPanelRef.current = true; }} />;
+    return (
+      <LayerPanel
+        onClose={handleTogglePanel}
+        onSwitchToProperty={handleToggleMode}
+        onSelectionFromPanel={() => { selectionFromLayerPanelRef.current = true; }}
+      />
+    );
   }
 
   // 다중 선택인 경우
@@ -1558,7 +1687,44 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
         </div>
         <div className="flex-1 properties-panel-overlay-scroll">
           <div ref={setPluginScrollRef} className="properties-panel-overlay-viewport">
-            <div className="p-[12px]">
+            <div className="p-[12px] flex flex-col gap-[12px]">
+              {isPluginResizable && (
+                <>
+                  <PropertyRow label={t("propertiesPanel.position") || "위치"}>
+                    <NumberInput
+                      value={selectedPluginElement?.position.x ?? 0}
+                      onChange={handlePluginPositionXChange}
+                      prefix="X"
+                      min={-9999}
+                      max={9999}
+                    />
+                    <NumberInput
+                      value={selectedPluginElement?.position.y ?? 0}
+                      onChange={handlePluginPositionYChange}
+                      prefix="Y"
+                      min={-9999}
+                      max={9999}
+                    />
+                  </PropertyRow>
+                  <PropertyRow label={t("propertiesPanel.size") || "크기"}>
+                    <NumberInput
+                      value={pluginDisplaySize.width}
+                      onChange={handlePluginWidthChange}
+                      prefix="W"
+                      min={10}
+                      max={9999}
+                    />
+                    <NumberInput
+                      value={pluginDisplaySize.height}
+                      onChange={handlePluginHeightChange}
+                      prefix="H"
+                      min={10}
+                      max={9999}
+                    />
+                  </PropertyRow>
+                  <SectionDivider />
+                </>
+              )}
               {!hasSinglePluginSelection && (
                 <p className="text-[#6B6D75] text-style-4 text-center">
                   {t("propertiesPanel.pluginMultiSelection") ||
@@ -1577,16 +1743,17 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                   resolvedPluginSettings,
                   selectedPluginDefinition?.messages,
                   `plugin-element-${selectedPluginElement?.fullId ?? "unknown"}`,
-                  handlePluginSettingChange
+                  handlePluginSettingChange,
+                  { wrap: false }
                 )}
             </div>
-          </div>
-          <div className="properties-panel-overlay-bar">
-            <div
-              ref={setPluginThumbRef}
-              className="properties-panel-overlay-thumb"
-              style={{ display: "none" }}
-            />
+            <div className="properties-panel-overlay-bar">
+              <div
+                ref={setPluginThumbRef}
+                className="properties-panel-overlay-thumb"
+                style={{ display: "none" }}
+              />
+            </div>
           </div>
         </div>
       </div>

@@ -100,7 +100,10 @@ const LayerPanel: React.FC<LayerPanelProps> = ({ onClose, onSwitchToProperty, ha
   // 드래그 상태
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
+  const [, setIsDragging] = useState(false);
+  const dragStartRef = useRef<{ x: number; y: number } | null>(null);
+  const isDraggingRef = useRef(false);
+  const didDragRef = useRef(false);
   
   // Shift 선택을 위한 마지막 클릭 인덱스
   const [lastClickedIndex, setLastClickedIndex] = useState<number | null>(null);
@@ -204,11 +207,49 @@ const LayerPanel: React.FC<LayerPanelProps> = ({ onClose, onSwitchToProperty, ha
   // 선택된 요소들 설정
   const setSelectedElements = useGridSelectionStore((state) => state.setSelectedElements);
 
+  // 더블클릭 핸들러 - 속성 패널로 전환
+  const handleItemDoubleClick = useCallback(
+    (item: LayerItem, index: number, e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (didDragRef.current || isDraggingRef.current) return;
+
+      // 레이어 패널에서 선택했음을 알림
+      onSelectionFromPanel?.();
+
+      // 해당 아이템 선택
+      clearSelection();
+      if (item.type === "key" && item.index !== undefined) {
+        toggleSelection({ type: "key", id: item.id, index: item.index });
+      } else if (item.type === "plugin") {
+        toggleSelection({ type: "plugin", id: item.id });
+      }
+
+      // 속성 패널로 전환
+      onSwitchToProperty?.();
+
+      // 마지막 클릭 인덱스 업데이트
+      setLastClickedIndex(index);
+    },
+    [clearSelection, toggleSelection, onSelectionFromPanel, onSwitchToProperty]
+  );
+
   // 아이템 클릭 핸들러 (드래그 중이 아닐 때만 선택)
   const handleItemClick = useCallback(
     (item: LayerItem, index: number, e: React.MouseEvent) => {
-      // 드래그 중이면 클릭 무시
-      if (isDragging) return;
+      // 드래그 직후 클릭 무시
+      if (didDragRef.current) {
+        didDragRef.current = false;
+        return;
+      }
+      if (isDraggingRef.current) return;
+
+      // 더블클릭은 바로 전환 처리
+      if (e.detail > 1) {
+        handleItemDoubleClick(item, index, e);
+        return;
+      }
 
       // 레이어 패널에서 선택했음을 알림 (모드 전환 방지)
       onSelectionFromPanel?.();
@@ -281,7 +322,7 @@ const LayerPanel: React.FC<LayerPanelProps> = ({ onClose, onSwitchToProperty, ha
       // 마지막 클릭 인덱스 업데이트 (Shift 선택의 기준점)
       setLastClickedIndex(index);
     },
-    [clearSelection, toggleSelection, isDragging, lastClickedIndex, selectedElements, setSelectedElements, onSelectionFromPanel]
+    [clearSelection, handleItemDoubleClick, lastClickedIndex, onSelectionFromPanel, selectedElements, setSelectedElements, toggleSelection]
   );
 
   // 아이템이 선택되었는지 확인
@@ -290,29 +331,6 @@ const LayerPanel: React.FC<LayerPanelProps> = ({ onClose, onSwitchToProperty, ha
       return selectedElements.some((el) => el.id === item.id);
     },
     [selectedElements]
-  );
-
-  // 더블클릭 핸들러 - 속성 패널로 전환
-  const handleItemDoubleClick = useCallback(
-    (item: LayerItem, index: number, e: React.MouseEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-
-      // 레이어 패널에서 선택했음을 알림
-      onSelectionFromPanel?.();
-
-      // 해당 아이템 선택
-      clearSelection();
-      if (item.type === "key" && item.index !== undefined) {
-        toggleSelection({ type: "key", id: item.id, index: item.index });
-      } else if (item.type === "plugin") {
-        toggleSelection({ type: "plugin", id: item.id });
-      }
-
-      // 속성 패널로 전환
-      onSwitchToProperty?.();
-    },
-    [clearSelection, toggleSelection, onSelectionFromPanel, onSwitchToProperty]
   );
 
   // 컨텍스트 메뉴 아이템
@@ -476,7 +494,7 @@ const LayerPanel: React.FC<LayerPanelProps> = ({ onClose, onSwitchToProperty, ha
   // 드래그 시작 (마우스 다운)
   const handleMouseDown = useCallback(
     (e: React.MouseEvent, item: LayerItem, index: number) => {
-      e.preventDefault();
+      if (e.button !== 0) return;
       
       const target = e.currentTarget as HTMLElement;
       const rect = target.getBoundingClientRect();
@@ -486,13 +504,25 @@ const LayerPanel: React.FC<LayerPanelProps> = ({ onClose, onSwitchToProperty, ha
         itemHeight: rect.height,
         currentOverIndex: null,
       };
-      
-      setDraggedItemId(item.id);
-      setIsDragging(true);
+      dragStartRef.current = { x: e.clientX, y: e.clientY };
+      isDraggingRef.current = false;
       
       // 마우스 이동 이벤트 핸들러
       const handleMouseMove = (moveEvent: MouseEvent) => {
-        if (!dragStateRef.current || !scrollElementRef.current) return;
+        if (!dragStateRef.current || !scrollElementRef.current || !dragStartRef.current) return;
+
+        const dx = moveEvent.clientX - dragStartRef.current.x;
+        const dy = moveEvent.clientY - dragStartRef.current.y;
+
+        if (!isDraggingRef.current) {
+          if (Math.abs(dx) < 3 && Math.abs(dy) < 3) return;
+          isDraggingRef.current = true;
+          didDragRef.current = true;
+          setDraggedItemId(item.id);
+          setIsDragging(true);
+        }
+
+        moveEvent.preventDefault();
         
         const scrollRect = scrollElementRef.current.getBoundingClientRect();
         const relativeY = moveEvent.clientY - scrollRect.top + scrollElementRef.current.scrollTop;
@@ -507,7 +537,7 @@ const LayerPanel: React.FC<LayerPanelProps> = ({ onClose, onSwitchToProperty, ha
       
       // 마우스 업 이벤트 핸들러
       const handleMouseUp = () => {
-        if (dragStateRef.current) {
+        if (dragStateRef.current && isDraggingRef.current) {
           const fromIndex = dragStateRef.current.startIndex;
           const toIndex = dragStateRef.current.currentOverIndex;
           
@@ -521,6 +551,8 @@ const LayerPanel: React.FC<LayerPanelProps> = ({ onClose, onSwitchToProperty, ha
         }
         
         dragStateRef.current = null;
+        dragStartRef.current = null;
+        isDraggingRef.current = false;
         setDraggedItemId(null);
         setDragOverIndex(null);
         setIsDragging(false);
@@ -593,7 +625,6 @@ const LayerPanel: React.FC<LayerPanelProps> = ({ onClose, onSwitchToProperty, ha
                   key={item.id}
                   onMouseDown={(e) => handleMouseDown(e, item, index)}
                   onClick={(e) => handleItemClick(item, index, e)}
-                  onDoubleClick={(e) => handleItemDoubleClick(item, index, e)}
                   onContextMenu={(e) => handleContextMenu(e, item, index)}
                   className={`
                     relative flex items-center gap-[8px] px-[12px] py-[8px]
