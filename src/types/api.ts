@@ -257,18 +257,24 @@ export type PluginSettingType =
   | "color"
   | "number"
   | "string"
-  | "select";
+  | "select"
+  | "divider";
 
-export interface PluginSettingSchema {
-  type: PluginSettingType;
-  default: any;
-  label: string;
-  min?: number; // for number
-  max?: number; // for number
-  step?: number; // for number
-  options?: { label: string; value: any }[]; // for select
-  placeholder?: string; // for string/number
-}
+export type PluginSettingSchema =
+  | {
+      type: "divider";
+      label?: string;
+    }
+  | {
+      type: Exclude<PluginSettingType, "divider">;
+      default: any;
+      label: string;
+      min?: number; // for number
+      max?: number; // for number
+      step?: number; // for number
+      options?: { label: string; value: any }[]; // for select
+      placeholder?: string; // for string/number
+    };
 
 export interface PluginDefinitionHookContext {
   setState: (updates: Record<string, any>) => void;

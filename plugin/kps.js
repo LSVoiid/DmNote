@@ -76,6 +76,7 @@ dmn.plugin.defineElement({
       default: true,
       label: "settings.showGraph",
     },
+    graphDivider: { type: "divider" },
     graphType: {
       type: "select",
       options: [

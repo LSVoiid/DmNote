@@ -36,6 +36,9 @@ const pluginSettings = dmn.plugin.defineSettings({
       default: "dark",
       label: "테마",
     },
+    sectionDivider: {
+      type: "divider",
+    },
     enabled: {
       type: "boolean",
       default: true,
@@ -43,6 +46,8 @@ const pluginSettings = dmn.plugin.defineSettings({
     },
   },
 });
+
+`type: "divider"`는 설정 패널/모달에 구분선만 추가합니다.
 
 // 설정값 조회
 const current = pluginSettings.get();

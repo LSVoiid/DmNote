@@ -90,11 +90,11 @@ export const createDefineElement = (deps: DefineElementDependencies) => {
 
     const defaultSettings: Record<string, any> = {};
     if (definition.settings) {
-      Object.entries(definition.settings).forEach(
-        ([key, schema]: [string, any]) => {
+      Object.entries(definition.settings).forEach(([key, schema]) => {
+        if (schema.type !== "divider") {
           defaultSettings[key] = schema.default;
         }
-      );
+      });
     }
 
     let currentLocale = "ko";
@@ -233,81 +233,84 @@ export const createDefineElement = (deps: DefineElementDependencies) => {
 
       if (definition.settings) {
         for (const [key, schema] of Object.entries(definition.settings)) {
-          const value =
-            currentSettings[key] !== undefined
-              ? currentSettings[key]
-              : schema.default;
-          let componentHtml = "";
-          const labelText = translate(schema.label, undefined, schema.label);
-          const placeholderText =
-            typeof schema.placeholder === "string"
-              ? translate(schema.placeholder, undefined, schema.placeholder)
-              : schema.placeholder;
+          if (schema.type === "divider") {
+            htmlContent += `<div class="w-full h-[1px] bg-[#3A3943]"></div>`;
+          } else {
+            const value =
+              currentSettings[key] !== undefined
+                ? currentSettings[key]
+                : schema.default;
+            let componentHtml = "";
+            const labelText = translate(schema.label, undefined, schema.label);
+            const placeholderText =
+              typeof schema.placeholder === "string"
+                ? translate(schema.placeholder, undefined, schema.placeholder)
+                : schema.placeholder;
 
-          const handleChange = async (newValue: any) => {
-            currentSettings[key] = newValue;
-            const newSettings = { ...currentSettings };
+            const handleChange = async (newValue: any) => {
+              currentSettings[key] = newValue;
+              const newSettings = { ...currentSettings };
 
-            window.api.ui.displayElement.update(instanceId, {
-              settings: newSettings,
-            });
-          };
-
-          const wrappedChange = wrapFunctionWithContext(handleChange);
-
-          if (schema.type === "boolean") {
-            componentHtml = window.api.ui.components.checkbox({
-              checked: !!value,
-              onChange: wrappedChange,
-            });
-          } else if (schema.type === "color") {
-            const handleColorClick = (e: any) => {
-              const target = (e.target as HTMLElement).closest("button");
-              if (!target) return;
-
-              const pickerId = `plugin-${pluginId}-${instanceId}-${key}`;
-
-              if (
-                (window as any).__dmn_showColorPicker &&
-                (window as any).__dmn_getColorPickerState
-              ) {
-                const state = (window as any).__dmn_getColorPickerState();
-                if (state?.isOpen && state.id === pickerId) {
-                  (window as any).__dmn_showColorPicker({
-                    initialColor: state.color,
-                    id: pickerId,
-                  });
-                  return;
-                }
-              }
-
-              target.classList.remove("border-[#3A3943]");
-              target.classList.add("border-[#459BF8]");
-
-              window.api.ui.pickColor({
-                initialColor: currentSettings[key],
-                id: pickerId,
-                referenceElement: target as HTMLElement,
-                onColorChange: (newColor) => {
-                  const preview = target.querySelector("div");
-                  if (preview) preview.style.backgroundColor = newColor;
-                },
-                onColorChangeComplete: (newColor) => {
-                  wrappedChange(newColor);
-                },
-                onClose: () => {
-                  target.classList.remove("border-[#459BF8]");
-                  target.classList.add("border-[#3A3943]");
-                },
+              window.api.ui.displayElement.update(instanceId, {
+                settings: newSettings,
               });
             };
 
-            const handlerId = handlerRegistry.register(
-              pluginId,
-              handleColorClick
-            );
+            const wrappedChange = wrapFunctionWithContext(handleChange);
 
-            componentHtml = `
+            if (schema.type === "boolean") {
+              componentHtml = window.api.ui.components.checkbox({
+                checked: !!value,
+                onChange: wrappedChange,
+              });
+            } else if (schema.type === "color") {
+              const handleColorClick = (e: any) => {
+                const target = (e.target as HTMLElement).closest("button");
+                if (!target) return;
+
+                const pickerId = `plugin-${pluginId}-${instanceId}-${key}`;
+
+                if (
+                  (window as any).__dmn_showColorPicker &&
+                  (window as any).__dmn_getColorPickerState
+                ) {
+                  const state = (window as any).__dmn_getColorPickerState();
+                  if (state?.isOpen && state.id === pickerId) {
+                    (window as any).__dmn_showColorPicker({
+                      initialColor: state.color,
+                      id: pickerId,
+                    });
+                    return;
+                  }
+                }
+
+                target.classList.remove("border-[#3A3943]");
+                target.classList.add("border-[#459BF8]");
+
+                window.api.ui.pickColor({
+                  initialColor: currentSettings[key],
+                  id: pickerId,
+                  referenceElement: target as HTMLElement,
+                  onColorChange: (newColor) => {
+                    const preview = target.querySelector("div");
+                    if (preview) preview.style.backgroundColor = newColor;
+                  },
+                  onColorChangeComplete: (newColor) => {
+                    wrappedChange(newColor);
+                  },
+                  onClose: () => {
+                    target.classList.remove("border-[#459BF8]");
+                    target.classList.add("border-[#3A3943]");
+                  },
+                });
+              };
+
+              const handlerId = handlerRegistry.register(
+                pluginId,
+                handleColorClick
+              );
+
+              componentHtml = `
               <button type="button" 
                 class="relative w-[80px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943] flex items-center justify-center text-[#DBDEE8] text-style-2"
                 data-plugin-handler="${handlerId}"
@@ -316,48 +319,49 @@ export const createDefineElement = (deps: DefineElementDependencies) => {
                 <span class="ml-[16px] text-left truncate w-[50px]">Linear</span>
               </button>
             `;
-          } else if (schema.type === "string" || schema.type === "number") {
-            let inputWidth = 200;
-            const strVal = String(value);
+            } else if (schema.type === "string" || schema.type === "number") {
+              let inputWidth = 200;
+              const strVal = String(value);
 
-            if (schema.type === "number") {
-              inputWidth = 60;
-            } else {
-              if (strVal.length <= 4) inputWidth = 60;
-              else if (strVal.length <= 10) inputWidth = 100;
-              else inputWidth = 200;
+              if (schema.type === "number") {
+                inputWidth = 60;
+              } else {
+                if (strVal.length <= 4) inputWidth = 60;
+                else if (strVal.length <= 10) inputWidth = 100;
+                else inputWidth = 200;
+              }
+
+              componentHtml = window.api.ui.components.input({
+                type: schema.type === "string" ? "text" : (schema.type as any),
+                value: value,
+                onChange: wrappedChange,
+                min: schema.min,
+                max: schema.max,
+                step: schema.step,
+                placeholder: placeholderText,
+                width: inputWidth,
+              });
+            } else if (schema.type === "select") {
+              const translatedOptions = (schema.options || []).map(
+                (option: { label: string; value: any }) => ({
+                  ...option,
+                  label: translate(option.label, undefined, option.label),
+                })
+              );
+              componentHtml = window.api.ui.components.dropdown({
+                options: translatedOptions,
+                selected: value,
+                onChange: wrappedChange,
+              });
             }
 
-            componentHtml = window.api.ui.components.input({
-              type: schema.type === "string" ? "text" : (schema.type as any),
-              value: value,
-              onChange: wrappedChange,
-              min: schema.min,
-              max: schema.max,
-              step: schema.step,
-              placeholder: placeholderText,
-              width: inputWidth,
-            });
-          } else if (schema.type === "select") {
-            const translatedOptions = (schema.options || []).map(
-              (option: { label: string; value: any }) => ({
-                ...option,
-                label: translate(option.label, undefined, option.label),
-              })
-            );
-            componentHtml = window.api.ui.components.dropdown({
-              options: translatedOptions,
-              selected: value,
-              onChange: wrappedChange,
-            });
-          }
-
-          htmlContent += `
+            htmlContent += `
             <div class="flex justify-between w-full items-center">
               <p class="text-white text-style-2">${labelText}</p>
               ${componentHtml}
             </div>
           `;
+          }
         }
       } else {
         const noSettingsText = await window.api.settings

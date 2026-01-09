@@ -33,7 +33,9 @@ export const createDefineSettings = (deps: DefineSettingsDependencies) => {
     const defaultSettings: Record<string, any> = {};
     if (definition.settings) {
       for (const [key, schema] of Object.entries(definition.settings)) {
-        defaultSettings[key] = schema.default;
+        if (schema.type !== "divider") {
+          defaultSettings[key] = schema.default;
+        }
       }
     }
 
@@ -159,86 +161,89 @@ export const createDefineSettings = (deps: DefineSettingsDependencies) => {
 
       if (definition.settings && Object.keys(definition.settings).length > 0) {
         for (const [key, schema] of Object.entries(definition.settings)) {
-          const value =
-            dialogSettings[key] !== undefined
-              ? dialogSettings[key]
-              : schema.default;
-          let componentHtml = "";
-          const labelText = translate(schema.label, undefined, schema.label);
-          const placeholderText =
-            typeof schema.placeholder === "string"
-              ? translate(schema.placeholder, undefined, schema.placeholder)
-              : schema.placeholder;
+          if (schema.type === "divider") {
+            htmlContent += `<div class="w-full h-[1px] bg-[#3A3943]"></div>`;
+          } else {
+            const value =
+              dialogSettings[key] !== undefined
+                ? dialogSettings[key]
+                : schema.default;
+            let componentHtml = "";
+            const labelText = translate(schema.label, undefined, schema.label);
+            const placeholderText =
+              typeof schema.placeholder === "string"
+                ? translate(schema.placeholder, undefined, schema.placeholder)
+                : schema.placeholder;
 
-          const handleChange = (newValue: any) => {
-            // 플러그인 컨텍스트 설정
-            const prev = (window as any).__dmn_current_plugin_id;
-            (window as any).__dmn_current_plugin_id = pluginId;
-            try {
-              dialogSettings[key] = newValue;
-              // 실시간 미리보기 적용
-              applyPreview(dialogSettings);
-            } finally {
-              (window as any).__dmn_current_plugin_id = prev;
-            }
-          };
-
-          if (schema.type === "boolean") {
-            componentHtml = window.api.ui.components.checkbox({
-              checked: !!value,
-              onChange: handleChange,
-            });
-          } else if (schema.type === "color") {
-            const handleColorClick = (e: any) => {
-              const target = (e.target as HTMLElement).closest("button");
-              if (!target) return;
-
-              const pickerId = `plugin-settings-${pluginId}-${key}`;
-
-              if (
-                (window as any).__dmn_showColorPicker &&
-                (window as any).__dmn_getColorPickerState
-              ) {
-                const state = (window as any).__dmn_getColorPickerState();
-                if (state?.isOpen && state.id === pickerId) {
-                  (window as any).__dmn_showColorPicker({
-                    initialColor: state.color,
-                    id: pickerId,
-                  });
-                  return;
-                }
+            const handleChange = (newValue: any) => {
+              // 플러그인 컨텍스트 설정
+              const prev = (window as any).__dmn_current_plugin_id;
+              (window as any).__dmn_current_plugin_id = pluginId;
+              try {
+                dialogSettings[key] = newValue;
+                // 실시간 미리보기 적용
+                applyPreview(dialogSettings);
+              } finally {
+                (window as any).__dmn_current_plugin_id = prev;
               }
-
-              target.classList.remove("border-[#3A3943]");
-              target.classList.add("border-[#459BF8]");
-
-              window.api.ui.pickColor({
-                initialColor: dialogSettings[key],
-                id: pickerId,
-                referenceElement: target as HTMLElement,
-                onColorChange: (newColor) => {
-                  // 컬러피커 프리뷰만 업데이트 (버튼 내 색상 미리보기)
-                  const preview = target.querySelector("div");
-                  if (preview) preview.style.backgroundColor = newColor;
-                },
-                onColorChangeComplete: (newColor) => {
-                  // 마우스를 떼었을 때 실제 적용
-                  dialogSettings[key] = newColor;
-                  applyPreview(dialogSettings);
-                },
-                onClose: () => {
-                  target.classList.remove("border-[#459BF8]");
-                  target.classList.add("border-[#3A3943]");
-                },
-              });
             };
 
-            const handlerId = handlerRegistry.register(
-              pluginId,
-              handleColorClick
-            );
+            if (schema.type === "boolean") {
+              componentHtml = window.api.ui.components.checkbox({
+                checked: !!value,
+                onChange: handleChange,
+              });
+            } else if (schema.type === "color") {
+              const handleColorClick = (e: any) => {
+                const target = (e.target as HTMLElement).closest("button");
+                if (!target) return;
 
-            componentHtml = `
+                const pickerId = `plugin-settings-${pluginId}-${key}`;
+
+                if (
+                  (window as any).__dmn_showColorPicker &&
+                  (window as any).__dmn_getColorPickerState
+                ) {
+                  const state = (window as any).__dmn_getColorPickerState();
+                  if (state?.isOpen && state.id === pickerId) {
+                    (window as any).__dmn_showColorPicker({
+                      initialColor: state.color,
+                      id: pickerId,
+                    });
+                    return;
+                  }
+                }
+
+                target.classList.remove("border-[#3A3943]");
+                target.classList.add("border-[#459BF8]");
+
+                window.api.ui.pickColor({
+                  initialColor: dialogSettings[key],
+                  id: pickerId,
+                  referenceElement: target as HTMLElement,
+                  onColorChange: (newColor) => {
+                    // 컬러피커 프리뷰만 업데이트 (버튼 내 색상 미리보기)
+                    const preview = target.querySelector("div");
+                    if (preview) preview.style.backgroundColor = newColor;
+                  },
+                  onColorChangeComplete: (newColor) => {
+                    // 마우스를 떼었을 때 실제 적용
+                    dialogSettings[key] = newColor;
+                    applyPreview(dialogSettings);
+                  },
+                  onClose: () => {
+                    target.classList.remove("border-[#459BF8]");
+                    target.classList.add("border-[#3A3943]");
+                  },
+                });
+              };
+
+              const handlerId = handlerRegistry.register(
+                pluginId,
+                handleColorClick
+              );
+
+              componentHtml = `
               <button type="button" 
                 class="relative w-[80px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943] flex items-center justify-center text-[#DBDEE8] text-style-2"
                 data-plugin-handler="${handlerId}"
@@ -247,48 +252,49 @@ export const createDefineSettings = (deps: DefineSettingsDependencies) => {
                 <span class="ml-[16px] text-left truncate w-[50px]">Linear</span>
               </button>
             `;
-          } else if (schema.type === "string" || schema.type === "number") {
-            let inputWidth = 200;
-            const strVal = String(value);
+            } else if (schema.type === "string" || schema.type === "number") {
+              let inputWidth = 200;
+              const strVal = String(value);
 
-            if (schema.type === "number") {
-              inputWidth = 60;
-            } else {
-              if (strVal.length <= 4) inputWidth = 60;
-              else if (strVal.length <= 10) inputWidth = 100;
-              else inputWidth = 200;
+              if (schema.type === "number") {
+                inputWidth = 60;
+              } else {
+                if (strVal.length <= 4) inputWidth = 60;
+                else if (strVal.length <= 10) inputWidth = 100;
+                else inputWidth = 200;
+              }
+
+              componentHtml = window.api.ui.components.input({
+                type: schema.type === "string" ? "text" : (schema.type as any),
+                value: value,
+                onChange: handleChange,
+                min: schema.min,
+                max: schema.max,
+                step: schema.step,
+                placeholder: placeholderText,
+                width: inputWidth,
+              });
+            } else if (schema.type === "select") {
+              const translatedOptions = (schema.options || []).map(
+                (option: { label: string; value: any }) => ({
+                  ...option,
+                  label: translate(option.label, undefined, option.label),
+                })
+              );
+              componentHtml = window.api.ui.components.dropdown({
+                options: translatedOptions,
+                selected: value,
+                onChange: handleChange,
+              });
             }
 
-            componentHtml = window.api.ui.components.input({
-              type: schema.type === "string" ? "text" : (schema.type as any),
-              value: value,
-              onChange: handleChange,
-              min: schema.min,
-              max: schema.max,
-              step: schema.step,
-              placeholder: placeholderText,
-              width: inputWidth,
-            });
-          } else if (schema.type === "select") {
-            const translatedOptions = (schema.options || []).map(
-              (option: { label: string; value: any }) => ({
-                ...option,
-                label: translate(option.label, undefined, option.label),
-              })
-            );
-            componentHtml = window.api.ui.components.dropdown({
-              options: translatedOptions,
-              selected: value,
-              onChange: handleChange,
-            });
-          }
-
-          htmlContent += `
+            htmlContent += `
             <div class="flex justify-between w-full items-center">
               <p class="text-white text-style-2">${labelText}</p>
               ${componentHtml}
             </div>
           `;
+          }
         }
       } else {
         const noSettingsText = await window.api.settings

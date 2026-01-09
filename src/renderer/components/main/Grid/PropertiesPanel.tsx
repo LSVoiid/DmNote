@@ -610,7 +610,9 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     if (selectedPluginDefinition?.settings) {
       Object.entries(selectedPluginDefinition.settings).forEach(
         ([key, schema]) => {
-          defaults[key] = (schema as any).default;
+          const schemaValue = schema as PluginSettingSchema;
+          if (schemaValue.type === "divider") return;
+          defaults[key] = schemaValue.default;
         }
       );
     }
@@ -926,6 +928,9 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
       const wrap = options?.wrap !== false;
       const rows = Object.entries(schema).map(([key, setting]) => {
         const schemaValue = setting as PluginSettingSchema;
+        if (schemaValue.type === "divider") {
+          return <SectionDivider key={`divider-${key}`} />;
+        }
         const rawValue =
           values[key] !== undefined ? values[key] : schemaValue.default;
         const labelText = translate(schemaValue.label, schemaValue.label);
@@ -1019,6 +1024,18 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                 onChange(key, optionMap.get(nextValue) ?? nextValue)
               }
             />
+          );
+        }
+
+        if (schemaValue.type === "boolean") {
+          return (
+            <div
+              key={key}
+              className="flex justify-between items-center w-full h-[23px]"
+            >
+              <p className="text-white text-style-2">{labelText}</p>
+              <div className="flex items-center gap-[10.5px]">{control}</div>
+            </div>
           );
         }
 
