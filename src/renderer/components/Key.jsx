@@ -604,6 +604,7 @@ export default function DraggableKey({
       style={keyStyle}
       data-state="inactive"
       data-editing={isDraggingOrResizing ? "true" : undefined}
+      data-key-element="true"
       onClick={handleClick}
       onMouseDown={isSelectionMode ? handleSelectionDragMouseDown : undefined}
       onContextMenu={handleContextMenu}

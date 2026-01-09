@@ -141,6 +141,9 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
 
   // 이전 선택 상태 추적 (선택 해제 감지용)
   const prevHasSelectionRef = useRef(false);
+  
+  // 레이어 패널 내부에서 선택이 발생했는지 추적 (모드 전환 방지용)
+  const selectionFromLayerPanelRef = useRef(false);
 
   // 탭 상태
   const [activeTab, setActiveTab] = useState<TabType>(TABS.STYLE);
@@ -211,8 +214,12 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
         // 패널이 닫힌 상태에서 선택하면 → 속성 패널로 열기
         setPanelMode("property");
         setIsPanelVisible(true);
+      } else if (panelModeRef.current === "layer" && !selectionFromLayerPanelRef.current) {
+        // 레이어 패널 열린 상태에서 그리드에서 선택하면 → 속성 패널로 전환
+        // (레이어 패널 내부에서 선택한 경우는 제외)
+        setPanelMode("property");
       }
-      // 패널이 이미 열려있으면 현재 모드 유지
+      // 속성 패널이 이미 열려있으면 현재 모드 유지
     } else if (hadSelection) {
       // 선택이 있었다가 해제된 경우에만 패널 닫기
       // (처음부터 선택이 없는 상태에서 토글로 열린 경우는 닫지 않음)
@@ -221,6 +228,8 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     
     // 이전 선택 상태 업데이트
     prevHasSelectionRef.current = hasSelection;
+    // 플래그 리셋
+    selectionFromLayerPanelRef.current = false;
     
     setShowImagePicker(false);
     setShowBatchImagePicker(false);
@@ -235,7 +244,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     }
   }, [selectedKeyElements.length, isPanelVisible]);
 
-  // 레이어 패널이 열려있고 선택이 없는 상태에서 그리드 클릭 시 패널 닫기
+  // 레이어 패널이 열려있고 선택이 없는 상태에서 그리드 빈 공간 클릭 시 패널 닫기
   useEffect(() => {
     // 레이어 모드이고 패널이 열려있고 선택이 없는 경우에만 리스너 등록
     const hasSelection = selectedKeyElements.length > 0 || selectedElements.length > 0;
@@ -259,7 +268,13 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
         return;
       }
       
-      // 그리드 영역 클릭 시 패널 닫기
+      // 키 요소 클릭은 무시 (선택으로 이어지므로 패널 닫지 않음)
+      if (target.closest('[data-key-element]') || 
+          target.closest('[data-plugin-element]')) {
+        return;
+      }
+      
+      // 그리드 빈 공간 클릭 시 패널 닫기
       setIsPanelVisible(false);
     };
 
@@ -652,13 +667,14 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
         onClose={handleTogglePanel} 
         onSwitchToProperty={hasAnySelection ? handleToggleMode : undefined}
         hasSelection={hasAnySelection}
+        onSelectionFromPanel={() => { selectionFromLayerPanelRef.current = true; }}
       />
     );
   }
 
   // 선택된 키 요소가 없으면 레이어 패널 표시 (panelMode가 property여도)
   if (selectedKeyElements.length === 0 && selectedElements.length === 0) {
-    return <LayerPanel onClose={handleTogglePanel} />;
+    return <LayerPanel onClose={handleTogglePanel} onSelectionFromPanel={() => { selectionFromLayerPanelRef.current = true; }} />;
   }
 
   // 다중 선택인 경우

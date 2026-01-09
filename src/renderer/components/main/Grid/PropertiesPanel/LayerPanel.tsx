@@ -30,6 +30,7 @@ interface LayerPanelProps {
   onClose: () => void;
   onSwitchToProperty?: () => void;
   hasSelection?: boolean;
+  onSelectionFromPanel?: () => void;
 }
 
 // ============================================================================
@@ -71,7 +72,7 @@ const PluginIcon: React.FC = () => (
 // 레이어 패널 컴포넌트
 // ============================================================================
 
-const LayerPanel: React.FC<LayerPanelProps> = ({ onClose, onSwitchToProperty, hasSelection = false }) => {
+const LayerPanel: React.FC<LayerPanelProps> = ({ onClose, onSwitchToProperty, hasSelection = false, onSelectionFromPanel }) => {
   const { t } = useTranslation();
   const selectedKeyType = useKeyStore((state) => state.selectedKeyType);
   const positions = useKeyStore((state) => state.positions);
@@ -195,6 +196,9 @@ const LayerPanel: React.FC<LayerPanelProps> = ({ onClose, onSwitchToProperty, ha
       // 드래그 중이면 클릭 무시
       if (isDragging) return;
 
+      // 레이어 패널에서 선택했음을 알림 (모드 전환 방지)
+      onSelectionFromPanel?.();
+
       const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
       const isPrimaryModifierPressed = isMac ? e.metaKey : e.ctrlKey;
       const isShiftPressed = e.shiftKey;
@@ -251,7 +255,7 @@ const LayerPanel: React.FC<LayerPanelProps> = ({ onClose, onSwitchToProperty, ha
       // 마지막 클릭 인덱스 업데이트 (Shift 선택의 기준점)
       setLastClickedIndex(index);
     },
-    [clearSelection, toggleSelection, isDragging, lastClickedIndex, selectedElements, setSelectedElements]
+    [clearSelection, toggleSelection, isDragging, lastClickedIndex, selectedElements, setSelectedElements, onSelectionFromPanel]
   );
 
   // 아이템이 선택되었는지 확인
@@ -543,15 +547,11 @@ const LayerPanel: React.FC<LayerPanelProps> = ({ onClose, onSwitchToProperty, ha
                   onContextMenu={(e) => handleContextMenu(e, item, index)}
                   className={`
                     relative flex items-center gap-[8px] px-[12px] py-[8px]
-                    select-none
+                    select-none cursor-grab
                     ${isItemSelected(item) 
                       ? "bg-[#3B82F6]/20 text-[#DBDEE8]" 
-                      : isDragging 
-                        ? "text-[#8B8D95]" 
-                        : "hover:bg-[#2A2A30] text-[#8B8D95]"
+                      : "hover:bg-[#2A2A30] text-[#8B8D95]"
                     }
-                    ${draggedItemId === item.id ? "opacity-50" : ""}
-                    ${isDragging ? "cursor-grabbing" : "cursor-grab"}
                   `}
                 >
                   {/* 드롭 인디케이터 (피그마 스타일 선) - 위쪽 */}
@@ -569,10 +569,7 @@ const LayerPanel: React.FC<LayerPanelProps> = ({ onClose, onSwitchToProperty, ha
                     {item.name}
                   </span>
 
-                  {/* 선택 표시 */}
-                  {isItemSelected(item) && (
-                    <div className="w-[6px] h-[6px] rounded-full bg-[#3B82F6] flex-shrink-0" />
-                  )}
+
                 </div>
               ))}
               
