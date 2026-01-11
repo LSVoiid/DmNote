@@ -12,6 +12,14 @@ export const TABS = {
 
 export type TabType = (typeof TABS)[keyof typeof TABS];
 
+// 레이어 패널 탭 상수
+export const LAYER_PANEL_TABS = {
+  LAYER: "layer",
+  GRID: "grid",
+} as const;
+
+export type LayerPanelTabType = (typeof LAYER_PANEL_TABS)[keyof typeof LAYER_PANEL_TABS];
+
 // ============================================================================
 // 컴포넌트 Props 타입
 // ============================================================================

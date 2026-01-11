@@ -342,6 +342,8 @@
     "tabStyle": "Style",
     "tabNote": "Note",
     "tabCounter": "Counter",
+    "tabLayer": "Layer",
+    "tabGrid": "Grid",
     "batchEditMode": "Batch Edit Mode",
     "alignment": "Alignment",
     "alignLeft": "Align Left",

@@ -342,6 +342,8 @@
     "tabStyle": "키",
     "tabNote": "노트",
     "tabCounter": "카운터",
+    "tabLayer": "레이어",
+    "tabGrid": "그리드",
     "batchEditMode": "일괄 편집 모드",
     "alignment": "정렬",
     "alignLeft": "왼쪽 정렬",
