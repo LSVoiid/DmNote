@@ -27,6 +27,7 @@ import {
 import {
   useGridSelectionStore,
   SelectedElement,
+  isElementInMarquee,
 } from "@stores/useGridSelectionStore";
 import { usePluginDisplayElementStore } from "@stores/usePluginDisplayElementStore";
 import { useKeyStore } from "@stores/useKeyStore";
@@ -1311,6 +1312,109 @@ export const PluginElement: React.FC<PluginElementProps> = ({
         type: "plugin",
         id: element.fullId,
       });
+      // 마지막 선택 요소 좌표 저장
+      if (element.measuredSize) {
+        useGridSelectionStore.getState().setLastSelectedKeyBounds({
+          x: element.position.x,
+          y: element.position.y,
+          width: element.measuredSize.width,
+          height: element.measuredSize.height,
+        });
+      }
+      return;
+    }
+
+    // Shift+클릭으로 범위 선택 (메인 윈도우에서만)
+    if (e.shiftKey && windowType === "main") {
+      e.stopPropagation();
+      const lastBounds = useGridSelectionStore.getState().lastSelectedKeyBounds;
+      
+      if (!lastBounds) {
+        // 이전 선택이 없으면 단일 선택처럼 동작
+        useGridSelectionStore.getState().selectElement({
+          type: "plugin",
+          id: element.fullId,
+        });
+        if (element.measuredSize) {
+          useGridSelectionStore.getState().setLastSelectedKeyBounds({
+            x: element.position.x,
+            y: element.position.y,
+            width: element.measuredSize.width,
+            height: element.measuredSize.height,
+          });
+        }
+        return;
+      }
+
+      // 현재 클릭한 플러그인 요소의 bounds
+      const clickedBounds = {
+        x: element.position.x,
+        y: element.position.y,
+        width: element.measuredSize?.width || 100,
+        height: element.measuredSize?.height || 100,
+      };
+
+      // 두 요소 사이의 사각형 영역 계산
+      const minX = Math.min(lastBounds.x, clickedBounds.x);
+      const maxX = Math.max(
+        lastBounds.x + lastBounds.width,
+        clickedBounds.x + clickedBounds.width
+      );
+      const minY = Math.min(lastBounds.y, clickedBounds.y);
+      const maxY = Math.max(
+        lastBounds.y + lastBounds.height,
+        clickedBounds.y + clickedBounds.height
+      );
+
+      const rangeRect = {
+        left: minX,
+        top: minY,
+        width: maxX - minX,
+        height: maxY - minY,
+      };
+
+      // 범위 내 모든 요소 선택
+      const newSelectedElements: SelectedElement[] = [];
+      const { positions, selectedKeyType } = useKeyStore.getState();
+      const pluginElements = usePluginDisplayElementStore.getState().elements;
+
+      // 키 요소 체크
+      positions[selectedKeyType]?.forEach((pos, i) => {
+        const elementBounds = {
+          x: pos.dx,
+          y: pos.dy,
+          width: pos.width || 60,
+          height: pos.height || 60,
+        };
+        if (isElementInMarquee(elementBounds, rangeRect)) {
+          newSelectedElements.push({
+            type: "key",
+            id: `key-${i}`,
+            index: i,
+          });
+        }
+      });
+
+      // 플러그인 요소 체크
+      pluginElements.forEach((el) => {
+        const belongsToCurrentTab = !el.tabId || el.tabId === selectedKeyType;
+        if (belongsToCurrentTab && el.measuredSize) {
+          const elementBounds = {
+            x: el.position.x,
+            y: el.position.y,
+            width: el.measuredSize.width,
+            height: el.measuredSize.height,
+          };
+          if (isElementInMarquee(elementBounds, rangeRect)) {
+            newSelectedElements.push({
+              type: "plugin",
+              id: el.fullId,
+            });
+          }
+        }
+      });
+
+      useGridSelectionStore.getState().setSelectedElements(newSelectedElements);
       return;
     }
 
@@ -1321,6 +1425,15 @@ export const PluginElement: React.FC<PluginElementProps> = ({
         type: "plugin",
         id: element.fullId,
       });
+      // 마지막 선택 요소 좌표 저장
+      if (element.measuredSize) {
+        useGridSelectionStore.getState().setLastSelectedKeyBounds({
+          x: element.position.x,
+          y: element.position.y,
+          width: element.measuredSize.width,
+          height: element.measuredSize.height,
+        });
+      }
       return;
     }
 

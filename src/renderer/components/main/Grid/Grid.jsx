@@ -402,6 +402,25 @@ export default function Grid({
             }
           });
 
+          // 범위 내 플러그인 요소도 선택
+          pluginElements.forEach((el) => {
+            const belongsToCurrentTab = !el.tabId || el.tabId === selectedKeyType;
+            if (belongsToCurrentTab && el.measuredSize) {
+              const elementBounds = {
+                x: el.position.x,
+                y: el.position.y,
+                width: el.measuredSize.width,
+                height: el.measuredSize.height,
+              };
+              if (isElementInMarquee(elementBounds, rangeRect)) {
+                newSelectedElements.push({
+                  type: "plugin",
+                  id: el.fullId,
+                });
+              }
+            }
+          });
+
           setSelectedElements(newSelectedElements);
         }}
         isSelected={selectedElements.some(
