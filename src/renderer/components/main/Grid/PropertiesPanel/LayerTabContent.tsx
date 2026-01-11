@@ -204,33 +204,33 @@ const LayerTabContent: React.FC<LayerTabContentProps> = ({ onSwitchToProperty, o
   // 선택된 요소들 설정
   const setSelectedElements = useGridSelectionStore((state) => state.setSelectedElements);
 
-  // 더블클릭 핸들러 - 속성 패널로 전환
-  const handleItemDoubleClick = useCallback(
-    (item: LayerItem, index: number, e: React.MouseEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
+  // 더블클릭 핸들러 - 속성 패널로 전환 (비활성화)
+  // const handleItemDoubleClick = useCallback(
+  //   (item: LayerItem, index: number, e: React.MouseEvent) => {
+  //     e.preventDefault();
+  //     e.stopPropagation();
 
-      if (didDragRef.current || isDraggingRef.current) return;
+  //     if (didDragRef.current || isDraggingRef.current) return;
 
-      // 레이어 패널에서 선택했음을 알림
-      onSelectionFromPanel?.();
+  //     // 레이어 패널에서 선택했음을 알림
+  //     onSelectionFromPanel?.();
 
-      // 해당 아이템 선택
-      clearSelection();
-      if (item.type === "key" && item.index !== undefined) {
-        toggleSelection({ type: "key", id: item.id, index: item.index });
-      } else if (item.type === "plugin") {
-        toggleSelection({ type: "plugin", id: item.id });
-      }
+  //     // 해당 아이템 선택
+  //     clearSelection();
+  //     if (item.type === "key" && item.index !== undefined) {
+  //       toggleSelection({ type: "key", id: item.id, index: item.index });
+  //     } else if (item.type === "plugin") {
+  //       toggleSelection({ type: "plugin", id: item.id });
+  //     }
 
-      // 속성 패널로 전환
-      onSwitchToProperty?.();
+  //     // 속성 패널로 전환
+  //     onSwitchToProperty?.();
 
-      // 마지막 클릭 인덱스 업데이트
-      setLastClickedIndex(index);
-    },
-    [clearSelection, toggleSelection, onSelectionFromPanel, onSwitchToProperty]
-  );
+  //     // 마지막 클릭 인덱스 업데이트
+  //     setLastClickedIndex(index);
+  //   },
+  //   [clearSelection, toggleSelection, onSelectionFromPanel, onSwitchToProperty]
+  // );
 
   // 아이템 클릭 핸들러 (드래그 중이 아닐 때만 선택)
   const handleItemClick = useCallback(
@@ -242,11 +242,11 @@ const LayerTabContent: React.FC<LayerTabContentProps> = ({ onSwitchToProperty, o
       }
       if (isDraggingRef.current) return;
 
-      // 더블클릭은 바로 전환 처리
-      if (e.detail > 1) {
-        handleItemDoubleClick(item, index, e);
-        return;
-      }
+      // 더블클릭은 바로 전환 처리 (비활성화)
+      // if (e.detail > 1) {
+      //   handleItemDoubleClick(item, index, e);
+      //   return;
+      // }
 
       // 레이어 패널에서 선택했음을 알림 (모드 전환 방지)
       onSelectionFromPanel?.();
@@ -319,7 +319,7 @@ const LayerTabContent: React.FC<LayerTabContentProps> = ({ onSwitchToProperty, o
       // 마지막 클릭 인덱스 업데이트 (Shift 선택의 기준점)
       setLastClickedIndex(index);
     },
-    [clearSelection, handleItemDoubleClick, lastClickedIndex, onSelectionFromPanel, selectedElements, setSelectedElements, toggleSelection]
+    [clearSelection, lastClickedIndex, onSelectionFromPanel, selectedElements, setSelectedElements, toggleSelection]
   );
 
   // 아이템이 선택되었는지 확인
@@ -343,6 +343,9 @@ const LayerTabContent: React.FC<LayerTabContentProps> = ({ onSwitchToProperty, o
       e.preventDefault();
       e.stopPropagation();
 
+      // 레이어 패널에서 선택했음을 알림 (모드 전환 방지)
+      onSelectionFromPanel?.();
+
       // 우클릭한 아이템이 선택되어 있지 않으면 해당 아이템만 선택
       if (!isItemSelected(item)) {
         clearSelection();
@@ -358,7 +361,7 @@ const LayerTabContent: React.FC<LayerTabContentProps> = ({ onSwitchToProperty, o
       setContextMenuPosition({ x: e.clientX, y: e.clientY });
       setContextMenuOpen(true);
     },
-    [isItemSelected, clearSelection, toggleSelection]
+    [isItemSelected, clearSelection, toggleSelection, onSelectionFromPanel]
   );
 
   // 컨텍스트 메뉴 선택 핸들러
@@ -583,7 +586,7 @@ const LayerTabContent: React.FC<LayerTabContentProps> = ({ onSwitchToProperty, o
                 key={item.id}
                 onMouseDown={(e) => handleMouseDown(e, item, index)}
                 onClick={(e) => handleItemClick(item, index, e)}
-                onDoubleClick={(e) => handleItemDoubleClick(item, index, e)}
+                // onDoubleClick={(e) => handleItemDoubleClick(item, index, e)}
                 onContextMenu={(e) => handleContextMenu(e, item, index)}
                 className={`
                   relative flex items-center gap-[8px] px-[12px] py-[8px]

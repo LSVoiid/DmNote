@@ -398,6 +398,9 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
         if (!isPanelVisible) {
           setPanelMode("property");
           setIsPanelVisible(true);
+        } else if (panelModeRef.current === "layer" && !selectionFromLayerPanelRef.current) {
+          // 레이어 패널이 열린 상태에서 그리드에서 첫 선택 → 속성 패널로 전환
+          setPanelMode("property");
         }
       } else if (!isPanelVisible && !manuallyClosedRef.current) {
         // 선택이 이미 있었고 패널이 닫혀있는데 명시적 닫기가 아닌 경우
