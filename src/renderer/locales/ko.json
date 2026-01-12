@@ -80,6 +80,7 @@
     "size": "크기",
     "noteColor": "노트 색상",
     "noteOpacity": "노트 투명도",
+    "noteBorderRadius": "노트 라운딩",
     "noteGlowSize": "글로우 범위",
     "noteGlowOpacity": "글로우 투명도",
     "inactiveState": "대기 상태",

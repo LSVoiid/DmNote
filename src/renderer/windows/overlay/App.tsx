@@ -10,7 +10,10 @@ import React, {
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { isMac } from "@utils/platform";
 import { Key } from "@components/Key";
-import { DEFAULT_NOTE_SETTINGS } from "@constants/overlayConfig";
+import {
+  DEFAULT_NOTE_BORDER_RADIUS,
+  DEFAULT_NOTE_SETTINGS,
+} from "@constants/overlayConfig";
 import { useCustomCssInjection } from "@hooks/useCustomCssInjection";
 import { useCustomJsInjection } from "@hooks/useCustomJsInjection";
 import { useBlockBrowserShortcuts } from "@hooks/useBlockBrowserShortcuts";
@@ -396,7 +399,7 @@ export default function App() {
           noteGlowColor: position.noteGlowColor ?? position.noteColor,
           flowSpeed: noteSettings?.speed ?? DEFAULT_NOTE_SETTINGS.speed,
           borderRadius:
-            noteSettings?.borderRadius ?? DEFAULT_NOTE_SETTINGS.borderRadius,
+            position.noteBorderRadius ?? DEFAULT_NOTE_BORDER_RADIUS,
         };
       }),
     [
@@ -406,7 +409,7 @@ export default function App() {
       topMostY,
       trackHeight,
       noteSettings?.speed,
-      noteSettings?.borderRadius,
+      DEFAULT_NOTE_BORDER_RADIUS,
     ]
   );
 

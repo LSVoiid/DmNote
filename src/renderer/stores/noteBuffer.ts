@@ -1,4 +1,7 @@
-import { DEFAULT_NOTE_SETTINGS } from "@constants/overlayConfig";
+import {
+  DEFAULT_NOTE_BORDER_RADIUS,
+  DEFAULT_NOTE_SETTINGS,
+} from "@constants/overlayConfig";
 
 const MAX_NOTES = 2048;
 
@@ -249,7 +252,7 @@ export class NoteBuffer {
     this.noteColorBottom[colorOffset + 3] = opacity;
 
     this.noteRadius[insertIndex] =
-      layout.borderRadius ?? DEFAULT_NOTE_SETTINGS.borderRadius;
+      layout.borderRadius ?? DEFAULT_NOTE_BORDER_RADIUS;
     this.trackIndex[insertIndex] = trackIndex;
     const glowOffset = insertIndex * 2;
     this.noteGlow[glowOffset] = glowSize;

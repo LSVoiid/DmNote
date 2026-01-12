@@ -247,6 +247,15 @@ fn normalize_state(mut data: AppStoreData) -> AppStoreData {
         merge_default_positions(&mut data.key_positions, default_positions());
     }
 
+    // Legacy migration: global noteSettings.borderRadius -> per-key noteBorderRadius
+    if let Some(legacy_border_radius) = data.note_settings.border_radius.take() {
+        for positions in data.key_positions.values_mut() {
+            for pos in positions.iter_mut() {
+                pos.note_border_radius = Some(legacy_border_radius);
+            }
+        }
+    }
+
     merge_default_counters(&mut data.key_counters, &data.keys);
 
     if !data.keys.contains_key(&data.selected_key_type) {

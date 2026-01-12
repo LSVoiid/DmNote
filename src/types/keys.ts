@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { NOTE_SETTINGS_CONSTRAINTS } from "./noteSettingsConstraints";
 
 export const keyCounterPlacementSchema = z.union([
   z.literal("inside"),
@@ -141,6 +142,13 @@ export const keyPositionSchema = z.object({
   count: z.number().int().nonnegative(),
   noteColor: noteColorSchema,
   noteOpacity: z.number().int().min(0).max(100),
+  // 노트 모서리 반경 (키별 설정, 없으면 기본값 사용)
+  noteBorderRadius: z
+    .number()
+    .int()
+    .min(NOTE_SETTINGS_CONSTRAINTS.borderRadius.min)
+    .max(NOTE_SETTINGS_CONSTRAINTS.borderRadius.max)
+    .optional(),
   noteEffectEnabled: z.boolean().optional().default(true),
   noteGlowEnabled: z.boolean().optional().default(false),
   noteGlowSize: z.number().int().min(0).max(50).optional().default(20),

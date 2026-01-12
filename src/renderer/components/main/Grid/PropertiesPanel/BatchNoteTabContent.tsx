@@ -2,6 +2,7 @@ import React from "react";
 import type { KeyPosition } from "@src/types/keys";
 import { PropertyRow, NumberInput, SectionDivider } from "./index";
 import Checkbox from "@components/main/common/Checkbox";
+import { NOTE_SETTINGS_CONSTRAINTS } from "@src/types/noteSettingsConstraints";
 
 interface BatchNoteTabContentProps {
   // getMixedValue 함수
@@ -118,6 +119,30 @@ const BatchNoteTabContent: React.FC<BatchNoteTabContentProps> = ({
           suffix="%"
           min={0}
           max={100}
+        />
+      </PropertyRow>
+
+      {/* 노트 라운딩 */}
+      <PropertyRow label={t("keySetting.noteBorderRadius") || "노트 라운딩"}>
+        {getMixedValue(
+          (pos) => pos.noteBorderRadius,
+          NOTE_SETTINGS_CONSTRAINTS.borderRadius.default,
+        ).isMixed ? (
+          <span className="text-[#6B6D75] text-style-4 italic">Mixed</span>
+        ) : null}
+        <NumberInput
+          value={
+            getMixedValue(
+              (pos) => pos.noteBorderRadius,
+              NOTE_SETTINGS_CONSTRAINTS.borderRadius.default,
+            ).value
+          }
+          onChange={(value) =>
+            handleBatchStyleChangeComplete("noteBorderRadius", value)
+          }
+          suffix="px"
+          min={NOTE_SETTINGS_CONSTRAINTS.borderRadius.min}
+          max={NOTE_SETTINGS_CONSTRAINTS.borderRadius.max}
         />
       </PropertyRow>
 

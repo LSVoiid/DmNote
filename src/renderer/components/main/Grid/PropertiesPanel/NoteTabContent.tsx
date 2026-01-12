@@ -9,6 +9,7 @@ import {
 import Checkbox from "@components/main/common/Checkbox";
 import ColorPicker from "@components/main/Modal/content/ColorPicker";
 import { isGradientColor } from "@utils/colorUtils";
+import { NOTE_SETTINGS_CONSTRAINTS } from "@src/types/noteSettingsConstraints";
 
 // 색상 모드 상수
 const COLOR_MODES = {
@@ -289,6 +290,22 @@ const NoteTabContent: React.FC<NoteTabContentProps> = ({
           suffix="%"
           min={0}
           max={100}
+        />
+      </PropertyRow>
+
+      {/* 노트 라운딩 */}
+      <PropertyRow label={t("keySetting.noteBorderRadius") || "노트 라운딩"}>
+        <NumberInput
+          value={
+            keyPosition.noteBorderRadius ??
+            NOTE_SETTINGS_CONSTRAINTS.borderRadius.default
+          }
+          onChange={(value) =>
+            handleStyleChangeComplete("noteBorderRadius", value)
+          }
+          suffix="px"
+          min={NOTE_SETTINGS_CONSTRAINTS.borderRadius.min}
+          max={NOTE_SETTINGS_CONSTRAINTS.borderRadius.max}
         />
       </PropertyRow>
 

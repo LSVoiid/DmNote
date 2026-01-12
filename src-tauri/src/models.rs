@@ -87,6 +87,8 @@ pub struct KeyPosition {
     pub count: u32,
     pub note_color: NoteColor,
     pub note_opacity: u32,
+    #[serde(default)]
+    pub note_border_radius: Option<u32>,
     #[serde(default = "default_note_effect_enabled")]
     pub note_effect_enabled: bool,
     #[serde(default = "default_note_glow_enabled")]
@@ -233,7 +235,9 @@ fn default_note_auto_y_correction() -> bool { true }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct NoteSettings {
-    pub border_radius: u32,
+    // Legacy: global note rounding (migrated to per-key noteBorderRadius).
+    #[serde(default, skip_serializing)]
+    pub border_radius: Option<u32>,
     pub speed: u32,
     pub track_height: u32,
     pub reverse: bool,
@@ -272,7 +276,7 @@ impl Default for ImageFit {
 impl Default for NoteSettings {
     fn default() -> Self {
         Self {
-            border_radius: 2,
+            border_radius: None,
             speed: 180,
             track_height: 150,
             reverse: false,
@@ -659,7 +663,6 @@ impl Default for SettingsState {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct NoteSettingsPatch {
-    pub border_radius: Option<u32>,
     pub speed: Option<u32>,
     pub track_height: Option<u32>,
     pub reverse: Option<bool>,
@@ -673,7 +676,6 @@ pub struct NoteSettingsPatch {
 impl Default for NoteSettingsPatch {
     fn default() -> Self {
         Self {
-            border_radius: None,
             speed: None,
             track_height: None,
             reverse: None,

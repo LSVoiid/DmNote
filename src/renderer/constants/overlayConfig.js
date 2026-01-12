@@ -1,8 +1,10 @@
 import { NOTE_SETTINGS_CONSTRAINTS } from "../../types/noteSettingsConstraints";
 
+export const DEFAULT_NOTE_BORDER_RADIUS =
+  NOTE_SETTINGS_CONSTRAINTS.borderRadius.default;
+
 // 노트 효과 기본 설정
 export const DEFAULT_NOTE_SETTINGS = {
-  borderRadius: NOTE_SETTINGS_CONSTRAINTS.borderRadius.default,
   speed: NOTE_SETTINGS_CONSTRAINTS.speed.default,
   trackHeight: NOTE_SETTINGS_CONSTRAINTS.trackHeight.default,
   reverse: false,

@@ -80,6 +80,7 @@
     "size": "Size",
     "noteColor": "Note Color",
     "noteOpacity": "Note Opacity",
+    "noteBorderRadius": "Note Corner Radius",
     "noteGlowSize": "Glow Size",
     "noteGlowOpacity": "Glow Opacity",
     "noteGlow": "Glow Effect",
