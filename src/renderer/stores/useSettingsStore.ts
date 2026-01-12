@@ -10,12 +10,14 @@ export interface GridSettings {
   alignmentGuides: boolean;
   spacingGuides: boolean;
   sizeMatchGuides: boolean;
+  minimapEnabled: boolean;
 }
 
 const DEFAULT_GRID_SETTINGS: GridSettings = {
   alignmentGuides: true,
   spacingGuides: true,
   sizeMatchGuides: true,
+  minimapEnabled: true,
 };
 
 interface SettingsState {

@@ -22,7 +22,10 @@ import { useKeyStore } from "@stores/useKeyStore";
 import { useAppBootstrap } from "@hooks/useAppBootstrap";
 import { useUpdateCheck } from "@hooks/useUpdateCheck";
 
+import { useUIStore } from "@stores/useUIStore";
+
 export default function App() {
+  const setGridAreaHovered = useUIStore((state) => state.setGridAreaHovered);
   const { selectedKeyType, setSelectedKeyType, isBootstrapped } = useKeyStore();
   useCustomCssInjection();
   useCustomJsInjection();
@@ -444,7 +447,11 @@ export default function App() {
             <SettingTab showAlert={showAlert} showConfirm={showConfirm} />
           </div>
         ) : (
-          <div className="flex-1 h-full overflow-hidden relative">
+          <div
+            className="flex-1 h-full overflow-hidden relative"
+            onMouseEnter={() => setGridAreaHovered(true)}
+            onMouseLeave={() => setGridAreaHovered(false)}
+          >
             <Grid
               selectedKey={selectedKey}
               setSelectedKey={setSelectedKey}

@@ -71,6 +71,7 @@ export default function Grid({
 }) {
   const selectedKeyType = useKeyStore((state) => state.selectedKeyType);
   const keyCounterEnabled = useSettingsStore((state) => state.keyCounterEnabled);
+  const minimapEnabled = useSettingsStore((state) => state.gridSettings.minimapEnabled);
   const { t, i18n } = useTranslation();
   const locale = i18n.language;
 
@@ -253,8 +254,8 @@ export default function Grid({
   // 탭 CSS 모달 상태
   const [isTabCssModalOpen, setIsTabCssModalOpen] = useState(false);
 
-  // 그리드 호버 상태 (미니맵 표시용)
-  const [isGridHovered, setIsGridHovered] = useState(false);
+  // 그리드 영역 호버 상태 (미니맵 표시용) - useUIStore에서 관리
+  const isGridAreaHovered = useUIStore((state) => state.isGridAreaHovered);
 
   // 기타 설정 팝업 열림 상태 (미니맵 표시 제어용)
   const isExtrasPopupOpen = useUIStore((state) => state.isExtrasPopupOpen);
@@ -612,9 +613,8 @@ export default function Grid({
           }
         }
       }}
-      onMouseEnter={() => setIsGridHovered(true)}
+      onMouseEnter={() => {}}
       onMouseLeave={() => {
-        setIsGridHovered(false);
         if (duplicateState) setDuplicateCursor(null);
       }}
       onMouseDownCapture={(e) => {
@@ -1241,19 +1241,24 @@ export default function Grid({
         />
       )}
       {/* 미니맵 */}
-      <GridMinimap
-        positions={positions[selectedKeyType] || []}
-        zoom={zoom}
-        panX={panX}
-        panY={panY}
-        containerRef={gridContainerRef}
-        mode={selectedKeyType}
-        visible={
-          isGridHovered && !isExtrasPopupOpen && !isExportImportPopupOpen
-        }
-      />
-      {/* 줌 레벨 표시 */}
-      <ZoomIndicator zoom={zoom} />
+      {minimapEnabled && (
+        <GridMinimap
+          positions={positions[selectedKeyType] || []}
+          zoom={zoom}
+          panX={panX}
+          panY={panY}
+          containerRef={gridContainerRef}
+          mode={selectedKeyType}
+          visible={
+            isGridAreaHovered && !isExtrasPopupOpen && !isExportImportPopupOpen
+          }
+          onZoomIn={zoomIn}
+          onZoomOut={zoomOut}
+          onResetZoom={resetZoom}
+        />
+      )}
+      {/* 줌 레벨 표시 - 미니맵 내부로 통합됨 */}
+      {/* <ZoomIndicator zoom={zoom} /> */}
       {/* 탭 CSS 설정 모달 */}
       <TabCssModal
         isOpen={isTabCssModalOpen}

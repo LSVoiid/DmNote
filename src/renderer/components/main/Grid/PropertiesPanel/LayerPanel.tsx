@@ -77,7 +77,9 @@ const LayerPanel: React.FC<LayerPanelProps> = ({ onClose, onSwitchToProperty, ha
   const setActiveTab = usePropertiesPanelStore((state) => state.setCanvasPanelActiveTab);
 
   return (
-    <div className="absolute right-0 top-0 bottom-0 w-[220px] bg-[#1F1F24] border-l border-[#3A3943] flex flex-col z-30 shadow-lg">
+    <div 
+      className="absolute right-0 top-0 bottom-0 w-[220px] bg-[#1F1F24] border-l border-[#3A3943] flex flex-col z-30 shadow-lg"
+    >
       {/* 헤더 + 탭 영역 */}
       <div className="flex-shrink-0 border-b border-[#3A3943]">
         {/* 헤더 */}

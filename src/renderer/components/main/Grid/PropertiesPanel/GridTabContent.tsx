@@ -1,6 +1,7 @@
 import React from "react";
 import { useTranslation } from "@contexts/I18nContext";
 import { useSettingsStore, type GridSettings } from "@stores/useSettingsStore";
+import { SectionDivider } from "./PropertyInputs";
 import Checkbox from "@components/main/common/Checkbox";
 
 // ============================================================================
@@ -42,7 +43,18 @@ const GridTabContent: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-[12px] p-[12px]">
-      {/* 정렬 가이드 */}
+      {/* 미니맵 */}
+      <CheckboxRow
+        label={t("gridSettings.minimapEnabled")}
+        checked={gridSettings.minimapEnabled}
+        onChange={() =>
+          handleSettingChange("minimapEnabled", !gridSettings.minimapEnabled)
+        }
+      />
+
+      <SectionDivider />
+
+      {/* 스마트 가이드 */}
       <CheckboxRow
         label={t("gridSettings.alignmentGuides")}
         checked={gridSettings.alignmentGuides}
@@ -50,8 +62,6 @@ const GridTabContent: React.FC = () => {
           handleSettingChange("alignmentGuides", !gridSettings.alignmentGuides)
         }
       />
-
-      {/* 간격 일치 가이드 */}
       <CheckboxRow
         label={t("gridSettings.spacingGuides")}
         checked={gridSettings.spacingGuides}
@@ -59,8 +69,6 @@ const GridTabContent: React.FC = () => {
           handleSettingChange("spacingGuides", !gridSettings.spacingGuides)
         }
       />
-
-      {/* 크기 일치 가이드 */}
       <CheckboxRow
         label={t("gridSettings.sizeMatchGuides")}
         checked={gridSettings.sizeMatchGuides}

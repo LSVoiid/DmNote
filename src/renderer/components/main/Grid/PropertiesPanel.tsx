@@ -12,6 +12,7 @@ import { useSettingsStore } from "@stores/useSettingsStore";
 import { useHistoryStore } from "@stores/useHistoryStore";
 import { usePluginDisplayElementStore } from "@stores/usePluginDisplayElementStore";
 import { usePropertiesPanelStore } from "@stores/usePropertiesPanelStore";
+import { useUIStore } from "@stores/useUIStore";
 import { getKeyInfoByGlobalKey } from "@utils/KeyMaps";
 import { translatePluginMessage } from "@utils/pluginI18n";
 import type { KeyPosition, KeyCounterSettings } from "@src/types/keys";
@@ -1786,10 +1787,10 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   }
 
   return (
-    <div
-      ref={setPanelElement}
-      className="absolute right-0 top-0 bottom-0 w-[220px] bg-[#1F1F24] border-l border-[#3A3943] flex flex-col z-30 shadow-lg"
-    >
+      <div
+        ref={setPanelElement}
+        className="absolute right-0 top-0 bottom-0 w-[220px] bg-[#1F1F24] border-l border-[#3A3943] flex flex-col z-30 shadow-lg"
+      >
       {/* 헤더 + 탭 영역 */}
       <div className="flex-shrink-0 border-b border-[#3A3943]">
         {/* 헤더 */}

@@ -290,6 +290,7 @@
     "alignmentGuides": "정렬 가이드",
     "spacingGuides": "간격 일치 가이드",
     "sizeMatchGuides": "크기 일치 가이드",
+    "minimapEnabled": "미니맵 표시",
     "save": "저장",
     "cancel": "취소"
   },
