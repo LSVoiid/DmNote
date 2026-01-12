@@ -535,6 +535,13 @@ export default function DraggableKey({
     const displayValue = counterPreviewValue ?? 0;
     const strokeWidth = strokeColorCss.alpha > 0 ? "1px" : "0px";
 
+    const counterDecorations = [];
+    if (counterSettings.fontUnderline) counterDecorations.push("underline");
+    if (counterSettings.fontStrikethrough)
+      counterDecorations.push("line-through");
+    const counterTextDecoration =
+      counterDecorations.length > 0 ? counterDecorations.join(" ") : "none";
+
     const counterElement = (
       <span
         key="counter"
@@ -542,8 +549,10 @@ export default function DraggableKey({
         data-text={displayValue}
         data-counter-state="inactive"
         style={{
-          fontSize: "16px",
-          fontWeight: 800,
+          fontSize: `${counterSettings.fontSize ?? 16}px`,
+          fontWeight: counterSettings.fontWeight ?? 800,
+          fontStyle: counterSettings.fontItalic ? "italic" : "normal",
+          textDecoration: counterTextDecoration,
           lineHeight: 1,
           "--counter-color-default": fillColorCss.css,
           "--counter-stroke-color-default": strokeColorCss.css,
@@ -830,6 +839,13 @@ export const Key = memo(
       const displayValue = counterValue || 0;
       const strokeWidth = strokeColorCss.alpha > 0 ? "1px" : "0px";
 
+      const counterDecorations = [];
+      if (counterSettings.fontUnderline) counterDecorations.push("underline");
+      if (counterSettings.fontStrikethrough)
+        counterDecorations.push("line-through");
+      const counterTextDecoration =
+        counterDecorations.length > 0 ? counterDecorations.join(" ") : "none";
+
       const counterElement = (
         <span
           key="counter"
@@ -837,8 +853,10 @@ export const Key = memo(
           data-text={displayValue}
           data-counter-state={active ? "active" : "inactive"}
           style={{
-            fontSize: "16px",
-            fontWeight: 800,
+            fontSize: `${counterSettings.fontSize ?? 16}px`,
+            fontWeight: counterSettings.fontWeight ?? 800,
+            fontStyle: counterSettings.fontItalic ? "italic" : "normal",
+            textDecoration: counterTextDecoration,
             lineHeight: 1,
             "--counter-color-default": fillColorCss.css,
             "--counter-stroke-color-default": strokeColorCss.css,
@@ -987,7 +1005,17 @@ export const Key = memo(
       prevProps.position.counter?.stroke?.active ===
         nextProps.position.counter?.stroke?.active &&
       (prevProps.position.counter?.gap ?? 6) ===
-        (nextProps.position.counter?.gap ?? 6)
+        (nextProps.position.counter?.gap ?? 6) &&
+      (prevProps.position.counter?.fontSize ?? 16) ===
+        (nextProps.position.counter?.fontSize ?? 16) &&
+      (prevProps.position.counter?.fontWeight ?? 800) ===
+        (nextProps.position.counter?.fontWeight ?? 800) &&
+      (prevProps.position.counter?.fontItalic ?? false) ===
+        (nextProps.position.counter?.fontItalic ?? false) &&
+      (prevProps.position.counter?.fontUnderline ?? false) ===
+        (nextProps.position.counter?.fontUnderline ?? false) &&
+      (prevProps.position.counter?.fontStrikethrough ?? false) ===
+        (nextProps.position.counter?.fontStrikethrough ?? false)
     );
   }
 );

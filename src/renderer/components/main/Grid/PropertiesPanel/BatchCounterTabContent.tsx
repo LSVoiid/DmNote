@@ -1,6 +1,6 @@
 import React from "react";
 import type { KeyCounterSettings } from "@src/types/keys";
-import { PropertyRow, NumberInput, SectionDivider } from "./index";
+import { PropertyRow, NumberInput, FontStyleToggle, SectionDivider } from "./index";
 import Checkbox from "@components/main/common/Checkbox";
 import Dropdown from "@components/main/common/Dropdown";
 
@@ -190,6 +190,40 @@ const BatchCounterTabContent: React.FC<BatchCounterTabContentProps> = ({
             </span>
           </button>
         </div>
+      </PropertyRow>
+
+      <SectionDivider />
+
+      {/* 폰트 크기 */}
+      <PropertyRow label={t("counterSetting.fontSize") || "폰트 크기"}>
+        <NumberInput
+          value={batchCounterSettings.fontSize ?? 16}
+          onChange={(value) => handleBatchCounterUpdate({ fontSize: value })}
+          suffix="px"
+          min={8}
+          max={72}
+          width="54px"
+        />
+      </PropertyRow>
+
+      {/* 폰트 스타일 */}
+      <PropertyRow label={t("counterSetting.fontStyle") || "폰트 스타일"}>
+        <FontStyleToggle
+          isBold={(batchCounterSettings.fontWeight ?? 800) >= 700}
+          isItalic={batchCounterSettings.fontItalic ?? false}
+          isUnderline={batchCounterSettings.fontUnderline ?? false}
+          isStrikethrough={batchCounterSettings.fontStrikethrough ?? false}
+          onBoldChange={(value) =>
+            handleBatchCounterUpdate({ fontWeight: value ? 800 : 400 })
+          }
+          onItalicChange={(value) => handleBatchCounterUpdate({ fontItalic: value })}
+          onUnderlineChange={(value) =>
+            handleBatchCounterUpdate({ fontUnderline: value })
+          }
+          onStrikethroughChange={(value) =>
+            handleBatchCounterUpdate({ fontStrikethrough: value })
+          }
+        />
       </PropertyRow>
     </>
   );

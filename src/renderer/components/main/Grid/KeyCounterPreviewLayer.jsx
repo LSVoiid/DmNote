@@ -87,6 +87,12 @@ const KeyCounterPreview = memo(({ position, previewValue = 0 }) => {
   const stroke = toCssRgba(strokeColor, "transparent");
   const strokeWidth = stroke.alpha > 0 ? "1px" : "0px";
 
+  const textDecorations = [];
+  if (counterSettings.fontUnderline) textDecorations.push("underline");
+  if (counterSettings.fontStrikethrough) textDecorations.push("line-through");
+  const textDecoration =
+    textDecorations.length > 0 ? textDecorations.join(" ") : "none";
+
   return (
     <div className="pointer-events-none" style={style}>
       <span
@@ -94,8 +100,10 @@ const KeyCounterPreview = memo(({ position, previewValue = 0 }) => {
         data-text={previewValue}
         data-counter-state="inactive"
         style={{
-          fontSize: "16px",
-          fontWeight: 800,
+          fontSize: `${counterSettings.fontSize ?? 16}px`,
+          fontWeight: counterSettings.fontWeight ?? 800,
+          fontStyle: counterSettings.fontItalic ? "italic" : "normal",
+          textDecoration,
           lineHeight: 1,
           "--counter-color-default": fill.css,
           "--counter-stroke-color-default": stroke.css,

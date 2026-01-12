@@ -28,6 +28,7 @@ export default function NoteSetting({ onClose, settings, onSave }) {
     { label: t("noteSetting.auto"), value: "auto" },
     { label: t("noteSetting.top"), value: "top" },
     { label: t("noteSetting.bottom"), value: "bottom" },
+    { label: t("noteSetting.none"), value: "none" },
   ];
 
   const handleSave = async () => {

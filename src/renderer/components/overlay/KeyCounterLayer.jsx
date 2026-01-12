@@ -109,6 +109,11 @@ const KeyCounter = memo(({ globalKey, position, mode }) => {
         globalKey={globalKey}
         active={active}
         offsetY={offsetY}
+        fontSize={counterSettings.fontSize}
+        fontWeight={counterSettings.fontWeight}
+        fontItalic={counterSettings.fontItalic}
+        fontUnderline={counterSettings.fontUnderline}
+        fontStrikethrough={counterSettings.fontStrikethrough}
       />
     </div>
   );

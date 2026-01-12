@@ -117,6 +117,7 @@
     "auto": "자동",
     "top": "상단",
     "bottom": "하단",
+    "none": "없음",
     "reverseEffect": "리버스 효과",
     "save": "저장",
     "cancel": "취소"
@@ -257,6 +258,8 @@
     "strokeActive": "외곽선 (입력)",
     "idle": "대기",
     "active": "입력",
+    "fontSize": "폰트 크기",
+    "fontStyle": "폰트 스타일",
     "apply": "적용하기",
     "cancel": "취소"
   },

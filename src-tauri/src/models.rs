@@ -201,6 +201,16 @@ pub struct KeyCounterSettings {
     pub stroke: KeyCounterColor,
     #[serde(default = "default_gap")]
     pub gap: u32,
+    #[serde(default = "default_counter_font_size")]
+    pub font_size: u32,
+    #[serde(default = "default_counter_font_weight")]
+    pub font_weight: u32,
+    #[serde(default)]
+    pub font_italic: bool,
+    #[serde(default)]
+    pub font_underline: bool,
+    #[serde(default)]
+    pub font_strikethrough: bool,
 }
 
 fn default_stroke_color() -> KeyCounterColor {
@@ -219,11 +229,18 @@ impl Default for KeyCounterSettings {
             fill: KeyCounterColor::default(),
             stroke: default_stroke_color(),
             gap: default_gap(),
+            font_size: default_counter_font_size(),
+            font_weight: default_counter_font_weight(),
+            font_italic: false,
+            font_underline: false,
+            font_strikethrough: false,
         }
     }
 }
 
 fn default_gap() -> u32 { 6 }
+fn default_counter_font_size() -> u32 { 16 }
+fn default_counter_font_weight() -> u32 { 800 }
 
 fn default_counter_enabled() -> bool { true }
 fn default_note_effect_enabled() -> bool { true }
@@ -255,6 +272,7 @@ pub enum FadePosition {
     Auto,
     Top,
     Bottom,
+    None,
 }
 
 /// 이미지 맞춤 설정 (CSS object-fit과 동일)

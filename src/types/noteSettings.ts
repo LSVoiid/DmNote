@@ -5,6 +5,7 @@ export const fadePositionSchema = z.union([
   z.literal("auto"),
   z.literal("top"),
   z.literal("bottom"),
+  z.literal("none"),
 ]);
 
 export const noteSettingsSchema = z.object({

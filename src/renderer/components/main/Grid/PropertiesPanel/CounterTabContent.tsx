@@ -4,6 +4,7 @@ import type { KeyCounterSettings } from "@src/types/keys";
 import { normalizeCounterSettings } from "@src/types/keys";
 import {
   PropertyRow,
+  FontStyleToggle,
   NumberInput,
   SectionDivider,
 } from "./PropertyInputs";
@@ -268,6 +269,39 @@ const CounterTabContent: React.FC<CounterTabContentProps> = ({
             <span className="ml-[16px] text-left">{t("counterSetting.active") || "입력"}</span>
           </button>
         </div>
+      </PropertyRow>
+
+      <SectionDivider />
+
+      {/* 폰트 크기 */}
+      <PropertyRow label={t("counterSetting.fontSize") || "폰트 크기"}>
+        <NumberInput
+          value={counterSettings.fontSize ?? 16}
+          onChange={(value) => handleCounterUpdate({ fontSize: value })}
+          suffix="px"
+          min={8}
+          max={72}
+        />
+      </PropertyRow>
+
+      {/* 폰트 스타일 */}
+      <PropertyRow label={t("counterSetting.fontStyle") || "폰트 스타일"}>
+        <FontStyleToggle
+          isBold={(counterSettings.fontWeight ?? 800) >= 700}
+          isItalic={counterSettings.fontItalic ?? false}
+          isUnderline={counterSettings.fontUnderline ?? false}
+          isStrikethrough={counterSettings.fontStrikethrough ?? false}
+          onBoldChange={(value) =>
+            handleCounterUpdate({ fontWeight: value ? 800 : 400 })
+          }
+          onItalicChange={(value) => handleCounterUpdate({ fontItalic: value })}
+          onUnderlineChange={(value) =>
+            handleCounterUpdate({ fontUnderline: value })
+          }
+          onStrikethroughChange={(value) =>
+            handleCounterUpdate({ fontStrikethrough: value })
+          }
+        />
       </PropertyRow>
 
       {pickerFor && (

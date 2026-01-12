@@ -165,15 +165,16 @@ const fragmentShader = `
     float trackRelativeY = gradientRatio;
 
     float fadePosFlag = uFadePosition;
+    bool fadeDisabled = fadePosFlag > 2.5;
     bool invertForFade = false;
-    if (fadePosFlag < 0.5) {
+    if (!fadeDisabled && fadePosFlag < 0.5) {
       invertForFade = (vReverse > 0.5);
-    } else if (abs(fadePosFlag - 1.0) < 0.1) {
+    } else if (!fadeDisabled && abs(fadePosFlag - 1.0) < 0.1) {
       invertForFade = false;
-    } else {
+    } else if (!fadeDisabled) {
       invertForFade = true;
     }
-    if (invertForFade) {
+    if (!fadeDisabled && invertForFade) {
       trackRelativeY = 1.0 - trackRelativeY;
     }
 
@@ -198,7 +199,7 @@ const fragmentShader = `
     }
 
     float fadeMask = 1.0;
-    if (trackRelativeY < fadeRatio) {
+    if (!fadeDisabled && trackRelativeY < fadeRatio) {
       fadeMask = clamp(trackRelativeY / fadeRatio, 0.0, 1.0);
     }
     bodyAlpha *= fadeMask;
@@ -358,6 +359,8 @@ export const WebGLTracksOGL = memo(
                 ? 1.0
                 : noteSettings.fadePosition === "bottom"
                 ? 2.0
+                : noteSettings.fadePosition === "none"
+                ? 3.0
                 : 0.0,
           },
         },
@@ -518,6 +521,8 @@ export const WebGLTracksOGL = memo(
           ? 1.0
           : noteSettings.fadePosition === "bottom"
           ? 2.0
+          : noteSettings.fadePosition === "none"
+          ? 3.0
           : 0.0;
     }, [noteSettings]);
 

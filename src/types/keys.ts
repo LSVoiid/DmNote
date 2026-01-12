@@ -26,6 +26,11 @@ const keyCounterSettingsInputSchema = z
     fill: keyCounterColorSchema.partial().optional(),
     stroke: keyCounterColorSchema.partial().optional(),
     gap: z.number().int().min(0).optional(),
+    fontSize: z.number().int().min(8).max(72).optional(),
+    fontWeight: z.number().int().min(100).max(900).optional(),
+    fontItalic: z.boolean().optional(),
+    fontUnderline: z.boolean().optional(),
+    fontStrikethrough: z.boolean().optional(),
   })
   .partial();
 
@@ -40,6 +45,11 @@ export interface KeyCounterSettings {
   fill: KeyCounterColor;
   stroke: KeyCounterColor;
   gap: number; // px 단위 간격
+  fontSize: number; // px
+  fontWeight: number; // CSS font-weight
+  fontItalic: boolean;
+  fontUnderline: boolean;
+  fontStrikethrough: boolean;
 }
 
 const COUNTER_DEFAULTS: KeyCounterSettings = Object.freeze({
@@ -51,6 +61,11 @@ const COUNTER_DEFAULTS: KeyCounterSettings = Object.freeze({
   // stroke: idle black, active white
   stroke: Object.freeze({ idle: "#000000", active: "#FFFFFF" }),
   gap: 6,
+  fontSize: 16,
+  fontWeight: 800,
+  fontItalic: false,
+  fontUnderline: false,
+  fontStrikethrough: false,
 });
 
 export function createDefaultCounterSettings(): KeyCounterSettings {
@@ -67,6 +82,11 @@ export function createDefaultCounterSettings(): KeyCounterSettings {
       active: COUNTER_DEFAULTS.stroke.active,
     },
     gap: COUNTER_DEFAULTS.gap,
+    fontSize: COUNTER_DEFAULTS.fontSize,
+    fontWeight: COUNTER_DEFAULTS.fontWeight,
+    fontItalic: COUNTER_DEFAULTS.fontItalic,
+    fontUnderline: COUNTER_DEFAULTS.fontUnderline,
+    fontStrikethrough: COUNTER_DEFAULTS.fontStrikethrough,
   };
 }
 
@@ -77,7 +97,19 @@ export function normalizeCounterSettings(raw: unknown): KeyCounterSettings {
     return fallback;
   }
 
-  const { enabled, placement, align, fill, stroke, gap } = parsed.data;
+  const {
+    enabled,
+    placement,
+    align,
+    fill,
+    stroke,
+    gap,
+    fontSize,
+    fontWeight,
+    fontItalic,
+    fontUnderline,
+    fontStrikethrough,
+  } = parsed.data;
   return {
     enabled: typeof enabled === "boolean" ? enabled : fallback.enabled,
     placement: placement ?? fallback.placement,
@@ -94,6 +126,24 @@ export function normalizeCounterSettings(raw: unknown): KeyCounterSettings {
       typeof gap === "number" && Number.isFinite(gap) && gap >= 0
         ? gap
         : fallback.gap,
+    fontSize:
+      typeof fontSize === "number" && Number.isFinite(fontSize)
+        ? fontSize
+        : fallback.fontSize,
+    fontWeight:
+      typeof fontWeight === "number" && Number.isFinite(fontWeight)
+        ? fontWeight
+        : fallback.fontWeight,
+    fontItalic:
+      typeof fontItalic === "boolean" ? fontItalic : fallback.fontItalic,
+    fontUnderline:
+      typeof fontUnderline === "boolean"
+        ? fontUnderline
+        : fallback.fontUnderline,
+    fontStrikethrough:
+      typeof fontStrikethrough === "boolean"
+        ? fontStrikethrough
+        : fallback.fontStrikethrough,
   };
 }
 

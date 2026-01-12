@@ -7,6 +7,11 @@ export default function CountDisplay({
   strokeColor,
   globalKey,
   active,
+  fontSize,
+  fontWeight,
+  fontItalic,
+  fontUnderline,
+  fontStrikethrough,
 }) {
   const [scale, setScale] = useState(1);
   const prevCount = useRef(count);
@@ -61,6 +66,12 @@ export default function CountDisplay({
   const stroke = toCssRgba(strokeColor, "transparent");
   const strokeWidth = stroke.alpha > 0 ? "1px" : "0px";
 
+  const textDecorations = [];
+  if (fontUnderline) textDecorations.push("underline");
+  if (fontStrikethrough) textDecorations.push("line-through");
+  const textDecoration =
+    textDecorations.length > 0 ? textDecorations.join(" ") : "none";
+
   return (
     <span
       className="counter"
@@ -69,8 +80,10 @@ export default function CountDisplay({
       style={{
         transform: `scale(${scale})`,
         transformOrigin: "center bottom",
-        fontSize: "16px",
-        fontWeight: 800,
+        fontSize: `${Number.isFinite(fontSize) ? fontSize : 16}px`,
+        fontWeight: Number.isFinite(fontWeight) ? fontWeight : 800,
+        fontStyle: fontItalic ? "italic" : "normal",
+        textDecoration,
         textAlign: "center",
         pointerEvents: "none",
         lineHeight: 1,

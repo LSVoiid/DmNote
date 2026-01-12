@@ -117,6 +117,7 @@
     "auto": "Auto",
     "top": "Top",
     "bottom": "Bottom",
+    "none": "None",
     "reverseEffect": "Reverse Effect",
     "save": "Apply",
     "cancel": "Cancel"
@@ -257,6 +258,8 @@
     "strokeActive": "Stroke (Active)",
     "idle": "Idle",
     "active": "Pressed",
+    "fontSize": "Font Size",
+    "fontStyle": "Font Style",
     "apply": "Apply",
     "cancel": "Cancel"
   },
