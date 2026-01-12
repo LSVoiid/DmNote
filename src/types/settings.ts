@@ -18,6 +18,7 @@ export interface GridSettings {
   spacingGuides: boolean;
   sizeMatchGuides: boolean;
   minimapEnabled: boolean;
+  gridSnapSize: number; // 그리드 스냅 크기 (1-10px)
 }
 
 export const DEFAULT_GRID_SETTINGS: GridSettings = {
@@ -25,6 +26,7 @@ export const DEFAULT_GRID_SETTINGS: GridSettings = {
   spacingGuides: true,
   sizeMatchGuides: true,
   minimapEnabled: true,
+  gridSnapSize: 5,
 };
 
 export interface SettingsState {

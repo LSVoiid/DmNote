@@ -3,7 +3,7 @@
  */
 
 // Constants
-export { GRID_SNAP, PASTE_OFFSET, ARROW_KEY_HISTORY_DELAY } from "./constants";
+export { PASTE_OFFSET, ARROW_KEY_HISTORY_DELAY } from "./constants";
 
 // Utils
 export { snapToGrid, snapCursorToGrid } from "./utils";

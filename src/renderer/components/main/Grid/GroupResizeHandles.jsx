@@ -2,7 +2,6 @@ import React, { useCallback, useRef, useState } from "react";
 import { usePluginDisplayElementStore } from "@stores/usePluginDisplayElementStore";
 import { useSmartGuidesStore } from "@stores/useSmartGuidesStore";
 import { useSettingsStore } from "@stores/useSettingsStore";
-import { RESIZE_SNAP } from "@hooks/Grid/constants";
 import {
   calculateBounds,
   calculateSnapPoints,
@@ -26,7 +25,6 @@ const EDGE_HANDLE_WIDTH = 8; // 상하좌우 핸들의 두께 (픽셀)
 const EDGE_HANDLE_LENGTH = 18; // 상하좌우 핸들의 길이 (픽셀)
 const HANDLE_HIT_SIZE = 18; // 핸들의 클릭 가능 영역 크기 (픽셀)
 const MIN_SIZE = 10; // 최소 크기 (픽셀)
-const RESIZE_SNAP_SIZE = RESIZE_SNAP; // 리사이즈 시 스냅 단위 (픽셀)
 const GROUP_BORDER_WIDTH = 3; // 그룹 테두리 두께 (픽셀)
 // ================================
 
@@ -375,13 +373,16 @@ export default function GroupResizeHandles({
         const rawDeltaX = (moveEvent.clientX - startMouseX) / zoom;
         const rawDeltaY = (moveEvent.clientY - startMouseY) / zoom;
 
+        // store에서 스냅 크기 가져오기
+        const snapSize = useSettingsStore.getState().gridSettings?.gridSnapSize || 5;
+
         const snapDelta = (delta) =>
-          Math.round(delta / RESIZE_SNAP_SIZE) * RESIZE_SNAP_SIZE;
+          Math.round(delta / snapSize) * snapSize;
 
         const clampShrinkDelta = (delta, handleDir, maxShrink) => {
           if (!Number.isFinite(maxShrink) || maxShrink <= 0) return delta;
           const maxSnapped =
-            Math.floor(maxShrink / RESIZE_SNAP_SIZE) * RESIZE_SNAP_SIZE;
+            Math.floor(maxShrink / snapSize) * snapSize;
           if (handleDir === -1) {
             return Math.min(delta, maxSnapped);
           }

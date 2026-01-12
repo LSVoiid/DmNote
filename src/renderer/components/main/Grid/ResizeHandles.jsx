@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from "react";
-import { RESIZE_SNAP } from "@hooks/Grid/constants";
+import { useSettingsStore } from "@stores/useSettingsStore";
 import {
   getCursor,
   lockCustomCursor,
@@ -18,7 +18,6 @@ const EDGE_HANDLE_WIDTH = 8; // 상하좌우 핸들의 두께 (픽셀) - 꼭짓�
 const EDGE_HANDLE_LENGTH = 18; // 상하좌우 핸들의 길이 (픽셀)
 const HANDLE_HIT_SIZE = 18; // 핸들의 클릭 가능 영역 크기 (픽셀) - 이 값을 조절하여 잡는 범위 변경
 const MIN_SIZE = 10; // 키의 최소 크기 (픽셀)
-const RESIZE_SNAP_SIZE = RESIZE_SNAP; // 리사이즈 시 스냅 단위 (픽셀) - 이 값을 조절하여 크기 조절 단위 변경
 // ================================
 
 const HANDLE_HIT_HALF = HANDLE_HIT_SIZE / 2;
@@ -215,11 +214,12 @@ export default function ResizeHandles({
           newHeight = Math.max(MIN_SIZE, startBounds.height + rawDeltaY);
         }
 
-        // 그리드 스냅 적용 (RESIZE_SNAP_SIZE 단위로)
-        newX = Math.round(newX / RESIZE_SNAP_SIZE) * RESIZE_SNAP_SIZE;
-        newY = Math.round(newY / RESIZE_SNAP_SIZE) * RESIZE_SNAP_SIZE;
-        newWidth = Math.round(newWidth / RESIZE_SNAP_SIZE) * RESIZE_SNAP_SIZE;
-        newHeight = Math.round(newHeight / RESIZE_SNAP_SIZE) * RESIZE_SNAP_SIZE;
+        // 그리드 스냅 적용 (store에서 스냅 크기 가져오기)
+        const snapSize = useSettingsStore.getState().gridSettings?.gridSnapSize || 5;
+        newX = Math.round(newX / snapSize) * snapSize;
+        newY = Math.round(newY / snapSize) * snapSize;
+        newWidth = Math.round(newWidth / snapSize) * snapSize;
+        newHeight = Math.round(newHeight / snapSize) * snapSize;
 
         // 최소 크기 보장
         newWidth = Math.max(MIN_SIZE, newWidth);

@@ -18,7 +18,6 @@ import { useKeyStore as useKeyStoreForHistory } from "@stores/useKeyStore";
 import { useSmartGuidesElements } from "@hooks/Grid";
 import { useSmartGuidesStore } from "@stores/useSmartGuidesStore";
 import { useSettingsStore } from "@stores/useSettingsStore";
-import { GRID_SNAP } from "@hooks/Grid/constants";
 import {
   calculateBounds,
   calculateSnapPoints,
@@ -410,6 +409,9 @@ export const PluginElement: React.FC<PluginElementProps> = ({
   // 스마트 가이드를 위한 다른 요소들의 bounds 가져오기
   const { getOtherElements } = useSmartGuidesElements();
 
+  // 그리드 스냅 크기 가져오기
+  const gridSnapSize = useSettingsStore((state) => state.gridSettings?.gridSnapSize || 5);
+
   // 선택 드래그 상태
   const multiDragRef = useRef<{
     isDragging: boolean;
@@ -435,7 +437,7 @@ export const PluginElement: React.FC<PluginElementProps> = ({
 
   // 드래그 지원 (main 윈도우에서만)
   const draggable = useDraggable({
-    gridSize: GRID_SNAP,
+    gridSize: gridSnapSize,
     initialX: calculatedPosition.x,
     initialY: calculatedPosition.y,
     onDragStart: saveToHistory, // 드래그 시작 시 히스토리 저장
@@ -621,7 +623,8 @@ export const PluginElement: React.FC<PluginElementProps> = ({
             }
           } else {
             // 그리드 스냅
-            finalX = Math.round(newX / GRID_SNAP) * GRID_SNAP;
+            const snapSize = gridSettings?.gridSnapSize || 5;
+            finalX = Math.round(newX / snapSize) * snapSize;
           }
 
           if (snapResult?.didSnapY) {
@@ -634,7 +637,8 @@ export const PluginElement: React.FC<PluginElementProps> = ({
             }
           } else {
             // 그리드 스냅
-            finalY = Math.round(newY / GRID_SNAP) * GRID_SNAP;
+            const snapSize = gridSettings?.gridSnapSize || 5;
+            finalY = Math.round(newY / snapSize) * snapSize;
           }
 
           // 스냅된 delta 계산

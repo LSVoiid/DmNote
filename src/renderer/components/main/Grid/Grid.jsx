@@ -29,7 +29,6 @@ import { useUIStore } from "@stores/useUIStore";
 import { useSmartGuidesStore } from "@stores/useSmartGuidesStore";
 import { useSettingsStore } from "@stores/useSettingsStore";
 import {
-  GRID_SNAP,
   snapCursorToGrid,
   useGridKeyboard,
   useGridSelection,
@@ -72,6 +71,7 @@ export default function Grid({
   const selectedKeyType = useKeyStore((state) => state.selectedKeyType);
   const keyCounterEnabled = useSettingsStore((state) => state.keyCounterEnabled);
   const minimapEnabled = useSettingsStore((state) => state.gridSettings.minimapEnabled);
+  const gridSnapSize = useSettingsStore((state) => state.gridSettings?.gridSnapSize || 5);
   const { t, i18n } = useTranslation();
   const locale = i18n.language;
 
@@ -638,7 +638,7 @@ export default function Grid({
     >
       {/* 정확한 그리드 배경 */}
       <GridBackground
-        gridSize={GRID_SNAP}
+        gridSize={gridSnapSize}
         zoom={zoom}
         panX={panX}
         panY={panY}

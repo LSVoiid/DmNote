@@ -6,7 +6,6 @@ import { useSignals } from "@preact/signals-react/runtime";
 import { isMac } from "@utils/platform";
 import { useDraggable } from "@hooks/Grid";
 import { getKeyInfoByGlobalKey } from "@utils/KeyMaps";
-import { GRID_SNAP } from "@hooks/Grid/constants";
 import {
   createDefaultCounterSettings,
   normalizeCounterSettings,
@@ -93,6 +92,9 @@ export default function DraggableKey({
   // 스마트 가이드를 위한 다른 요소들의 bounds 가져오기
   const { getOtherElements } = useSmartGuidesElements();
 
+  // 그리드 스냅 크기 가져오기
+  const gridSnapSize = useSettingsStore((state) => state.gridSettings?.gridSnapSize || 5);
+
   // 드래그/리사이즈 중인 상태 (CSS 애니메이션 비활성화용)
   const isDraggingOrResizing = useGridSelectionStore(
     (state) => state.isDraggingOrResizing
@@ -106,7 +108,7 @@ export default function DraggableKey({
   const isSelectionMode = isSelected;
 
   const draggable = useDraggable({
-    gridSize: GRID_SNAP,
+    gridSize: gridSnapSize,
     initialX: dx,
     initialY: dy,
     onPositionChange: (newDx, newDy) => {
@@ -278,7 +280,8 @@ export default function DraggableKey({
             }
           } else {
             // 그리드 스냅
-            finalX = Math.round(newX / GRID_SNAP) * GRID_SNAP;
+            const snapSize = gridSettings?.gridSnapSize || 5;
+            finalX = Math.round(newX / snapSize) * snapSize;
           }
 
           if (snapResult?.didSnapY) {
@@ -291,7 +294,8 @@ export default function DraggableKey({
             }
           } else {
             // 그리드 스냅
-            finalY = Math.round(newY / GRID_SNAP) * GRID_SNAP;
+            const snapSize = gridSettings?.gridSnapSize || 5;
+            finalY = Math.round(newY / snapSize) * snapSize;
           }
 
           // 스냅된 delta 계산

@@ -29,6 +29,7 @@ export default function GridSettingsModal({ onClose }: GridSettingsModalProps) {
       spacingGuides,
       sizeMatchGuides,
       minimapEnabled: gridSettings.minimapEnabled,
+      gridSnapSize: gridSettings.gridSnapSize,
     };
     setGridSettings(newSettings);
     try {

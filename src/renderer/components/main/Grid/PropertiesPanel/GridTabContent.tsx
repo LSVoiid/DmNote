@@ -1,7 +1,7 @@
 import React from "react";
 import { useTranslation } from "@contexts/I18nContext";
 import { useSettingsStore, type GridSettings } from "@stores/useSettingsStore";
-import { SectionDivider } from "./PropertyInputs";
+import { SectionDivider, PropertyRow, NumberInput } from "./PropertyInputs";
 import Checkbox from "@components/main/common/Checkbox";
 
 // ============================================================================
@@ -27,7 +27,7 @@ const GridTabContent: React.FC = () => {
   // 설정 변경 핸들러 (즉시 저장)
   const handleSettingChange = async (
     key: keyof GridSettings,
-    value: boolean
+    value: boolean | number
   ) => {
     const newSettings: GridSettings = {
       ...gridSettings,
@@ -43,6 +43,20 @@ const GridTabContent: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-[12px] p-[12px]">
+      {/* 그리드 스냅 크기 */}
+      <PropertyRow label={t("gridSettings.gridSnapSize")}>
+        <NumberInput
+          value={gridSettings.gridSnapSize}
+          onChange={(val) => handleSettingChange("gridSnapSize", val)}
+          min={1}
+          max={10}
+          suffix="px"
+          width="54px"
+        />
+      </PropertyRow>
+
+      <SectionDivider />
+
       {/* 미니맵 */}
       <CheckboxRow
         label={t("gridSettings.minimapEnabled")}
