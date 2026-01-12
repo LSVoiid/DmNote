@@ -439,10 +439,20 @@ pub struct GridSettings {
     /// 크기 일치 가이드 활성화 (리사이즈 시 크기 일치 스냅)
     #[serde(default = "default_true")]
     pub size_match_guides: bool,
+    /// 미니맵 표시 여부
+    #[serde(default = "default_true")]
+    pub minimap_enabled: bool,
+    /// 그리드 스냅 크기 (1-10px)
+    #[serde(default = "default_grid_snap_size")]
+    pub grid_snap_size: u32,
 }
 
 fn default_true() -> bool {
     true
+}
+
+fn default_grid_snap_size() -> u32 {
+    5
 }
 
 impl Default for GridSettings {
@@ -451,6 +461,8 @@ impl Default for GridSettings {
             alignment_guides: true,
             spacing_guides: true,
             size_match_guides: true,
+            minimap_enabled: true,
+            grid_snap_size: default_grid_snap_size(),
         }
     }
 }

@@ -1250,7 +1250,10 @@ export default function Grid({
           containerRef={gridContainerRef}
           mode={selectedKeyType}
           visible={
-            isGridAreaHovered && !isExtrasPopupOpen && !isExportImportPopupOpen
+            // 기존 로직: 그리드 호버 시에만 표시
+            // isGridAreaHovered && !isExtrasPopupOpen && !isExportImportPopupOpen
+            // 변경: minimapEnabled가 true면 항상 표시
+            true
           }
           onZoomIn={zoomIn}
           onZoomOut={zoomOut}
