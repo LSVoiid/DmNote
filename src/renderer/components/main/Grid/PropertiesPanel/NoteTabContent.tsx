@@ -11,6 +11,8 @@ import ColorPicker from "@components/main/Modal/content/ColorPicker";
 import { isGradientColor } from "@utils/colorUtils";
 import { NOTE_SETTINGS_CONSTRAINTS } from "@src/types/noteSettingsConstraints";
 
+const DEFAULT_NOTE_COLOR = "#FFFFFF";
+
 // 색상 모드 상수
 const COLOR_MODES = {
   solid: "solid",
@@ -53,34 +55,34 @@ const NoteTabContent: React.FC<NoteTabContentProps> = ({
     if (noteColor && typeof noteColor === "object" && noteColor.type === "gradient") {
       return noteColor.top;
     }
-    return typeof noteColor === "string" ? noteColor : "#FFA500";
+    return typeof noteColor === "string" ? noteColor : DEFAULT_NOTE_COLOR;
   });
   const [noteGradientBottom, setNoteGradientBottom] = useState<string>(() => {
     const noteColor = keyPosition.noteColor;
     if (noteColor && typeof noteColor === "object" && noteColor.type === "gradient") {
       return noteColor.bottom;
     }
-    return typeof noteColor === "string" ? noteColor : "#FFA500";
+    return typeof noteColor === "string" ? noteColor : DEFAULT_NOTE_COLOR;
   });
 
   // 글로우 색상 상태 (원본 모달과 동일한 패턴)
   const [glowColorMode, setGlowColorMode] = useState<ColorMode>(() => {
-    const glowColor = keyPosition.noteGlowColor;
+    const glowColor = keyPosition.noteGlowColor ?? keyPosition.noteColor;
     return isGradientColor(glowColor) ? COLOR_MODES.gradient : COLOR_MODES.solid;
   });
   const [glowColorTop, setGlowColorTop] = useState<string>(() => {
-    const glowColor = keyPosition.noteGlowColor;
+    const glowColor = keyPosition.noteGlowColor ?? keyPosition.noteColor;
     if (glowColor && typeof glowColor === "object" && glowColor.type === "gradient") {
       return glowColor.top;
     }
-    return typeof glowColor === "string" ? glowColor : "#FFA500";
+    return typeof glowColor === "string" ? glowColor : DEFAULT_NOTE_COLOR;
   });
   const [glowGradientBottom, setGlowGradientBottom] = useState<string>(() => {
-    const glowColor = keyPosition.noteGlowColor;
+    const glowColor = keyPosition.noteGlowColor ?? keyPosition.noteColor;
     if (glowColor && typeof glowColor === "object" && glowColor.type === "gradient") {
       return glowColor.bottom;
     }
-    return typeof glowColor === "string" ? glowColor : "#FFA500";
+    return typeof glowColor === "string" ? glowColor : DEFAULT_NOTE_COLOR;
   });
 
   // keyPosition 변경 시 내부 상태 동기화 (피커가 닫혀있을 때만)
@@ -95,7 +97,7 @@ const NoteTabContent: React.FC<NoteTabContentProps> = ({
       setNoteGradientBottom(noteColor.bottom);
     } else {
       setNoteColorMode(COLOR_MODES.solid);
-      const color = typeof noteColor === "string" ? noteColor : "#FFA500";
+      const color = typeof noteColor === "string" ? noteColor : DEFAULT_NOTE_COLOR;
       setNoteColorTop(color);
       setNoteGradientBottom(color);
     }
@@ -105,18 +107,18 @@ const NoteTabContent: React.FC<NoteTabContentProps> = ({
     // 피커가 열려있으면 외부 변경을 무시 (드래그 중 충돌 방지)
     if (pickerFor === "glow") return;
     
-    const glowColor = keyPosition.noteGlowColor;
+    const glowColor = keyPosition.noteGlowColor ?? keyPosition.noteColor;
     if (glowColor && typeof glowColor === "object" && glowColor.type === "gradient") {
       setGlowColorMode(COLOR_MODES.gradient);
       setGlowColorTop(glowColor.top);
       setGlowGradientBottom(glowColor.bottom);
     } else {
       setGlowColorMode(COLOR_MODES.solid);
-      const color = typeof glowColor === "string" ? glowColor : "#FFA500";
+      const color = typeof glowColor === "string" ? glowColor : DEFAULT_NOTE_COLOR;
       setGlowColorTop(color);
       setGlowGradientBottom(color);
     }
-  }, [keyPosition.noteGlowColor, pickerFor]);
+  }, [keyPosition.noteGlowColor, keyPosition.noteColor, pickerFor]);
 
   const interactiveRefs = useMemo(
     () => [noteColorButtonRef, glowColorButtonRef],

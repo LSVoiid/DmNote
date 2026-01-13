@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useRef, useState, useLayoutEffect } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useLayoutEffect,
+} from "react";
 import { useTranslation } from "@contexts/I18nContext";
 import { Saturation, Hue, Alpha, useColor } from "react-color-palette";
 import "react-color-palette/css";
@@ -57,6 +63,10 @@ export default function ColorPickerWrapper({
   const baseColor = normalizeColorInput(color);
   const [selectedColor, setSelectedColor] = useColor(baseColor);
   const [alpha, setAlpha] = useState(() => extractAlphaFromColor(color));
+  const [alphaPercentInput, setAlphaPercentInput] = useState(() =>
+    String(Math.round(extractAlphaFromColor(color) * 100))
+  );
+  const [isAlphaPercentFocused, setIsAlphaPercentFocused] = useState(false);
   const [gradientTop, setGradientTop] = useState(() =>
     isGradientColor(color)
       ? color.top.replace("#", "")
@@ -198,7 +208,7 @@ export default function ColorPickerWrapper({
     if (isDraggingRef.current) {
       return;
     }
-    
+
     const wasGradient = isGradientColor(prevColorRef.current);
     const isGradientNow = isGradientColor(color);
 
@@ -255,15 +265,65 @@ export default function ColorPickerWrapper({
   }, [color, gradientSelected]);
 
   const [inputValue, setInputValue] = useState(() =>
-    selectedColor.hex.replace("#", "").toUpperCase()
+    selectedColor.hex
+      .replace("#", "")
+      .toUpperCase()
+      .slice(0, solidOnly ? 6 : 8)
   );
 
   useEffect(() => {
-    setInputValue(selectedColor.hex.replace("#", "").toUpperCase());
-  }, [selectedColor.hex]);
+    setInputValue(
+      selectedColor.hex
+        .replace("#", "")
+        .toUpperCase()
+        .slice(0, solidOnly ? 6 : 8)
+    );
+  }, [selectedColor.hex, solidOnly]);
+
+  useEffect(() => {
+    if (solidOnly && !isAlphaPercentFocused) {
+      setAlphaPercentInput(String(Math.round(alpha * 100)));
+    }
+  }, [alpha, solidOnly, isAlphaPercentFocused]);
 
   // solidOnly 모드에서 Alpha 값 변경 반영 - useEffect 제거하여 무한 루프 방지
   // Alpha 슬라이더는 onChangeComplete에서 처리
+
+  const buildRgbaFromHexAndAlpha = useCallback((hex, nextAlpha) => {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${nextAlpha})`;
+  }, []);
+
+  const setAlphaWithSync = useCallback(
+    (nextAlpha, isComplete = false) => {
+      const clamped = Math.min(Math.max(Number(nextAlpha) || 0, 0), 1);
+      setAlpha(clamped);
+      setSelectedColor((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          rgb: { ...prev.rgb, a: clamped },
+          hsv: { ...prev.hsv, a: clamped },
+        };
+      });
+
+      if (!solidOnly) return;
+      const rgbaValue = buildRgbaFromHexAndAlpha(selectedColor.hex, clamped);
+      onColorChange?.(rgbaValue);
+      if (isComplete) {
+        onColorChangeComplete?.(rgbaValue);
+      }
+    },
+    [
+      buildRgbaFromHexAndAlpha,
+      onColorChange,
+      onColorChangeComplete,
+      selectedColor.hex,
+      solidOnly,
+    ]
+  );
 
   useEffect(() => {
     if (mode !== MODES.gradient || solidOnly) {
@@ -340,45 +400,45 @@ export default function ColorPickerWrapper({
   const handleInputChange = (raw) => {
     const sanitized = raw
       .replace(/[^0-9a-fA-F]/g, "")
-      .slice(0, 8)
+      .slice(0, solidOnly ? 6 : 8)
       .toUpperCase();
     setInputValue(sanitized);
   };
 
   const commitSolidInput = useCallback(() => {
     if (!inputValue) {
-      setInputValue(selectedColor.hex.slice(1));
+      setInputValue(
+        selectedColor.hex
+          .replace("#", "")
+          .toUpperCase()
+          .slice(0, solidOnly ? 6 : 8)
+      );
       return;
     }
 
-    // 8자리 hex인 경우 alpha 포함 (RRGGBBAA)
-    let colorPart = inputValue;
-    let newAlpha = alpha;
-
-    if (solidOnly && inputValue.length === 8) {
-      colorPart = inputValue.slice(0, 6);
-      newAlpha = parseInt(inputValue.slice(6, 8), 16) / 255;
-      setAlpha(newAlpha);
-    } else if (inputValue.length > 6) {
-      colorPart = inputValue.slice(0, 6);
-    }
-
-    const parsed = parseHexColor(colorPart);
+    const parsed = parseHexColor(inputValue);
     if (!parsed) {
-      setInputValue(selectedColor.hex.slice(1));
+      setInputValue(
+        selectedColor.hex
+          .replace("#", "")
+          .toUpperCase()
+          .slice(0, solidOnly ? 6 : 8)
+      );
       return;
     }
 
-    setSelectedColor(parsed);
+    setSelectedColor(
+      solidOnly
+        ? {
+            ...parsed,
+            rgb: { ...parsed.rgb, a: alpha },
+            hsv: { ...parsed.hsv, a: alpha },
+          }
+        : parsed
+    );
 
     if (solidOnly) {
-      const rgbaValue = `rgba(${parseInt(
-        parsed.hex.slice(1, 3),
-        16
-      )}, ${parseInt(parsed.hex.slice(3, 5), 16)}, ${parseInt(
-        parsed.hex.slice(5, 7),
-        16
-      )}, ${newAlpha})`;
+      const rgbaValue = buildRgbaFromHexAndAlpha(parsed.hex, alpha);
       onColorChange?.(rgbaValue);
       onColorChangeComplete?.(rgbaValue);
     } else {
@@ -392,7 +452,32 @@ export default function ColorPickerWrapper({
     solidOnly,
     onColorChange,
     onColorChangeComplete,
+    buildRgbaFromHexAndAlpha,
   ]);
+
+  const handleAlphaPercentChange = useCallback(
+    (raw) => {
+      const sanitized = raw.replace(/[^0-9]/g, "").slice(0, 3);
+      setAlphaPercentInput(sanitized);
+
+      if (sanitized === "") return;
+      const num = Math.min(Math.max(parseInt(sanitized, 10), 0), 100);
+      setAlphaWithSync(num / 100, false);
+    },
+    [setAlphaWithSync]
+  );
+
+  const commitAlphaPercent = useCallback(() => {
+    if (!solidOnly) return;
+    const raw = alphaPercentInput.trim();
+    if (!raw) {
+      setAlphaPercentInput(String(Math.round(alpha * 100)));
+      return;
+    }
+    const num = Math.min(Math.max(parseInt(raw, 10), 0), 100);
+    setAlphaPercentInput(String(num));
+    setAlphaWithSync(num / 100, true);
+  }, [alpha, alphaPercentInput, setAlphaWithSync, solidOnly]);
 
   const commitGradient = useCallback(() => {
     const parsedTop = parseHexColor(gradientTop);
@@ -453,44 +538,46 @@ export default function ColorPickerWrapper({
       setFixedPosition(null);
       return;
     }
-    
+
     if (panelElement) {
       // 다음 프레임에서 실제 렌더링된 picker 크기를 측정
       requestAnimationFrame(() => {
         const panelRect = panelElement.getBoundingClientRect();
-        
+
         // picker 요소의 실제 크기를 측정하거나 기본값 사용
         const pickerEl = pickerContainerRef.current;
         const pickerWidth = pickerEl ? pickerEl.offsetWidth : 164;
         // 솔리드 모드 높이를 기준으로 함
         const solidPickerHeight = solidOnly ? 280 : 264; // solidOnly일 때 Alpha 슬라이더 포함
-        const actualPickerHeight = pickerEl ? pickerEl.offsetHeight : solidPickerHeight;
-        
+        const actualPickerHeight = pickerEl
+          ? pickerEl.offsetHeight
+          : solidPickerHeight;
+
         const gap = 5; // 패널과 피커 사이의 간격
         const padding = 5; // 화면 가장자리 패딩
-        
+
         // X축: 패널 왼쪽에서 gap만큼 떨어진 위치
         let fixedX = panelRect.left - pickerWidth - gap;
-        
+
         // 왼쪽 화면 경계를 벗어나면 최소 padding 위치로 조정
         if (fixedX < padding) {
           fixedX = padding;
         }
-        
+
         // Y축: 패널 하단에서 picker 하단을 기준으로 정렬
         // 솔리드 피커의 하단 위치를 기준으로 함
         const panelBottomPadding = 20; // 패널 하단에서 약간 올려서 배치
         const solidPickerBottom = panelRect.bottom - panelBottomPadding;
-        
+
         // 그라디언트 모드일 때도 하단은 솔리드와 동일하게 유지
         // 따라서 Y 위치는 (하단 기준 - 실제 높이)
         let fixedY = solidPickerBottom - actualPickerHeight;
-        
+
         // Y축 상단 경계 체크
         if (fixedY < padding) {
           fixedY = padding;
         }
-        
+
         setFixedPosition({ x: fixedX, y: fixedY });
       });
     } else {
@@ -516,7 +603,7 @@ export default function ColorPickerWrapper({
       autoClose={false}
       closeOnScroll={false}
     >
-      <div 
+      <div
         ref={pickerContainerRef}
         className="flex flex-col p-[8px] gap-[8px] w-[146px] bg-[#1A191E] rounded-[13px] border-[1px] border-[#2A2A30]"
       >
@@ -537,32 +624,11 @@ export default function ColorPickerWrapper({
           <Alpha
             color={selectedColor}
             onChange={(color) => {
-              // 드래그 중 selectedColor와 alpha 상태 모두 업데이트 (핸들 실시간 이동)
-              setSelectedColor(color);
-              setAlpha(color.rgb.a);
-              // 실시간으로 부모에게도 전달
-              const rgbaValue = `rgba(${parseInt(
-                color.hex.slice(1, 3),
-                16
-              )}, ${parseInt(color.hex.slice(3, 5), 16)}, ${parseInt(
-                color.hex.slice(5, 7),
-                16
-              )}, ${color.rgb.a})`;
-              onColorChange?.(rgbaValue);
+              // Alpha 변경 시 hex 값은 유지하고 alpha만 동기화 (hex 입력 깜빡임 방지)
+              setAlphaWithSync(color.rgb.a, false);
             }}
             onChangeComplete={(color) => {
-              // 드래그 완료 시에도 최종 값 전달 (필요시 추가 처리)
-              setSelectedColor(color);
-              setAlpha(color.rgb.a);
-              const rgbaValue = `rgba(${parseInt(
-                color.hex.slice(1, 3),
-                16
-              )}, ${parseInt(color.hex.slice(3, 5), 16)}, ${parseInt(
-                color.hex.slice(5, 7),
-                16
-              )}, ${color.rgb.a})`;
-              onColorChange?.(rgbaValue);
-              onColorChangeComplete?.(rgbaValue);
+              setAlphaWithSync(color.rgb.a, true);
             }}
           />
         )}
@@ -573,6 +639,11 @@ export default function ColorPickerWrapper({
             onValueCommit={commitSolidInput}
             previewColor={selectedColor.hex}
             alpha={solidOnly ? alpha : undefined}
+            alphaPercentValue={alphaPercentInput}
+            alphaPercentFocused={isAlphaPercentFocused}
+            onAlphaPercentChange={handleAlphaPercentChange}
+            onAlphaPercentCommit={commitAlphaPercent}
+            onAlphaPercentFocusChange={setIsAlphaPercentFocused}
           />
         ) : (
           <GradientInputs
@@ -774,18 +845,15 @@ const Input = ({
   onValueCommit,
   previewColor,
   alpha,
+  alphaPercentValue,
+  alphaPercentFocused,
+  onAlphaPercentChange,
+  onAlphaPercentCommit,
+  onAlphaPercentFocusChange,
 }) => {
   const handleChange = (e) => {
     onValueChange?.(e.target.value);
   };
-
-  const displayValue =
-    alpha !== undefined
-      ? `${value}${Math.round(alpha * 255)
-          .toString(16)
-          .toUpperCase()
-          .padStart(2, "0")}`
-      : value;
 
   // previewColor를 RGBA로 변환
   const rgbaPreview =
@@ -799,23 +867,47 @@ const Input = ({
       : previewColor;
 
   return (
-    <div className="relative w-full">
-      <div
-        className="absolute left-[6px] top-[7px] w-[11px] h-[11px] rounded-[2px] border border-[#3A3943]"
-        style={{ background: rgbaPreview }}
-      />
-      <input
-        type="text"
-        value={displayValue}
-        onChange={handleChange}
-        onBlur={onValueCommit}
-        onKeyDown={(event) => {
-          if (event.key === "Enter") {
-            onValueCommit?.();
-          }
-        }}
-        className="pl-[23px] text-left w-full h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943] focus:border-[#459BF8] text-style-4 text-[#DBDEE8] uppercase pt-[1px] leading-[23px]"
-      />
+    <div className="flex items-center gap-[6px] w-full">
+      <div className="relative flex-1 min-w-0">
+        <div
+          className="absolute left-[6px] top-[7px] w-[11px] h-[11px] rounded-[2px] border border-[#3A3943]"
+          style={{ background: rgbaPreview }}
+        />
+        <input
+          type="text"
+          value={value}
+          onChange={handleChange}
+          onBlur={onValueCommit}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              onValueCommit?.();
+            }
+          }}
+          className="pl-[23px] text-left w-full h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943] focus:border-[#459BF8] text-style-4 text-[#DBDEE8] uppercase pt-[1px] leading-[23px]"
+        />
+      </div>
+
+      {alpha !== undefined && (
+        <div className="w-[36px] flex-shrink-0">
+          <input
+            type="text"
+            inputMode="numeric"
+            value={alphaPercentValue ?? ""}
+            onChange={(e) => onAlphaPercentChange?.(e.target.value)}
+            onFocus={() => onAlphaPercentFocusChange?.(true)}
+            onBlur={() => {
+              onAlphaPercentFocusChange?.(false);
+              onAlphaPercentCommit?.();
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.currentTarget.blur();
+              }
+            }}
+            className="px-[6px] text-center w-full h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943] focus:border-[#459BF8] text-style-4 text-[#DBDEE8] pt-[1px] leading-[23px]"
+          />
+        </div>
+      )}
     </div>
   );
 };

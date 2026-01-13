@@ -1,6 +1,5 @@
 import {
   DEFAULT_NOTE_BORDER_RADIUS,
-  DEFAULT_NOTE_SETTINGS,
 } from "@constants/overlayConfig";
 
 const MAX_NOTES = 2048;
@@ -150,11 +149,11 @@ export class NoteBuffer {
       : 0;
     const { top, bottom } = extractColorStops(
       layout.noteColor,
-      DEFAULT_NOTE_SETTINGS.noteColor
+      "#FFFFFF"
     );
     const glowStops = extractColorStops(
       layout.noteGlowColor ?? layout.noteColor,
-      DEFAULT_NOTE_SETTINGS.noteColor
+      "#FFFFFF"
     );
     const srgbTop = convertLinearToSRGB(top);
     const srgbBottom = convertLinearToSRGB(bottom);

@@ -343,8 +343,8 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     strokeIdle: string;
     strokeActive: string;
   }>({
-    noteColor: "#FFA500",
-    glowColor: "#FFA500",
+    noteColor: "#FFFFFF",
+    glowColor: "#FFFFFF",
     fillIdle: "#FFFFFF",
     fillActive: "#FFFFFF",
     strokeIdle: "#000000",
@@ -1096,10 +1096,10 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
               ) {
                 return { type: "gradient", top: nc.top, bottom: nc.bottom };
               }
-              return typeof nc === "string" ? nc : "#FFA500";
+              return typeof nc === "string" ? nc : "#FFFFFF";
             })(),
             glowColor: (() => {
-              const gc = firstPos.noteGlowColor;
+              const gc = firstPos.noteGlowColor ?? firstPos.noteColor;
               if (
                 gc &&
                 typeof gc === "object" &&
@@ -1108,7 +1108,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
               ) {
                 return { type: "gradient", top: gc.top, bottom: gc.bottom };
               }
-              return typeof gc === "string" ? gc : "#FFA500";
+              return typeof gc === "string" ? gc : "#FFFFFF";
             })(),
             fillIdle: counterSettings.fill.idle,
             fillActive: counterSettings.fill.active,
@@ -1138,7 +1138,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
       case "strokeActive":
         return batchLocalColors.strokeActive;
       default:
-        return "#FFA500";
+        return "#FFFFFF";
     }
   }, [batchPickerFor, batchLocalColors]);
 
@@ -1354,7 +1354,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
             isMixed: false,
           };
         }
-        const color = typeof value === "string" ? value : "#FFA500";
+        const color = typeof value === "string" ? value : "#FFFFFF";
         return {
           style: { backgroundColor: color },
           label: color.replace(/^#/, ""),
@@ -1364,7 +1364,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
 
       const { isMixed, value } = getMixedValue(
         (pos) => pos.noteColor,
-        "#FFA500",
+        "#FFFFFF",
       );
       if (isMixed)
         return {
@@ -1386,7 +1386,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
           isMixed: false,
         };
       }
-      const color = typeof value === "string" ? value : "#FFA500";
+      const color = typeof value === "string" ? value : "#FFFFFF";
       return {
         style: { backgroundColor: color },
         label: color.replace(/^#/, ""),
@@ -1412,7 +1412,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
             isMixed: false,
           };
         }
-        const color = typeof value === "string" ? value : "#FFA500";
+        const color = typeof value === "string" ? value : "#FFFFFF";
         return {
           style: { backgroundColor: color },
           label: color.replace(/^#/, ""),
@@ -1421,8 +1421,8 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
       }
 
       const { isMixed, value } = getMixedValue(
-        (pos) => pos.noteGlowColor,
-        "#FFA500",
+        (pos) => pos.noteGlowColor ?? pos.noteColor,
+        "#FFFFFF",
       );
       if (isMixed)
         return {
@@ -1444,7 +1444,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
           isMixed: false,
         };
       }
-      const color = typeof value === "string" ? value : "#FFA500";
+      const color = typeof value === "string" ? value : "#FFFFFF";
       return {
         style: { backgroundColor: color },
         label: color.replace(/^#/, ""),
