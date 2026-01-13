@@ -57,6 +57,10 @@ const StyleTabContent: React.FC<StyleTabContentInternalProps> = ({
   onLocalHeightChange,
   onSizeBlur,
 }) => {
+  const DEFAULT_KEY_BACKGROUND_COLOR = "rgba(46, 46, 47, 0.9)";
+  const DEFAULT_KEY_BORDER_COLOR = "rgba(113, 113, 113, 0.9)";
+  const DEFAULT_KEY_FONT_COLOR = "rgba(121, 121, 121, 0.9)";
+
   // 개별 편집 모드인지 확인 (로컬 상태 핸들러가 없으면 개별 편집 모드)
   const isIndividualMode = !onLocalDxChange;
 
@@ -71,21 +75,29 @@ const StyleTabContent: React.FC<StyleTabContentInternalProps> = ({
   
   // 로컬 색상 상태 (드래그 중 UI 업데이트용)
   const [localColors, setLocalColors] = useState({
-    backgroundColor: keyPosition.backgroundColor || "#2E2E2F",
-    borderColor: keyPosition.borderColor || "#717171",
-    fontColor: keyPosition.fontColor || "#717171",
+    backgroundColor: keyPosition.backgroundColor || DEFAULT_KEY_BACKGROUND_COLOR,
+    borderColor: keyPosition.borderColor || DEFAULT_KEY_BORDER_COLOR,
+    fontColor: keyPosition.fontColor || DEFAULT_KEY_FONT_COLOR,
   });
 
   // 피커가 닫혀있을 때만 외부 prop과 동기화
   useEffect(() => {
     if (!pickerFor || (pickerFor !== "backgroundColor" && pickerFor !== "borderColor" && pickerFor !== "fontColor")) {
       setLocalColors({
-        backgroundColor: keyPosition.backgroundColor || "#2E2E2F",
-        borderColor: keyPosition.borderColor || "#717171",
-        fontColor: keyPosition.fontColor || "#717171",
+        backgroundColor: keyPosition.backgroundColor || DEFAULT_KEY_BACKGROUND_COLOR,
+        borderColor: keyPosition.borderColor || DEFAULT_KEY_BORDER_COLOR,
+        fontColor: keyPosition.fontColor || DEFAULT_KEY_FONT_COLOR,
       });
     }
-  }, [pickerFor, keyPosition.backgroundColor, keyPosition.borderColor, keyPosition.fontColor]);
+  }, [
+    pickerFor,
+    keyPosition.backgroundColor,
+    keyPosition.borderColor,
+    keyPosition.fontColor,
+    DEFAULT_KEY_BACKGROUND_COLOR,
+    DEFAULT_KEY_BORDER_COLOR,
+    DEFAULT_KEY_FONT_COLOR,
+  ]);
 
   // interactiveRefs
   const colorPickerInteractiveRefs = useMemo(
@@ -270,18 +282,8 @@ const StyleTabContent: React.FC<StyleTabContentInternalProps> = ({
   // 색상 표시용 헬퍼 함수
   const getDisplayColor = (color: string): string => {
     if (!color) return "#ffffff";
-    if (color.startsWith("rgba") || color.startsWith("rgb")) {
-      const match = color.match(/\d+/g);
-      if (match && match.length >= 3) {
-        const r = parseInt(match[0]).toString(16).padStart(2, "0");
-        const g = parseInt(match[1]).toString(16).padStart(2, "0");
-        const b = parseInt(match[2]).toString(16).padStart(2, "0");
-        return `#${r}${g}${b}`;
-      }
-    }
-    if (color.startsWith("#")) {
-      return color.slice(0, 7);
-    }
+    if (color.startsWith("rgba") || color.startsWith("rgb")) return color;
+    if (color.startsWith("#")) return color;
     return "#ffffff";
   };
 

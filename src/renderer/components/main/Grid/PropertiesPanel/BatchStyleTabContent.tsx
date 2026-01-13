@@ -226,11 +226,19 @@ const BatchStyleTabContent: React.FC<BatchStyleTabContentProps> = ({
 
       {/* 배경색 */}
       <PropertyRow label={t("propertiesPanel.backgroundColor") || "배경색"}>
-        {getMixedValue((pos) => pos.backgroundColor, "#2E2E2F").isMixed ? (
+        {getMixedValue(
+          (pos) => pos.backgroundColor,
+          "rgba(46, 46, 47, 0.9)"
+        ).isMixed ? (
           <span className="text-[#6B6D75] text-style-4 italic">Mixed</span>
         ) : null}
         <ColorInput
-          value={getMixedValue((pos) => pos.backgroundColor, "#2E2E2F").value}
+          value={
+            getMixedValue(
+              (pos) => pos.backgroundColor,
+              "rgba(46, 46, 47, 0.9)"
+            ).value
+          }
           onChange={(color) => handleBatchStyleChange("backgroundColor", color)}
           onChangeComplete={(color) =>
             handleBatchStyleChangeComplete("backgroundColor", color)
@@ -241,11 +249,19 @@ const BatchStyleTabContent: React.FC<BatchStyleTabContentProps> = ({
 
       {/* 테두리 색상 */}
       <PropertyRow label={t("propertiesPanel.borderColor") || "테두리 색상"}>
-        {getMixedValue((pos) => pos.borderColor, "#717171").isMixed ? (
+        {getMixedValue(
+          (pos) => pos.borderColor,
+          "rgba(113, 113, 113, 0.9)"
+        ).isMixed ? (
           <span className="text-[#6B6D75] text-style-4 italic">Mixed</span>
         ) : null}
         <ColorInput
-          value={getMixedValue((pos) => pos.borderColor, "#717171").value}
+          value={
+            getMixedValue(
+              (pos) => pos.borderColor,
+              "rgba(113, 113, 113, 0.9)"
+            ).value
+          }
           onChange={(color) => handleBatchStyleChange("borderColor", color)}
           onChangeComplete={(color) =>
             handleBatchStyleChangeComplete("borderColor", color)
@@ -338,11 +354,15 @@ const BatchStyleTabContent: React.FC<BatchStyleTabContentProps> = ({
 
       {/* 글꼴 색상 */}
       <PropertyRow label={t("propertiesPanel.fontColor") || "글꼴 색상"}>
-        {getMixedValue((pos) => pos.fontColor, "#717171").isMixed ? (
+        {getMixedValue((pos) => pos.fontColor, "rgba(121, 121, 121, 0.9)")
+          .isMixed ? (
           <span className="text-[#6B6D75] text-style-4 italic">Mixed</span>
         ) : null}
         <ColorInput
-          value={getMixedValue((pos) => pos.fontColor, "#717171").value}
+          value={
+            getMixedValue((pos) => pos.fontColor, "rgba(121, 121, 121, 0.9)")
+              .value
+          }
           onChange={(color) => handleBatchStyleChange("fontColor", color)}
           onChangeComplete={(color) =>
             handleBatchStyleChangeComplete("fontColor", color)

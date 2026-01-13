@@ -327,18 +327,8 @@ export const ColorInput: React.FC<ColorInputProps> = ({
 
   const getDisplayColor = (color: string): string => {
     if (!color) return "#ffffff";
-    if (color.startsWith("rgba") || color.startsWith("rgb")) {
-      const match = color.match(/\d+/g);
-      if (match && match.length >= 3) {
-        const r = parseInt(match[0]).toString(16).padStart(2, "0");
-        const g = parseInt(match[1]).toString(16).padStart(2, "0");
-        const b = parseInt(match[2]).toString(16).padStart(2, "0");
-        return `#${r}${g}${b}`;
-      }
-    }
-    if (color.startsWith("#")) {
-      return color.slice(0, 7);
-    }
+    if (color.startsWith("rgba") || color.startsWith("rgb")) return color;
+    if (color.startsWith("#")) return color;
     return "#ffffff";
   };
 

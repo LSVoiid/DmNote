@@ -510,7 +510,7 @@ export default function DraggableKey({
         contain: "layout style paint",
         color: useInline && fontColor
           ? fontColor
-          : `var(--key-text-color, ${fontColor || "#717171"})`,
+          : `var(--key-text-color, ${fontColor || "rgba(121, 121, 121, 0.9)"})`,
         fontSize: fontSize ? `${fontSize}px` : undefined,
         fontWeight: fontWeight ?? 700,
         fontStyle: fontItalic ? "italic" : "normal",
