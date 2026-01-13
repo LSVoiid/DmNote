@@ -550,7 +550,7 @@ export default function DraggableKey({
         data-counter-state="inactive"
         style={{
           fontSize: `${counterSettings.fontSize ?? 16}px`,
-          fontWeight: counterSettings.fontWeight ?? 800,
+          fontWeight: counterSettings.fontWeight ?? 400,
           fontStyle: counterSettings.fontItalic ? "italic" : "normal",
           textDecoration: counterTextDecoration,
           lineHeight: 1,
@@ -854,7 +854,7 @@ export const Key = memo(
           data-counter-state={active ? "active" : "inactive"}
           style={{
             fontSize: `${counterSettings.fontSize ?? 16}px`,
-            fontWeight: counterSettings.fontWeight ?? 800,
+            fontWeight: counterSettings.fontWeight ?? 400,
             fontStyle: counterSettings.fontItalic ? "italic" : "normal",
             textDecoration: counterTextDecoration,
             lineHeight: 1,
@@ -1008,8 +1008,8 @@ export const Key = memo(
         (nextProps.position.counter?.gap ?? 6) &&
       (prevProps.position.counter?.fontSize ?? 16) ===
         (nextProps.position.counter?.fontSize ?? 16) &&
-      (prevProps.position.counter?.fontWeight ?? 800) ===
-        (nextProps.position.counter?.fontWeight ?? 800) &&
+      (prevProps.position.counter?.fontWeight ?? 400) ===
+        (nextProps.position.counter?.fontWeight ?? 400) &&
       (prevProps.position.counter?.fontItalic ?? false) ===
         (nextProps.position.counter?.fontItalic ?? false) &&
       (prevProps.position.counter?.fontUnderline ?? false) ===

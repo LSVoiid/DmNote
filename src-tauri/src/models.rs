@@ -240,7 +240,7 @@ impl Default for KeyCounterSettings {
 
 fn default_gap() -> u32 { 6 }
 fn default_counter_font_size() -> u32 { 16 }
-fn default_counter_font_weight() -> u32 { 800 }
+fn default_counter_font_weight() -> u32 { 400 }
 
 fn default_counter_enabled() -> bool { true }
 fn default_note_effect_enabled() -> bool { true }

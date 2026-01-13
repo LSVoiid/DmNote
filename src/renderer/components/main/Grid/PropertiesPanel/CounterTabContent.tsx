@@ -287,12 +287,12 @@ const CounterTabContent: React.FC<CounterTabContentProps> = ({
       {/* 폰트 스타일 */}
       <PropertyRow label={t("counterSetting.fontStyle") || "폰트 스타일"}>
         <FontStyleToggle
-          isBold={(counterSettings.fontWeight ?? 800) >= 700}
+          isBold={(counterSettings.fontWeight ?? 400) >= 700}
           isItalic={counterSettings.fontItalic ?? false}
           isUnderline={counterSettings.fontUnderline ?? false}
           isStrikethrough={counterSettings.fontStrikethrough ?? false}
           onBoldChange={(value) =>
-            handleCounterUpdate({ fontWeight: value ? 800 : 400 })
+            handleCounterUpdate({ fontWeight: value ? 700 : 400 })
           }
           onItalicChange={(value) => handleCounterUpdate({ fontItalic: value })}
           onUnderlineChange={(value) =>

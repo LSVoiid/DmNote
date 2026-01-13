@@ -62,7 +62,7 @@ const COUNTER_DEFAULTS: KeyCounterSettings = Object.freeze({
   stroke: Object.freeze({ idle: "#000000", active: "#FFFFFF" }),
   gap: 6,
   fontSize: 16,
-  fontWeight: 800,
+  fontWeight: 400,
   fontItalic: false,
   fontUnderline: false,
   fontStrikethrough: false,

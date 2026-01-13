@@ -209,12 +209,12 @@ const BatchCounterTabContent: React.FC<BatchCounterTabContentProps> = ({
       {/* 폰트 스타일 */}
       <PropertyRow label={t("counterSetting.fontStyle") || "폰트 스타일"}>
         <FontStyleToggle
-          isBold={(batchCounterSettings.fontWeight ?? 800) >= 700}
+          isBold={(batchCounterSettings.fontWeight ?? 400) >= 700}
           isItalic={batchCounterSettings.fontItalic ?? false}
           isUnderline={batchCounterSettings.fontUnderline ?? false}
           isStrikethrough={batchCounterSettings.fontStrikethrough ?? false}
           onBoldChange={(value) =>
-            handleBatchCounterUpdate({ fontWeight: value ? 800 : 400 })
+            handleBatchCounterUpdate({ fontWeight: value ? 700 : 400 })
           }
           onItalicChange={(value) => handleBatchCounterUpdate({ fontItalic: value })}
           onUnderlineChange={(value) =>

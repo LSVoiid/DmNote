@@ -101,7 +101,7 @@ const KeyCounterPreview = memo(({ position, previewValue = 0 }) => {
         data-counter-state="inactive"
         style={{
           fontSize: `${counterSettings.fontSize ?? 16}px`,
-          fontWeight: counterSettings.fontWeight ?? 800,
+          fontWeight: counterSettings.fontWeight ?? 400,
           fontStyle: counterSettings.fontItalic ? "italic" : "normal",
           textDecoration,
           lineHeight: 1,
