@@ -111,7 +111,11 @@ pub struct KeyPosition {
     #[serde(default)]
     pub background_color: Option<String>,
     #[serde(default)]
+    pub active_background_color: Option<String>,
+    #[serde(default)]
     pub border_color: Option<String>,
+    #[serde(default)]
+    pub active_border_color: Option<String>,
     #[serde(default)]
     pub border_width: Option<f64>,
     #[serde(default)]
@@ -120,6 +124,8 @@ pub struct KeyPosition {
     pub font_size: Option<f64>,
     #[serde(default)]
     pub font_color: Option<String>,
+    #[serde(default)]
+    pub active_font_color: Option<String>,
     #[serde(default)]
     pub image_fit: Option<ImageFit>,
     /// 인라인 스타일 우선 여부 (true: 속성 패널 스타일 우선, false: 커스텀 CSS 우선)

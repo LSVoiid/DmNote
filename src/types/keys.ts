@@ -213,11 +213,14 @@ export const keyPositionSchema = z.object({
     .default(createDefaultCounterSettings()),
   // 스타일 관련 속성들
   backgroundColor: z.string().optional(),
+  activeBackgroundColor: z.string().optional(),
   borderColor: z.string().optional(),
+  activeBorderColor: z.string().optional(),
   borderWidth: z.number().optional(),
   borderRadius: z.number().optional(),
   fontSize: z.number().optional(),
   fontColor: z.string().optional(),
+  activeFontColor: z.string().optional(),
   imageFit: imageFitSchema.optional(),
   // 인라인 스타일 우선 여부 (true: 속성 패널 스타일 우선, false: 커스텀 CSS 우선)
   useInlineStyles: z.boolean().optional(),

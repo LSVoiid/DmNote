@@ -658,11 +658,14 @@ export const Key = memo(
       className, // 단일 클래스 네임으로 통일
       // 스타일 속성들
       backgroundColor,
+      activeBackgroundColor,
       borderColor,
+      activeBorderColor,
       borderWidth,
       borderRadius,
       fontSize,
       fontColor,
+      activeFontColor,
       imageFit,
       useInlineStyles,
       displayText,
@@ -678,6 +681,12 @@ export const Key = memo(
 
     // 인라인 스타일 우선 여부
     const useInline = useInlineStyles === true;
+
+    const stateBackgroundColor = active
+      ? activeBackgroundColor ?? backgroundColor
+      : backgroundColor;
+    const stateBorderColor = active ? activeBorderColor ?? borderColor : borderColor;
+    const stateFontColor = active ? activeFontColor ?? fontColor : fontColor;
 
     // 투명화 옵션 체크
     const isTransparent = active ? activeTransparent : idleTransparent;
@@ -718,20 +727,20 @@ export const Key = memo(
           width: `${width}px`,
           height: `${height}px`,
           transform: `translate3d(calc(${dx}px + var(--key-offset-x, 0px)), calc(${dy}px + var(--key-offset-y, 0px)), 0)`,
-          backgroundColor: useInline && backgroundColor
-            ? backgroundColor
-            : `var(--key-bg, ${backgroundColor || defaultBgColor})`,
+          backgroundColor: useInline && stateBackgroundColor
+            ? stateBackgroundColor
+            : `var(--key-bg, ${stateBackgroundColor || defaultBgColor})`,
           borderRadius: useInline && borderRadius != null
             ? `${borderRadius}px`
             : `var(--key-radius, ${currentImage ? "0" : (borderRadius != null ? `${borderRadius}px` : "10px")})`,
           border: currentImage
             ? "none"
-            : useInline && (borderColor || borderWidth != null)
-              ? `${borderWidth ?? 3}px solid ${borderColor || defaultBorderColor}`
-              : `var(--key-border, ${borderWidth ?? 3}px solid ${borderColor || defaultBorderColor})`,
-          color: useInline && fontColor
-            ? fontColor
-            : `var(--key-text-color, ${fontColor || defaultTextColor})`,
+            : useInline && (stateBorderColor || borderWidth != null)
+              ? `${borderWidth ?? 3}px solid ${stateBorderColor || defaultBorderColor}`
+              : `var(--key-border, ${borderWidth ?? 3}px solid ${stateBorderColor || defaultBorderColor})`,
+          color: useInline && stateFontColor
+            ? stateFontColor
+            : `var(--key-text-color, ${stateFontColor || defaultTextColor})`,
           fontSize: fontSize ? `${fontSize}px` : undefined,
           overflow: currentImage ? "visible" : "hidden",
           // GPU 가속 최적화: active 상태 변경 시에만 willChange 적용
@@ -757,11 +766,14 @@ export const Key = memo(
         position.zIndex,
         useInline,
         backgroundColor,
+        activeBackgroundColor,
         borderColor,
+        activeBorderColor,
         borderWidth,
         borderRadius,
         fontSize,
         fontColor,
+        activeFontColor,
       ]
     );
 
@@ -977,11 +989,14 @@ export const Key = memo(
       prevProps.position.className === nextProps.position.className &&
       // 스타일 속성 비교
       prevProps.position.backgroundColor === nextProps.position.backgroundColor &&
+      prevProps.position.activeBackgroundColor === nextProps.position.activeBackgroundColor &&
       prevProps.position.borderColor === nextProps.position.borderColor &&
+      prevProps.position.activeBorderColor === nextProps.position.activeBorderColor &&
       prevProps.position.borderWidth === nextProps.position.borderWidth &&
       prevProps.position.borderRadius === nextProps.position.borderRadius &&
       prevProps.position.fontSize === nextProps.position.fontSize &&
       prevProps.position.fontColor === nextProps.position.fontColor &&
+      prevProps.position.activeFontColor === nextProps.position.activeFontColor &&
       prevProps.position.imageFit === nextProps.position.imageFit &&
       prevProps.position.useInlineStyles === nextProps.position.useInlineStyles &&
       prevProps.position.displayText === nextProps.position.displayText &&

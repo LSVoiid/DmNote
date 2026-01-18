@@ -263,6 +263,12 @@ export const ColorInput: React.FC<ColorInputProps> = ({
   value,
   onChange,
   onChangeComplete,
+  activeValue,
+  onActiveChange,
+  onActiveChangeComplete,
+  showStateTabs = false,
+  stateMode: externalStateMode,
+  onStateModeChange: externalOnStateModeChange,
   colorId,
   solidOnly = true,
   panelElement,
@@ -276,17 +282,33 @@ export const ColorInput: React.FC<ColorInputProps> = ({
   const [internalOpen, setInternalOpen] = useState(false);
   const open = isControlled ? externalIsOpen : internalOpen;
 
+  const isStateControlled =
+    externalStateMode !== undefined && externalOnStateModeChange !== undefined;
+  const [internalStateMode, setInternalStateMode] = useState<"idle" | "active">(
+    "idle"
+  );
+  const stateMode =
+    showStateTabs && isStateControlled
+      ? externalStateMode
+      : showStateTabs
+      ? internalStateMode
+      : "idle";
+
   const buttonRef = useRef<HTMLButtonElement>(null);
 
   // 로컬 색상 상태 (드래그 중 UI 업데이트용)
   const [localColor, setLocalColor] = useState(value || "#FFFFFF");
+  const [localActiveColor, setLocalActiveColor] = useState(
+    activeValue ?? value ?? "#FFFFFF"
+  );
 
   // 피커가 닫혀있을 때만 외부 prop과 동기화
   useEffect(() => {
     if (!open) {
       setLocalColor(value || "#FFFFFF");
+      setLocalActiveColor(activeValue ?? value ?? "#FFFFFF");
     }
-  }, [value, open]);
+  }, [value, activeValue, open]);
 
   // colorId가 없으면 value 기반으로 생성
   const stableId = useMemo(
@@ -314,15 +336,35 @@ export const ColorInput: React.FC<ColorInputProps> = ({
 
   // 드래그 중 로컬 상태만 업데이트
   const handleColorChange = (color: string) => {
+    if (showStateTabs && stateMode === "active") {
+      setLocalActiveColor(color);
+      return;
+    }
     setLocalColor(color);
     // onChange는 호출하지 않음 - 드래그 중 부모 상태 변경 방지
   };
 
   // 드래그 완료 시 부모에게 전달
   const handleColorChangeComplete = (color: string) => {
+    if (showStateTabs && stateMode === "active") {
+      setLocalActiveColor(color);
+      onActiveChange?.(color);
+      onActiveChangeComplete?.(color);
+      return;
+    }
+
     setLocalColor(color);
     onChange?.(color);
     onChangeComplete?.(color);
+  };
+
+  const handleStateModeChange = (nextMode: "idle" | "active") => {
+    if (!showStateTabs) return;
+    if (isStateControlled) {
+      externalOnStateModeChange(nextMode);
+      return;
+    }
+    setInternalStateMode(nextMode);
   };
 
   const getDisplayColor = (color: string): string => {
@@ -340,19 +382,27 @@ export const ColorInput: React.FC<ColorInputProps> = ({
         className={`w-[23px] h-[23px] rounded-[7px] border-[1px] overflow-hidden cursor-pointer transition-colors flex-shrink-0 ${
           open ? "border-[#459BF8]" : "border-[#3A3943] hover:border-[#505058]"
         }`}
-        style={{ backgroundColor: getDisplayColor(localColor) }}
+        style={{
+          backgroundColor: getDisplayColor(
+            showStateTabs && stateMode === "active" ? localActiveColor : localColor
+          ),
+        }}
       />
       {open && (
         <ColorPicker
           open={open}
           referenceRef={buttonRef}
           panelElement={panelElement}
-          color={localColor}
+          color={
+            showStateTabs && stateMode === "active" ? localActiveColor : localColor
+          }
           onColorChange={handleColorChange}
           onColorChangeComplete={handleColorChangeComplete}
           onClose={handleClose}
           interactiveRefs={interactiveRefs}
           solidOnly={solidOnly}
+          stateMode={showStateTabs ? stateMode : undefined}
+          onStateModeChange={showStateTabs ? handleStateModeChange : undefined}
         />
       )}
     </>

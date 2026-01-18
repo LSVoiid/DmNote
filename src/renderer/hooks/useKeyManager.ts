@@ -441,11 +441,14 @@ export function useKeyManager() {
       height: number;
       className: string;
       backgroundColor: string;
+      activeBackgroundColor: string;
       borderColor: string;
+      activeBorderColor: string;
       borderWidth: number;
       borderRadius: number;
       fontSize: number;
       fontColor: string;
+      activeFontColor: string;
       imageFit: ImageFit;
       useInlineStyles: boolean;
       displayText: string;
@@ -498,10 +501,18 @@ export function useKeyManager() {
                 updates.backgroundColor !== undefined
                   ? updates.backgroundColor
                   : pos.backgroundColor,
+              activeBackgroundColor:
+                updates.activeBackgroundColor !== undefined
+                  ? updates.activeBackgroundColor
+                  : pos.activeBackgroundColor,
               borderColor:
                 updates.borderColor !== undefined
                   ? updates.borderColor
                   : pos.borderColor,
+              activeBorderColor:
+                updates.activeBorderColor !== undefined
+                  ? updates.activeBorderColor
+                  : pos.activeBorderColor,
               borderWidth:
                 updates.borderWidth !== undefined
                   ? updates.borderWidth
@@ -518,6 +529,10 @@ export function useKeyManager() {
                 updates.fontColor !== undefined
                   ? updates.fontColor
                   : pos.fontColor,
+              activeFontColor:
+                updates.activeFontColor !== undefined
+                  ? updates.activeFontColor
+                  : pos.activeFontColor,
               imageFit:
                 updates.imageFit !== undefined
                   ? updates.imageFit
@@ -553,11 +568,14 @@ export function useKeyManager() {
       height?: number;
       className?: string;
       backgroundColor?: string;
+      activeBackgroundColor?: string;
       borderColor?: string;
+      activeBorderColor?: string;
       borderWidth?: number;
       borderRadius?: number;
       fontSize?: number;
       fontColor?: string;
+      activeFontColor?: string;
       imageFit?: ImageFit;
       useInlineStyles?: boolean;
       displayText?: string;
@@ -622,10 +640,18 @@ export function useKeyManager() {
             update.backgroundColor !== undefined
               ? update.backgroundColor
               : pos.backgroundColor,
+          activeBackgroundColor:
+            update.activeBackgroundColor !== undefined
+              ? update.activeBackgroundColor
+              : pos.activeBackgroundColor,
           borderColor:
             update.borderColor !== undefined
               ? update.borderColor
               : pos.borderColor,
+          activeBorderColor:
+            update.activeBorderColor !== undefined
+              ? update.activeBorderColor
+              : pos.activeBorderColor,
           borderWidth:
             update.borderWidth !== undefined
               ? update.borderWidth
@@ -638,6 +664,10 @@ export function useKeyManager() {
             update.fontSize !== undefined ? update.fontSize : pos.fontSize,
           fontColor:
             update.fontColor !== undefined ? update.fontColor : pos.fontColor,
+          activeFontColor:
+            update.activeFontColor !== undefined
+              ? update.activeFontColor
+              : pos.activeFontColor,
           imageFit:
             update.imageFit !== undefined ? update.imageFit : pos.imageFit,
           useInlineStyles:

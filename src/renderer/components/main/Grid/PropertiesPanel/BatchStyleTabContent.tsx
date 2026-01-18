@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import type { KeyPosition } from "@src/types/keys";
 import {
   PropertyRow,
@@ -59,6 +59,8 @@ const BatchStyleTabContent: React.FC<BatchStyleTabContentProps> = ({
   useCustomCSS,
   t,
 }) => {
+  const [colorState, setColorState] = useState<"idle" | "active">("idle");
+
   // displayText의 실제 표시 값(displayText || keyInfo.displayName)을 기준으로 Mixed 판단
   const getDisplayTextMixed = (): { isMixed: boolean; value: string } => {
     const keysData = getSelectedKeysData();
@@ -226,10 +228,15 @@ const BatchStyleTabContent: React.FC<BatchStyleTabContentProps> = ({
 
       {/* 배경색 */}
       <PropertyRow label={t("propertiesPanel.backgroundColor") || "배경색"}>
-        {getMixedValue(
-          (pos) => pos.backgroundColor,
-          "rgba(46, 46, 47, 0.9)"
-        ).isMixed ? (
+        {(colorState === "active"
+          ? getMixedValue(
+              (pos) => pos.activeBackgroundColor ?? pos.backgroundColor,
+              "rgba(121, 121, 121, 0.9)"
+            ).isMixed
+          : getMixedValue(
+              (pos) => pos.backgroundColor,
+              "rgba(46, 46, 47, 0.9)"
+            ).isMixed) ? (
           <span className="text-[#6B6D75] text-style-4 italic">Mixed</span>
         ) : null}
         <ColorInput
@@ -239,9 +246,24 @@ const BatchStyleTabContent: React.FC<BatchStyleTabContentProps> = ({
               "rgba(46, 46, 47, 0.9)"
             ).value
           }
+          activeValue={
+            getMixedValue(
+              (pos) => pos.activeBackgroundColor ?? pos.backgroundColor,
+              "rgba(121, 121, 121, 0.9)"
+            ).value
+          }
+          showStateTabs
+          stateMode={colorState}
+          onStateModeChange={setColorState}
           onChange={(color) => handleBatchStyleChange("backgroundColor", color)}
           onChangeComplete={(color) =>
             handleBatchStyleChangeComplete("backgroundColor", color)
+          }
+          onActiveChange={(color) =>
+            handleBatchStyleChange("activeBackgroundColor", color)
+          }
+          onActiveChangeComplete={(color) =>
+            handleBatchStyleChangeComplete("activeBackgroundColor", color)
           }
           panelElement={panelElement}
         />
@@ -249,10 +271,15 @@ const BatchStyleTabContent: React.FC<BatchStyleTabContentProps> = ({
 
       {/* 테두리 색상 */}
       <PropertyRow label={t("propertiesPanel.borderColor") || "테두리 색상"}>
-        {getMixedValue(
-          (pos) => pos.borderColor,
-          "rgba(113, 113, 113, 0.9)"
-        ).isMixed ? (
+        {(colorState === "active"
+          ? getMixedValue(
+              (pos) => pos.activeBorderColor ?? pos.borderColor,
+              "rgba(255, 255, 255, 0.9)"
+            ).isMixed
+          : getMixedValue(
+              (pos) => pos.borderColor,
+              "rgba(113, 113, 113, 0.9)"
+            ).isMixed) ? (
           <span className="text-[#6B6D75] text-style-4 italic">Mixed</span>
         ) : null}
         <ColorInput
@@ -262,9 +289,22 @@ const BatchStyleTabContent: React.FC<BatchStyleTabContentProps> = ({
               "rgba(113, 113, 113, 0.9)"
             ).value
           }
+          activeValue={
+            getMixedValue(
+              (pos) => pos.activeBorderColor ?? pos.borderColor,
+              "rgba(255, 255, 255, 0.9)"
+            ).value
+          }
+          showStateTabs
+          stateMode={colorState}
+          onStateModeChange={setColorState}
           onChange={(color) => handleBatchStyleChange("borderColor", color)}
           onChangeComplete={(color) =>
             handleBatchStyleChangeComplete("borderColor", color)
+          }
+          onActiveChange={(color) => handleBatchStyleChange("activeBorderColor", color)}
+          onActiveChangeComplete={(color) =>
+            handleBatchStyleChangeComplete("activeBorderColor", color)
           }
           panelElement={panelElement}
         />
@@ -354,8 +394,13 @@ const BatchStyleTabContent: React.FC<BatchStyleTabContentProps> = ({
 
       {/* 글꼴 색상 */}
       <PropertyRow label={t("propertiesPanel.fontColor") || "글꼴 색상"}>
-        {getMixedValue((pos) => pos.fontColor, "rgba(121, 121, 121, 0.9)")
-          .isMixed ? (
+        {(colorState === "active"
+          ? getMixedValue(
+              (pos) => pos.activeFontColor ?? pos.fontColor,
+              "#FFFFFF"
+            ).isMixed
+          : getMixedValue((pos) => pos.fontColor, "rgba(121, 121, 121, 0.9)")
+              .isMixed) ? (
           <span className="text-[#6B6D75] text-style-4 italic">Mixed</span>
         ) : null}
         <ColorInput
@@ -363,9 +408,22 @@ const BatchStyleTabContent: React.FC<BatchStyleTabContentProps> = ({
             getMixedValue((pos) => pos.fontColor, "rgba(121, 121, 121, 0.9)")
               .value
           }
+          activeValue={
+            getMixedValue(
+              (pos) => pos.activeFontColor ?? pos.fontColor,
+              "#FFFFFF"
+            ).value
+          }
+          showStateTabs
+          stateMode={colorState}
+          onStateModeChange={setColorState}
           onChange={(color) => handleBatchStyleChange("fontColor", color)}
           onChangeComplete={(color) =>
             handleBatchStyleChangeComplete("fontColor", color)
+          }
+          onActiveChange={(color) => handleBatchStyleChange("activeFontColor", color)}
+          onActiveChangeComplete={(color) =>
+            handleBatchStyleChangeComplete("activeFontColor", color)
           }
           panelElement={panelElement}
         />

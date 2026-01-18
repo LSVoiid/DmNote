@@ -16,6 +16,14 @@ import Checkbox from "../../common/Checkbox";
 // 피커 타겟 타입
 type PickerTarget = "backgroundColor" | "borderColor" | "fontColor" | "image" | null;
 
+type ColorState = "idle" | "active";
+type StyleColorTarget = Exclude<PickerTarget, "image" | null>;
+type StyleColorProperty =
+  | StyleColorTarget
+  | "activeBackgroundColor"
+  | "activeBorderColor"
+  | "activeFontColor";
+
 interface StyleTabContentInternalProps extends StyleTabContentProps {
   // 로컬 상태 (단일 선택 시에만 사용, 개별 편집 모드에서는 사용하지 않음)
   localDx?: number;
@@ -60,12 +68,16 @@ const StyleTabContent: React.FC<StyleTabContentInternalProps> = ({
   const DEFAULT_KEY_BACKGROUND_COLOR = "rgba(46, 46, 47, 0.9)";
   const DEFAULT_KEY_BORDER_COLOR = "rgba(113, 113, 113, 0.9)";
   const DEFAULT_KEY_FONT_COLOR = "rgba(121, 121, 121, 0.9)";
+  const DEFAULT_KEY_ACTIVE_BACKGROUND_COLOR = "rgba(121, 121, 121, 0.9)";
+  const DEFAULT_KEY_ACTIVE_BORDER_COLOR = "rgba(255, 255, 255, 0.9)";
+  const DEFAULT_KEY_ACTIVE_FONT_COLOR = "#FFFFFF";
 
   // 개별 편집 모드인지 확인 (로컬 상태 핸들러가 없으면 개별 편집 모드)
   const isIndividualMode = !onLocalDxChange;
 
   // 통합 피커 상태
   const [pickerFor, setPickerFor] = useState<PickerTarget>(null);
+  const [colorState, setColorState] = useState<ColorState>("idle");
   
   // 컬러 버튼 refs
   const bgColorBtnRef = useRef<HTMLButtonElement>(null);
@@ -74,10 +86,22 @@ const StyleTabContent: React.FC<StyleTabContentInternalProps> = ({
   const internalImageButtonRef = useRef<HTMLButtonElement>(null);
   
   // 로컬 색상 상태 (드래그 중 UI 업데이트용)
-  const [localColors, setLocalColors] = useState({
+  const [localColors, setLocalColors] = useState<Record<StyleColorProperty, string>>({
     backgroundColor: keyPosition.backgroundColor || DEFAULT_KEY_BACKGROUND_COLOR,
+    activeBackgroundColor:
+      keyPosition.activeBackgroundColor ||
+      keyPosition.backgroundColor ||
+      DEFAULT_KEY_ACTIVE_BACKGROUND_COLOR,
     borderColor: keyPosition.borderColor || DEFAULT_KEY_BORDER_COLOR,
+    activeBorderColor:
+      keyPosition.activeBorderColor ||
+      keyPosition.borderColor ||
+      DEFAULT_KEY_ACTIVE_BORDER_COLOR,
     fontColor: keyPosition.fontColor || DEFAULT_KEY_FONT_COLOR,
+    activeFontColor:
+      keyPosition.activeFontColor ||
+      keyPosition.fontColor ||
+      DEFAULT_KEY_ACTIVE_FONT_COLOR,
   });
 
   // 피커가 닫혀있을 때만 외부 prop과 동기화
@@ -85,18 +109,36 @@ const StyleTabContent: React.FC<StyleTabContentInternalProps> = ({
     if (!pickerFor || (pickerFor !== "backgroundColor" && pickerFor !== "borderColor" && pickerFor !== "fontColor")) {
       setLocalColors({
         backgroundColor: keyPosition.backgroundColor || DEFAULT_KEY_BACKGROUND_COLOR,
+        activeBackgroundColor:
+          keyPosition.activeBackgroundColor ||
+          keyPosition.backgroundColor ||
+          DEFAULT_KEY_ACTIVE_BACKGROUND_COLOR,
         borderColor: keyPosition.borderColor || DEFAULT_KEY_BORDER_COLOR,
+        activeBorderColor:
+          keyPosition.activeBorderColor ||
+          keyPosition.borderColor ||
+          DEFAULT_KEY_ACTIVE_BORDER_COLOR,
         fontColor: keyPosition.fontColor || DEFAULT_KEY_FONT_COLOR,
+        activeFontColor:
+          keyPosition.activeFontColor ||
+          keyPosition.fontColor ||
+          DEFAULT_KEY_ACTIVE_FONT_COLOR,
       });
     }
   }, [
     pickerFor,
     keyPosition.backgroundColor,
+    keyPosition.activeBackgroundColor,
     keyPosition.borderColor,
+    keyPosition.activeBorderColor,
     keyPosition.fontColor,
+    keyPosition.activeFontColor,
     DEFAULT_KEY_BACKGROUND_COLOR,
+    DEFAULT_KEY_ACTIVE_BACKGROUND_COLOR,
     DEFAULT_KEY_BORDER_COLOR,
+    DEFAULT_KEY_ACTIVE_BORDER_COLOR,
     DEFAULT_KEY_FONT_COLOR,
+    DEFAULT_KEY_ACTIVE_FONT_COLOR,
   ]);
 
   // interactiveRefs
@@ -123,29 +165,50 @@ const StyleTabContent: React.FC<StyleTabContentInternalProps> = ({
     }
   }, [onToggleImagePicker, handlePickerToggle]);
 
+  const resolveColorProperty = useCallback(
+    (target: StyleColorTarget): StyleColorProperty => {
+      if (colorState !== "active") return target;
+      switch (target) {
+        case "backgroundColor":
+          return "activeBackgroundColor";
+        case "borderColor":
+          return "activeBorderColor";
+        case "fontColor":
+          return "activeFontColor";
+        default:
+          return target;
+      }
+    },
+    [colorState]
+  );
+
   // 현재 피커 색상값 가져오기
   const colorValueFor = useCallback(
-    (key: Exclude<PickerTarget, "image" | null>): string => {
-      return localColors[key];
+    (target: StyleColorTarget): string => {
+      return localColors[resolveColorProperty(target)];
     },
-    [localColors]
+    [localColors, resolveColorProperty]
   );
 
   // 드래그 중 로컬 상태만 업데이트
   const handleColorChange = useCallback(
-    (key: Exclude<PickerTarget, "image" | null>, color: string) => {
-      setLocalColors((prev) => ({ ...prev, [key]: color }));
+    (target: StyleColorTarget, color: string) => {
+      const prop = resolveColorProperty(target);
+      setLocalColors((prev) => ({ ...prev, [prop]: color }));
     },
-    []
+    [resolveColorProperty]
   );
 
   // 드래그 완료 시 부모에게 전달
   const handleColorChangeComplete = useCallback(
-    (key: Exclude<PickerTarget, "image" | null>, color: string) => {
-      setLocalColors((prev) => ({ ...prev, [key]: color }));
-      onKeyUpdate({ index: keyIndex, [key]: color });
+    (target: StyleColorTarget, color: string) => {
+      const prop = resolveColorProperty(target);
+      setLocalColors((prev) => ({ ...prev, [prop]: color }));
+      onKeyUpdate({ index: keyIndex, [prop]: color } as Partial<KeyPosition> & {
+        index: number;
+      });
     },
-    [keyIndex, onKeyUpdate]
+    [keyIndex, onKeyUpdate, resolveColorProperty]
   );
 
   // 위치 변경 핸들러
@@ -357,7 +420,7 @@ const StyleTabContent: React.FC<StyleTabContentInternalProps> = ({
           className={`w-[23px] h-[23px] rounded-[7px] border-[1px] overflow-hidden cursor-pointer transition-colors flex-shrink-0 ${
             pickerFor === "backgroundColor" ? "border-[#459BF8]" : "border-[#3A3943] hover:border-[#505058]"
           }`}
-          style={{ backgroundColor: getDisplayColor(localColors.backgroundColor) }}
+          style={{ backgroundColor: getDisplayColor(colorValueFor("backgroundColor")) }}
         />
       </PropertyRow>
 
@@ -370,7 +433,7 @@ const StyleTabContent: React.FC<StyleTabContentInternalProps> = ({
           className={`w-[23px] h-[23px] rounded-[7px] border-[1px] overflow-hidden cursor-pointer transition-colors flex-shrink-0 ${
             pickerFor === "borderColor" ? "border-[#459BF8]" : "border-[#3A3943] hover:border-[#505058]"
           }`}
-          style={{ backgroundColor: getDisplayColor(localColors.borderColor) }}
+          style={{ backgroundColor: getDisplayColor(colorValueFor("borderColor")) }}
         />
       </PropertyRow>
 
@@ -445,7 +508,7 @@ const StyleTabContent: React.FC<StyleTabContentInternalProps> = ({
           className={`w-[23px] h-[23px] rounded-[7px] border-[1px] overflow-hidden cursor-pointer transition-colors flex-shrink-0 ${
             pickerFor === "fontColor" ? "border-[#459BF8]" : "border-[#3A3943] hover:border-[#505058]"
           }`}
-          style={{ backgroundColor: getDisplayColor(localColors.fontColor) }}
+          style={{ backgroundColor: getDisplayColor(colorValueFor("fontColor")) }}
         />
       </PropertyRow>
 
@@ -535,13 +598,25 @@ const StyleTabContent: React.FC<StyleTabContentInternalProps> = ({
       {pickerFor && pickerFor !== "image" && (
         <ColorPicker
           open={!!pickerFor}
-          referenceRef={bgColorBtnRef}
+          referenceRef={
+            pickerFor === "backgroundColor"
+              ? bgColorBtnRef
+              : pickerFor === "borderColor"
+              ? borderColorBtnRef
+              : fontColorBtnRef
+          }
           panelElement={panelElement}
-          color={colorValueFor(pickerFor)}
-          onColorChange={(c: string) => handleColorChange(pickerFor, c)}
-          onColorChangeComplete={(c: string) => handleColorChangeComplete(pickerFor, c)}
+          color={colorValueFor(pickerFor as StyleColorTarget)}
+          onColorChange={(c: string) =>
+            handleColorChange(pickerFor as StyleColorTarget, c)
+          }
+          onColorChangeComplete={(c: string) =>
+            handleColorChangeComplete(pickerFor as StyleColorTarget, c)
+          }
           onClose={() => setPickerFor(null)}
           solidOnly={true}
+          stateMode={colorState}
+          onStateModeChange={setColorState}
           interactiveRefs={colorPickerInteractiveRefs}
         />
       )}

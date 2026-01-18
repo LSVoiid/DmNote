@@ -49,6 +49,8 @@ export default function ColorPickerWrapper({
   onColorChangeComplete,
   onClose,
   solidOnly = false,
+  stateMode = undefined,
+  onStateModeChange = undefined,
   interactiveRefs = [],
   position = undefined,
   offsetY = -80,
@@ -531,6 +533,8 @@ export default function ColorPickerWrapper({
   // 고정 위치 상태
   const [fixedPosition, setFixedPosition] = useState(null);
   const pickerContainerRef = useRef(null);
+  const showStateSwitch =
+    stateMode != null && typeof onStateModeChange === "function";
 
   // panelElement가 있을 때 고정 위치 계산 (패널 기준)
   useLayoutEffect(() => {
@@ -548,7 +552,7 @@ export default function ColorPickerWrapper({
         const pickerEl = pickerContainerRef.current;
         const pickerWidth = pickerEl ? pickerEl.offsetWidth : 164;
         // 솔리드 모드 높이를 기준으로 함
-        const solidPickerHeight = solidOnly ? 280 : 264; // solidOnly일 때 Alpha 슬라이더 포함
+        const solidPickerHeight = (solidOnly ? 280 : 264) + (showStateSwitch ? 31 : 0); // 상태 탭(대기/입력) 포함
         const actualPickerHeight = pickerEl
           ? pickerEl.offsetHeight
           : solidPickerHeight;
@@ -583,7 +587,7 @@ export default function ColorPickerWrapper({
     } else {
       setFixedPosition(null);
     }
-  }, [open, panelElement, solidOnly, mode]); // mode 변경 시에도 재계산 (높이가 변경됨)
+  }, [open, panelElement, solidOnly, mode, showStateSwitch]); // mode/상태탭 변경 시에도 재계산 (높이가 변경됨)
 
   // fixedPosition이 있으면 offsetY를 무시 (이미 정확한 좌표가 계산됨)
   const effectiveOffsetY = fixedPosition ? 0 : offsetY;
@@ -607,6 +611,9 @@ export default function ColorPickerWrapper({
         ref={pickerContainerRef}
         className="flex flex-col p-[8px] gap-[8px] w-[146px] bg-[#1A191E] rounded-[13px] border-[1px] border-[#2A2A30]"
       >
+        {showStateSwitch && (
+          <StateSwitch state={stateMode} onChange={onStateModeChange} />
+        )}
         {!solidOnly && <ModeSwitch mode={mode} onChange={handleModeSwitch} />}
 
         <Saturation
@@ -809,6 +816,34 @@ function PaletteSlot({ color, type, onClick, solidOnly }) {
       disabled={isEmpty}
       title={getTitle()}
     />
+  );
+}
+
+function StateSwitch({ state, onChange }) {
+  const { t } = useTranslation();
+  const idleLabel = t("colorPicker.idle") || "대기";
+  const activeLabel = t("colorPicker.active") || "입력";
+
+  return (
+    <div className="flex gap-[6px] max-w-full">
+      {[
+        { key: "idle", label: idleLabel },
+        { key: "active", label: activeLabel },
+      ].map((item) => (
+        <button
+          key={item.key}
+          type="button"
+          className={`flex-1 whitespace-nowrap px-[9px] h-[23px] rounded-[7px] text-style-4 text-[#DBDEE8] transition-colors ${
+            state === item.key
+              ? "bg-[#2E2D33] text-[#FFFFFF]"
+              : "hover:bg-[#303036] text-[#6F6E7A]"
+          }`}
+          onClick={() => onChange?.(item.key)}
+        >
+          {item.label}
+        </button>
+      ))}
+    </div>
   );
 }
 

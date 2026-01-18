@@ -53,6 +53,12 @@ export interface ColorInputProps {
   value: string;
   onChange: (value: string) => void;
   onChangeComplete?: (value: string) => void;
+  activeValue?: string;
+  onActiveChange?: (value: string) => void;
+  onActiveChangeComplete?: (value: string) => void;
+  showStateTabs?: boolean;
+  stateMode?: "idle" | "active";
+  onStateModeChange?: (mode: "idle" | "active") => void;
   colorId?: string;
   solidOnly?: boolean;
   panelElement?: HTMLElement | null;

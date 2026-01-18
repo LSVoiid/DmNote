@@ -204,7 +204,9 @@
   },
   "colorPicker": {
     "solid": "Solid",
-    "gradient": "Gradient"
+    "gradient": "Gradient",
+    "idle": "Idle",
+    "active": "Active"
   },
   "contextMenu": {
     "duplicateKey": "Duplicate Key",
