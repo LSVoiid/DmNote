@@ -267,7 +267,7 @@ export const WebGLTracksOGL = memo(
       const renderer = new Renderer({
         canvas,
         alpha: true,
-        antialias: true,
+        antialias: false,
         dpr: window.devicePixelRatio,
         premultipliedAlpha: true,
       });
@@ -287,6 +287,15 @@ export const WebGLTracksOGL = memo(
         bottom: 0,
         near: 1,
         far: 1000,
+      });
+      // OGL Camera.orthographic() uses `this.left || -1` defaults, so `left/bottom = 0`
+      // can incorrectly become `-1` when updateProjectionMatrix() is used.
+      // Force an explicit orthographic projection so WebGL coords match DOM pixels 1:1.
+      camera.orthographic({
+        left: 0,
+        right: window.innerWidth,
+        top: window.innerHeight,
+        bottom: 0,
       });
       camera.position.z = 5;
       cameraRef.current = camera;
@@ -472,11 +481,12 @@ export const WebGLTracksOGL = memo(
         renderer.dpr = dpr;
         renderer.setSize(width, height);
         if (cameraRef.current) {
-          cameraRef.current.left = 0;
-          cameraRef.current.right = width;
-          cameraRef.current.top = height;
-          cameraRef.current.bottom = 0;
-          cameraRef.current.updateProjectionMatrix();
+          cameraRef.current.orthographic({
+            left: 0,
+            right: width,
+            top: height,
+            bottom: 0,
+          });
         }
         if (programRef.current) {
           programRef.current.uniforms.uScreenHeight.value = height;
