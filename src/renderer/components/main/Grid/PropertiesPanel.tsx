@@ -99,6 +99,15 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   const closePluginSettingsPanel = usePropertiesPanelStore(
     (state) => state.closePluginSettingsPanel,
   );
+  const isPanelVisible = usePropertiesPanelStore(
+    (state) => state.isCanvasPanelOpen,
+  );
+  const setIsPanelVisible = usePropertiesPanelStore(
+    (state) => state.setCanvasPanelOpen,
+  );
+  const canvasPanelToggleSignal = usePropertiesPanelStore(
+    (state) => state.canvasPanelToggleSignal,
+  );
   const locale = i18n.language;
 
   // 선택된 키 요소 필터링
@@ -192,9 +201,6 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   // 패널 ref (컬러픽커/이미지픽커 위치 기준)
   // useRef 대신 useState를 사용하여 ref가 설정될 때 리렌더링 유발
   const [panelElement, setPanelElement] = useState<HTMLDivElement | null>(null);
-
-  // 패널 가시성 상태 (선택과 별개로 패널만 닫을 수 있음)
-  const [isPanelVisible, setIsPanelVisible] = useState(false);
 
   // 패널 모드 상태 (layer: 레이어 패널, property: 속성 패널)
   const [panelMode, setPanelMode] = useState<"layer" | "property">("property");
@@ -809,6 +815,24 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
       closePluginSettingsPanel();
     }
   }, [closePluginSettingsPanel, pluginSettingsPanel]);
+
+  // 외부(단축키 등)에서 보낸 사이드 패널 토글 요청 처리
+  const prevToggleSignalRef = useRef<number>(canvasPanelToggleSignal);
+  useEffect(() => {
+    if (prevToggleSignalRef.current === canvasPanelToggleSignal) return;
+    prevToggleSignalRef.current = canvasPanelToggleSignal;
+
+    if (pluginSettingsPanel) {
+      handlePluginSettingsPanelCancel();
+      return;
+    }
+    handleTogglePanel();
+  }, [
+    canvasPanelToggleSignal,
+    handlePluginSettingsPanelCancel,
+    handleTogglePanel,
+    pluginSettingsPanel,
+  ]);
 
   const handleKeyListen = useCallback(() => {
     if (justAssignedRef.current) return;

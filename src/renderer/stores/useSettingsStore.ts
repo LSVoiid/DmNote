@@ -5,6 +5,7 @@ import {
 } from "@src/types/noteSettings";
 import type { OverlayResizeAnchor } from "@src/types/settings";
 import type { JsPlugin } from "@src/types/js";
+import { DEFAULT_SHORTCUTS, type ShortcutsState } from "@src/types/shortcuts";
 
 export interface GridSettings {
   alignmentGuides: boolean;
@@ -41,6 +42,7 @@ interface SettingsState {
   overlayResizeAnchor: OverlayResizeAnchor;
   keyCounterEnabled: boolean;
   gridSettings: GridSettings;
+  shortcuts: ShortcutsState;
   setAll: (payload: SettingsStateSnapshot) => void;
   merge: (payload: Partial<SettingsStateSnapshot>) => void;
   setLaboratoryEnabled: (value: boolean) => void;
@@ -61,6 +63,7 @@ interface SettingsState {
   setOverlayResizeAnchor: (value: OverlayResizeAnchor) => void;
   setKeyCounterEnabled: (value: boolean) => void;
   setGridSettings: (value: GridSettings) => void;
+  setShortcuts: (value: ShortcutsState) => void;
 }
 
 export type SettingsStateSnapshot = Omit<
@@ -85,6 +88,7 @@ export type SettingsStateSnapshot = Omit<
   | "setKeyCounterEnabled"
   | "setDeveloperModeEnabled"
   | "setGridSettings"
+  | "setShortcuts"
 >;
 
 const initialState: SettingsStateSnapshot = {
@@ -106,6 +110,7 @@ const initialState: SettingsStateSnapshot = {
   overlayResizeAnchor: "top-left",
   keyCounterEnabled: false,
   gridSettings: DEFAULT_GRID_SETTINGS,
+  shortcuts: DEFAULT_SHORTCUTS,
 };
 
 function mergeSnapshot(
@@ -141,6 +146,12 @@ function mergeSnapshot(
       ...patch.gridSettings,
     };
   }
+  if (patch.shortcuts) {
+    next.shortcuts = {
+      ...prev.shortcuts,
+      ...patch.shortcuts,
+    };
+  }
   return next;
 }
 
@@ -166,4 +177,5 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   setOverlayResizeAnchor: (value) => set({ overlayResizeAnchor: value }),
   setKeyCounterEnabled: (value) => set({ keyCounterEnabled: value }),
   setGridSettings: (value) => set({ gridSettings: value }),
+  setShortcuts: (value) => set({ shortcuts: value }),
 }));

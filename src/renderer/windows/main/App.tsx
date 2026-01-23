@@ -15,12 +15,14 @@ import LaboratoryModal from "@components/main/Modal/content/Laboratory";
 import UpdateModal from "@components/main/Modal/content/UpdateModal";
 import PropertiesPanel from "@components/main/Grid/PropertiesPanel";
 import { useSettingsStore } from "@stores/useSettingsStore";
+import type { ShortcutBinding } from "@src/types/shortcuts";
 import FloatingPopup from "@components/main/Modal/FloatingPopup";
 import Palette from "@components/main/Modal/content/Palette";
 import ColorPicker from "@components/main/Modal/content/ColorPicker";
 import { useKeyStore } from "@stores/useKeyStore";
 import { useAppBootstrap } from "@hooks/useAppBootstrap";
 import { useUpdateCheck } from "@hooks/useUpdateCheck";
+import { usePropertiesPanelStore } from "@stores/usePropertiesPanelStore";
 
 import { useUIStore } from "@stores/useUIStore";
 
@@ -129,6 +131,10 @@ export default function App() {
   const [skipModalAnimationOnReturn, setSkipModalAnimationOnReturn] =
     useState(false);
   const {
+    alwaysOnTop,
+    setAlwaysOnTop,
+    overlayLocked,
+    setOverlayLocked,
     noteEffect,
     angleMode,
     setAngleMode,
@@ -139,7 +145,26 @@ export default function App() {
     noteSettings,
     setNoteSettings,
     developerModeEnabled,
+    shortcuts,
   } = useSettingsStore();
+
+  const matchesShortcut = React.useCallback(
+    (event: KeyboardEvent, binding?: ShortcutBinding) => {
+      if (!binding?.key) return false;
+      const ctrl = !!binding.ctrl;
+      const shift = !!binding.shift;
+      const alt = !!binding.alt;
+      const meta = !!binding.meta;
+      return (
+        event.code === binding.key &&
+        event.ctrlKey === ctrl &&
+        event.shiftKey === shift &&
+        event.altKey === alt &&
+        event.metaKey === meta
+      );
+    },
+    []
+  );
 
   // 개발자 모드 비활성 시 DevTools 단축키 차단
   useEffect(() => {
@@ -211,7 +236,7 @@ export default function App() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key !== "Tab" || e.shiftKey) return;
+      if (!matchesShortcut(e, shortcuts?.switchKeyMode)) return;
       const active = document.activeElement as HTMLElement | null;
       if (active) {
         const tag = (active.tagName || "").toLowerCase();
@@ -237,7 +262,105 @@ export default function App() {
     };
     window.addEventListener("keydown", handler, true);
     return () => window.removeEventListener("keydown", handler, true);
-  }, [selectedKeyType, setSelectedKeyType, isBootstrapped]);
+  }, [
+    matchesShortcut,
+    selectedKeyType,
+    setSelectedKeyType,
+    isBootstrapped,
+    shortcuts?.switchKeyMode,
+  ]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (!matchesShortcut(e, shortcuts?.toggleSettingsPanel)) return;
+      // 캔버스(그리드) 화면에서만 동작
+      if (isSettingsOpen) return;
+      const active = document.activeElement as HTMLElement | null;
+      if (active) {
+        const tag = (active.tagName || "").toLowerCase();
+        const editable = active.isContentEditable;
+        if (tag === "input" || tag === "textarea" || editable) return;
+      }
+
+      // 모달이 열려있으면 토글 차단
+      const hasModal = document.querySelector(
+        "[data-dmn-modal-backdrop='true']"
+      );
+      if (hasModal) return;
+
+      // 키 리스닝 중이면 토글 차단
+      if ((window as any).__dmn_isKeyListening) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      usePropertiesPanelStore.getState().requestCanvasPanelToggle();
+    };
+
+    window.addEventListener("keydown", handler, true);
+    return () => window.removeEventListener("keydown", handler, true);
+  }, [
+    matchesShortcut,
+    shortcuts?.toggleSettingsPanel,
+    isSettingsOpen,
+  ]);
+
+  useEffect(() => {
+    const handler = async (e: KeyboardEvent) => {
+      const shouldToggleOverlayLock = matchesShortcut(
+        e,
+        shortcuts?.toggleOverlayLock
+      );
+      const shouldToggleAlwaysOnTop = matchesShortcut(
+        e,
+        shortcuts?.toggleAlwaysOnTop
+      );
+      if (!shouldToggleOverlayLock && !shouldToggleAlwaysOnTop) return;
+
+      const active = document.activeElement as HTMLElement | null;
+      if (active) {
+        const tag = (active.tagName || "").toLowerCase();
+        const editable = active.isContentEditable;
+        if (tag === "input" || tag === "textarea" || editable) return;
+      }
+
+      const hasModal = document.querySelector(
+        "[data-dmn-modal-backdrop='true']"
+      );
+      if (hasModal) return;
+      if ((window as any).__dmn_isKeyListening) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      try {
+        if (shouldToggleOverlayLock) {
+          const next = !overlayLocked;
+          setOverlayLocked(next);
+          await window.api.settings.update({ overlayLocked: next });
+          return;
+        }
+        if (shouldToggleAlwaysOnTop) {
+          const next = !alwaysOnTop;
+          setAlwaysOnTop(next);
+          await window.api.settings.update({ alwaysOnTop: next });
+        }
+      } catch (error) {
+        console.error("Failed to toggle overlay setting via shortcut", error);
+      }
+    };
+
+    window.addEventListener("keydown", handler, true);
+    return () => window.removeEventListener("keydown", handler, true);
+  }, [
+    matchesShortcut,
+    shortcuts?.toggleOverlayLock,
+    shortcuts?.toggleAlwaysOnTop,
+    overlayLocked,
+    setOverlayLocked,
+    alwaysOnTop,
+    setAlwaysOnTop,
+  ]);
 
   const showAlert = (message: string, confirmText?: string) => {
     setAlertState({

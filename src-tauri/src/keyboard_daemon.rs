@@ -4,6 +4,14 @@ use anyhow::{anyhow, Result};
 use serde_json::to_string;
 
 use crate::ipc::{DaemonCommand, HookKeyState, HookMessage, InputDeviceKind};
+use crate::models::{ShortcutBinding, ShortcutsState};
+
+fn load_hotkeys_from_env() -> ShortcutsState {
+    std::env::var("DMNOTE_HOTKEYS_V1")
+        .ok()
+        .and_then(|value| serde_json::from_str::<ShortcutsState>(&value).ok())
+        .unwrap_or_default()
+}
 
 #[cfg(target_os = "windows")]
 use crate::{
@@ -17,16 +25,30 @@ use crate::{
 /// Global hotkey state tracker
 #[cfg(target_os = "windows")]
 struct HotkeyState {
-    ctrl_pressed: bool,
-    shift_pressed: bool,
+    ctrl_left: bool,
+    ctrl_right: bool,
+    shift_left: bool,
+    shift_right: bool,
+    alt_left: bool,
+    alt_right: bool,
+    meta_left: bool,
+    meta_right: bool,
+    toggle_overlay: Option<ParsedHotkey>,
 }
 
 #[cfg(target_os = "windows")]
 impl HotkeyState {
-    fn new() -> Self {
+    fn new(toggle_overlay: ShortcutBinding) -> Self {
         Self {
-            ctrl_pressed: false,
-            shift_pressed: false,
+            ctrl_left: false,
+            ctrl_right: false,
+            shift_left: false,
+            shift_right: false,
+            alt_left: false,
+            alt_right: false,
+            meta_left: false,
+            meta_right: false,
+            toggle_overlay: ParsedHotkey::from_binding(&toggle_overlay),
         }
     }
 
@@ -38,62 +60,214 @@ impl HotkeyState {
         const VK_RCONTROL: u32 = 0xA3;
         const VK_LSHIFT: u32 = 0xA0;
         const VK_RSHIFT: u32 = 0xA1;
-        const VK_O: u32 = 0x4F;
+        const VK_LMENU: u32 = 0xA4; // Left Alt
+        const VK_RMENU: u32 = 0xA5; // Right Alt
+        const VK_LWIN: u32 = 0x5B;
+        const VK_RWIN: u32 = 0x5C;
 
         match vk_code {
-            VK_LCONTROL | VK_RCONTROL => {
-                self.ctrl_pressed = is_down;
-            }
-            VK_LSHIFT | VK_RSHIFT => {
-                self.shift_pressed = is_down;
-            }
-            VK_O if is_down => {
-                // Ctrl+Shift+O -> Toggle Overlay
-                if self.ctrl_pressed && self.shift_pressed {
-                    return Some(DaemonCommand::ToggleOverlay);
-                }
-            }
+            VK_LCONTROL => self.ctrl_left = is_down,
+            VK_RCONTROL => self.ctrl_right = is_down,
+            VK_LSHIFT => self.shift_left = is_down,
+            VK_RSHIFT => self.shift_right = is_down,
+            VK_LMENU => self.alt_left = is_down,
+            VK_RMENU => self.alt_right = is_down,
+            VK_LWIN => self.meta_left = is_down,
+            VK_RWIN => self.meta_right = is_down,
             _ => {}
         }
+
+        if !is_down {
+            return None;
+        }
+
+        let hotkey = self.toggle_overlay.as_ref()?;
+        if vk_code != hotkey.key_vk {
+            return None;
+        }
+
+        let ctrl = self.ctrl_left || self.ctrl_right;
+        let shift = self.shift_left || self.shift_right;
+        let alt = self.alt_left || self.alt_right;
+        let meta = self.meta_left || self.meta_right;
+
+        if ctrl == hotkey.ctrl && shift == hotkey.shift && alt == hotkey.alt && meta == hotkey.meta
+        {
+            return Some(DaemonCommand::ToggleOverlay);
+        }
+
         None
+    }
+}
+
+#[cfg(target_os = "windows")]
+#[derive(Debug, Clone)]
+struct ParsedHotkey {
+    key_vk: u32,
+    ctrl: bool,
+    shift: bool,
+    alt: bool,
+    meta: bool,
+}
+
+#[cfg(target_os = "windows")]
+impl ParsedHotkey {
+    fn from_binding(binding: &ShortcutBinding) -> Option<Self> {
+        let key_vk = vk_from_key_code(&binding.key)?;
+        Some(Self {
+            key_vk,
+            ctrl: binding.ctrl,
+            shift: binding.shift,
+            alt: binding.alt,
+            meta: binding.meta,
+        })
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn vk_from_key_code(code: &str) -> Option<u32> {
+    // Uses KeyboardEvent.code-style keys (e.g., KeyO, Tab, Digit1).
+    if let Some(rest) = code.strip_prefix("Key") {
+        if rest.len() == 1 {
+            let ch = rest.chars().next()?.to_ascii_uppercase();
+            if ('A'..='Z').contains(&ch) {
+                return Some(ch as u32);
+            }
+        }
+    }
+
+    if let Some(rest) = code.strip_prefix("Digit") {
+        if rest.len() == 1 {
+            let ch = rest.chars().next()?;
+            if ('0'..='9').contains(&ch) {
+                return Some(ch as u32);
+            }
+        }
+    }
+
+    if let Some(rest) = code.strip_prefix("F") {
+        if !rest.is_empty() && rest.chars().all(|c| c.is_ascii_digit()) {
+            let n: u32 = rest.parse().ok()?;
+            if (1..=24).contains(&n) {
+                return Some(0x6F + n);
+            }
+        }
+    }
+
+    match code {
+        "Tab" => Some(0x09),
+        "Enter" => Some(0x0D),
+        "Escape" => Some(0x1B),
+        "Space" => Some(0x20),
+        "Backspace" => Some(0x08),
+        "Insert" => Some(0x2D),
+        "Delete" => Some(0x2E),
+        "Home" => Some(0x24),
+        "End" => Some(0x23),
+        "PageUp" => Some(0x21),
+        "PageDown" => Some(0x22),
+        "ArrowLeft" => Some(0x25),
+        "ArrowUp" => Some(0x26),
+        "ArrowRight" => Some(0x27),
+        "ArrowDown" => Some(0x28),
+        "Comma" => Some(0xBC),
+        "Period" => Some(0xBE),
+        "Slash" => Some(0xBF),
+        "Semicolon" => Some(0xBA),
+        "Quote" => Some(0xDE),
+        "BracketLeft" => Some(0xDB),
+        "BracketRight" => Some(0xDD),
+        "Backslash" => Some(0xDC),
+        "Backquote" => Some(0xC0),
+        "Minus" => Some(0xBD),
+        "Equal" => Some(0xBB),
+        _ => None,
     }
 }
 
 #[cfg(target_os = "macos")]
 struct MacHotkeyState {
-    ctrl_pressed: bool,
-    shift_pressed: bool,
-    meta_pressed: bool,
+    ctrl_left: bool,
+    ctrl_right: bool,
+    shift_left: bool,
+    shift_right: bool,
+    alt_left: bool,
+    alt_right: bool,
+    meta_left: bool,
+    meta_right: bool,
+    toggle_overlay_key: String,
+    toggle_overlay: ShortcutBinding,
 }
 
 #[cfg(target_os = "macos")]
 impl MacHotkeyState {
-    fn new() -> Self {
+    fn new(toggle_overlay: ShortcutBinding) -> Self {
+        let toggle_overlay_key = toggle_overlay.key.to_ascii_lowercase();
         Self {
-            ctrl_pressed: false,
-            shift_pressed: false,
-            meta_pressed: false,
+            ctrl_left: false,
+            ctrl_right: false,
+            shift_left: false,
+            shift_right: false,
+            alt_left: false,
+            alt_right: false,
+            meta_left: false,
+            meta_right: false,
+            toggle_overlay_key,
+            toggle_overlay,
         }
     }
 
     fn update(&mut self, key_name: &str, is_down: bool) -> Option<DaemonCommand> {
         match key_name {
             "controlleft" | "controlright" => {
-                self.ctrl_pressed = is_down;
+                if key_name == "controlleft" {
+                    self.ctrl_left = is_down;
+                } else {
+                    self.ctrl_right = is_down;
+                }
             }
             "shiftleft" | "shiftright" => {
-                self.shift_pressed = is_down;
+                if key_name == "shiftleft" {
+                    self.shift_left = is_down;
+                } else {
+                    self.shift_right = is_down;
+                }
+            }
+            "alt" | "altleft" | "altright" | "option" => {
+                if key_name == "altright" {
+                    self.alt_right = is_down;
+                } else {
+                    self.alt_left = is_down;
+                }
             }
             "metaleft" | "metaright" | "command" => {
-                self.meta_pressed = is_down;
+                if key_name == "metaright" {
+                    self.meta_right = is_down;
+                } else {
+                    self.meta_left = is_down;
+                }
             }
             _ => {}
         }
 
-        if is_down
-            && key_name == "keyo"
-            && self.shift_pressed
-            && (self.ctrl_pressed || self.meta_pressed)
+        if !is_down {
+            return None;
+        }
+
+        let binding = &self.toggle_overlay;
+        if self.toggle_overlay_key.trim().is_empty() {
+            return None;
+        }
+        if key_name != self.toggle_overlay_key {
+            return None;
+        }
+
+        let ctrl = self.ctrl_left || self.ctrl_right;
+        let shift = self.shift_left || self.shift_right;
+        let alt = self.alt_left || self.alt_right;
+        let meta = self.meta_left || self.meta_right;
+
+        if ctrl == binding.ctrl && shift == binding.shift && alt == binding.alt && meta == binding.meta
         {
             return Some(DaemonCommand::ToggleOverlay);
         }
@@ -317,7 +491,8 @@ fn run_raw_input() -> Result<()> {
     };
 
     // Global hotkey state tracker
-    let mut hotkey_state = HotkeyState::new();
+    let hotkeys = load_hotkeys_from_env();
+    let mut hotkey_state = HotkeyState::new(hotkeys.toggle_overlay);
 
     // Raw Input mouse button flags (not exposed as constants in windows crate today).
     const RI_MOUSE_LEFT_BUTTON_DOWN: u16 = 0x0001;
@@ -352,7 +527,7 @@ fn run_raw_input() -> Result<()> {
 
     unsafe {
         // Register a minimal window class for receiving WM_INPUT.
-        let class_name: Vec<u16> = "DmNoteRawInput ".encode_utf16().collect();
+        let class_name: Vec<u16> = "DmNoteRawInput".encode_utf16().chain(std::iter::once(0)).collect();
         use windows::Win32::System::LibraryLoader::GetModuleHandleW;
         let hinstance = GetModuleHandleW(None)?;
 
@@ -619,7 +794,8 @@ fn run_macos() -> Result<()> {
     use rdev::{listen, EventType};
 
     let mut sink: Box<dyn Write + Send> = Box::new(std::io::stdout());
-    let mut hotkey_state = MacHotkeyState::new();
+    let hotkeys = load_hotkeys_from_env();
+    let mut hotkey_state = MacHotkeyState::new(hotkeys.toggle_overlay);
 
     let callback = move |event: rdev::Event| {
         match event.event_type {

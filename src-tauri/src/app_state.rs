@@ -145,6 +145,7 @@ impl AppState {
                 overlay_resize_anchor: state.overlay_resize_anchor.clone(),
                 key_counter_enabled: state.key_counter_enabled,
                 grid_settings: state.grid_settings.clone(),
+                shortcuts: state.shortcuts.clone(),
             },
             keys: state.keys.clone(),
             positions: state.key_positions.clone(),
@@ -356,6 +357,8 @@ impl AppState {
         self.clear_active_keys();
 
         let current_exe = std::env::current_exe().context("failed to locate dm-note executable")?;
+        let shortcuts_json = serde_json::to_string(&self.store.settings_snapshot().shortcuts)
+            .unwrap_or_else(|_| "{}".to_string());
 
         // Prepare Named Pipe server asynchronously to avoid blocking before spawning the daemon.
         #[cfg(target_os = "windows")]
@@ -374,6 +377,7 @@ impl AppState {
         let _pipe_receiver: Option<std::sync::mpsc::Receiver<Option<std::fs::File>>> = None;
         let mut child = Command::new(current_exe)
             .arg("--keyboard-daemon")
+            .env("DMNOTE_HOTKEYS_V1", shortcuts_json)
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -880,6 +884,14 @@ impl AppState {
                     let _ = overlay.open_devtools();
                 }
             }
+        }
+
+        if diff.changed.shortcuts.is_some() {
+            // Restart keyboard daemon to apply updated global hotkeys.
+            if let Some(task) = self.keyboard_task.write().take() {
+                drop(task);
+            }
+            self.start_keyboard_hook(app.clone())?;
         }
 
         Ok(())

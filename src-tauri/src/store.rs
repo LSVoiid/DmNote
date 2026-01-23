@@ -316,6 +316,7 @@ fn settings_from_store(store: &AppStoreData) -> SettingsState {
         overlay_resize_anchor: store.overlay_resize_anchor.clone(),
         key_counter_enabled: store.key_counter_enabled,
         grid_settings: store.grid_settings.clone(),
+        shortcuts: store.shortcuts.clone(),
     }
 }
 
