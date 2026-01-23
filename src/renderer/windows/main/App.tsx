@@ -131,10 +131,6 @@ export default function App() {
   const [skipModalAnimationOnReturn, setSkipModalAnimationOnReturn] =
     useState(false);
   const {
-    alwaysOnTop,
-    setAlwaysOnTop,
-    overlayLocked,
-    setOverlayLocked,
     noteEffect,
     angleMode,
     setAngleMode,
@@ -303,63 +299,6 @@ export default function App() {
     matchesShortcut,
     shortcuts?.toggleSettingsPanel,
     isSettingsOpen,
-  ]);
-
-  useEffect(() => {
-    const handler = async (e: KeyboardEvent) => {
-      const shouldToggleOverlayLock = matchesShortcut(
-        e,
-        shortcuts?.toggleOverlayLock
-      );
-      const shouldToggleAlwaysOnTop = matchesShortcut(
-        e,
-        shortcuts?.toggleAlwaysOnTop
-      );
-      if (!shouldToggleOverlayLock && !shouldToggleAlwaysOnTop) return;
-
-      const active = document.activeElement as HTMLElement | null;
-      if (active) {
-        const tag = (active.tagName || "").toLowerCase();
-        const editable = active.isContentEditable;
-        if (tag === "input" || tag === "textarea" || editable) return;
-      }
-
-      const hasModal = document.querySelector(
-        "[data-dmn-modal-backdrop='true']"
-      );
-      if (hasModal) return;
-      if ((window as any).__dmn_isKeyListening) return;
-
-      e.preventDefault();
-      e.stopPropagation();
-
-      try {
-        if (shouldToggleOverlayLock) {
-          const next = !overlayLocked;
-          setOverlayLocked(next);
-          await window.api.settings.update({ overlayLocked: next });
-          return;
-        }
-        if (shouldToggleAlwaysOnTop) {
-          const next = !alwaysOnTop;
-          setAlwaysOnTop(next);
-          await window.api.settings.update({ alwaysOnTop: next });
-        }
-      } catch (error) {
-        console.error("Failed to toggle overlay setting via shortcut", error);
-      }
-    };
-
-    window.addEventListener("keydown", handler, true);
-    return () => window.removeEventListener("keydown", handler, true);
-  }, [
-    matchesShortcut,
-    shortcuts?.toggleOverlayLock,
-    shortcuts?.toggleAlwaysOnTop,
-    overlayLocked,
-    setOverlayLocked,
-    alwaysOnTop,
-    setAlwaysOnTop,
   ]);
 
   const showAlert = (message: string, confirmText?: string) => {

@@ -34,11 +34,13 @@ struct HotkeyState {
     meta_left: bool,
     meta_right: bool,
     toggle_overlay: Option<ParsedHotkey>,
+    toggle_overlay_lock: Option<ParsedHotkey>,
+    toggle_always_on_top: Option<ParsedHotkey>,
 }
 
 #[cfg(target_os = "windows")]
 impl HotkeyState {
-    fn new(toggle_overlay: ShortcutBinding) -> Self {
+    fn new(toggle_overlay: ShortcutBinding, toggle_overlay_lock: ShortcutBinding, toggle_always_on_top: ShortcutBinding) -> Self {
         Self {
             ctrl_left: false,
             ctrl_right: false,
@@ -49,6 +51,8 @@ impl HotkeyState {
             meta_left: false,
             meta_right: false,
             toggle_overlay: ParsedHotkey::from_binding(&toggle_overlay),
+            toggle_overlay_lock: ParsedHotkey::from_binding(&toggle_overlay_lock),
+            toggle_always_on_top: ParsedHotkey::from_binding(&toggle_always_on_top),
         }
     }
 
@@ -81,19 +85,33 @@ impl HotkeyState {
             return None;
         }
 
-        let hotkey = self.toggle_overlay.as_ref()?;
-        if vk_code != hotkey.key_vk {
-            return None;
-        }
-
         let ctrl = self.ctrl_left || self.ctrl_right;
         let shift = self.shift_left || self.shift_right;
         let alt = self.alt_left || self.alt_right;
         let meta = self.meta_left || self.meta_right;
 
-        if ctrl == hotkey.ctrl && shift == hotkey.shift && alt == hotkey.alt && meta == hotkey.meta
-        {
-            return Some(DaemonCommand::ToggleOverlay);
+        let matches = |hotkey: &ParsedHotkey| {
+            vk_code == hotkey.key_vk
+                && ctrl == hotkey.ctrl
+                && shift == hotkey.shift
+                && alt == hotkey.alt
+                && meta == hotkey.meta
+        };
+
+        if let Some(hk) = self.toggle_overlay.as_ref() {
+            if matches(hk) {
+                return Some(DaemonCommand::ToggleOverlay);
+            }
+        }
+        if let Some(hk) = self.toggle_overlay_lock.as_ref() {
+            if matches(hk) {
+                return Some(DaemonCommand::ToggleOverlayLock);
+            }
+        }
+        if let Some(hk) = self.toggle_always_on_top.as_ref() {
+            if matches(hk) {
+                return Some(DaemonCommand::ToggleAlwaysOnTop);
+            }
         }
 
         None
@@ -197,12 +215,18 @@ struct MacHotkeyState {
     meta_right: bool,
     toggle_overlay_key: String,
     toggle_overlay: ShortcutBinding,
+    toggle_overlay_lock_key: String,
+    toggle_overlay_lock: ShortcutBinding,
+    toggle_always_on_top_key: String,
+    toggle_always_on_top: ShortcutBinding,
 }
 
 #[cfg(target_os = "macos")]
 impl MacHotkeyState {
-    fn new(toggle_overlay: ShortcutBinding) -> Self {
+    fn new(toggle_overlay: ShortcutBinding, toggle_overlay_lock: ShortcutBinding, toggle_always_on_top: ShortcutBinding) -> Self {
         let toggle_overlay_key = toggle_overlay.key.to_ascii_lowercase();
+        let toggle_overlay_lock_key = toggle_overlay_lock.key.to_ascii_lowercase();
+        let toggle_always_on_top_key = toggle_always_on_top.key.to_ascii_lowercase();
         Self {
             ctrl_left: false,
             ctrl_right: false,
@@ -214,6 +238,10 @@ impl MacHotkeyState {
             meta_right: false,
             toggle_overlay_key,
             toggle_overlay,
+            toggle_overlay_lock_key,
+            toggle_overlay_lock,
+            toggle_always_on_top_key,
+            toggle_always_on_top,
         }
     }
 
@@ -254,22 +282,28 @@ impl MacHotkeyState {
             return None;
         }
 
-        let binding = &self.toggle_overlay;
-        if self.toggle_overlay_key.trim().is_empty() {
-            return None;
-        }
-        if key_name != self.toggle_overlay_key {
-            return None;
-        }
-
         let ctrl = self.ctrl_left || self.ctrl_right;
         let shift = self.shift_left || self.shift_right;
         let alt = self.alt_left || self.alt_right;
         let meta = self.meta_left || self.meta_right;
 
-        if ctrl == binding.ctrl && shift == binding.shift && alt == binding.alt && meta == binding.meta
-        {
+        let matches = |key: &str, binding: &ShortcutBinding| {
+            !key.trim().is_empty()
+                && key_name == key
+                && ctrl == binding.ctrl
+                && shift == binding.shift
+                && alt == binding.alt
+                && meta == binding.meta
+        };
+
+        if matches(&self.toggle_overlay_key, &self.toggle_overlay) {
             return Some(DaemonCommand::ToggleOverlay);
+        }
+        if matches(&self.toggle_overlay_lock_key, &self.toggle_overlay_lock) {
+            return Some(DaemonCommand::ToggleOverlayLock);
+        }
+        if matches(&self.toggle_always_on_top_key, &self.toggle_always_on_top) {
+            return Some(DaemonCommand::ToggleAlwaysOnTop);
         }
 
         None
@@ -492,7 +526,11 @@ fn run_raw_input() -> Result<()> {
 
     // Global hotkey state tracker
     let hotkeys = load_hotkeys_from_env();
-    let mut hotkey_state = HotkeyState::new(hotkeys.toggle_overlay);
+    let mut hotkey_state = HotkeyState::new(
+        hotkeys.toggle_overlay,
+        hotkeys.toggle_overlay_lock,
+        hotkeys.toggle_always_on_top,
+    );
 
     // Raw Input mouse button flags (not exposed as constants in windows crate today).
     const RI_MOUSE_LEFT_BUTTON_DOWN: u16 = 0x0001;
@@ -795,7 +833,11 @@ fn run_macos() -> Result<()> {
 
     let mut sink: Box<dyn Write + Send> = Box::new(std::io::stdout());
     let hotkeys = load_hotkeys_from_env();
-    let mut hotkey_state = MacHotkeyState::new(hotkeys.toggle_overlay);
+    let mut hotkey_state = MacHotkeyState::new(
+        hotkeys.toggle_overlay,
+        hotkeys.toggle_overlay_lock,
+        hotkeys.toggle_always_on_top,
+    );
 
     let callback = move |event: rdev::Event| {
         match event.event_type {

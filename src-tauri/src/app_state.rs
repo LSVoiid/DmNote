@@ -448,6 +448,38 @@ impl AppState {
                                             log::error!("failed to toggle overlay visibility: {err}");
                                         }
                                     }
+                                    crate::ipc::DaemonCommand::ToggleOverlayLock => {
+                                        log::info!("[AppState] received ToggleOverlayLock command from daemon");
+                                        let app_state = app_handle.state::<AppState>();
+                                        let current = app_state.store.snapshot().overlay_locked;
+                                        match app_state.settings.apply_patch(crate::models::SettingsPatchInput {
+                                            overlay_locked: Some(!current),
+                                            ..Default::default()
+                                        }) {
+                                            Ok(diff) => {
+                                                if let Err(err) = app_state.emit_settings_changed(&diff, &app_handle) {
+                                                    log::error!("failed to apply overlay lock toggle: {err}");
+                                                }
+                                            }
+                                            Err(err) => log::error!("failed to toggle overlay lock: {err}"),
+                                        }
+                                    }
+                                    crate::ipc::DaemonCommand::ToggleAlwaysOnTop => {
+                                        log::info!("[AppState] received ToggleAlwaysOnTop command from daemon");
+                                        let app_state = app_handle.state::<AppState>();
+                                        let current = app_state.store.snapshot().always_on_top;
+                                        match app_state.settings.apply_patch(crate::models::SettingsPatchInput {
+                                            always_on_top: Some(!current),
+                                            ..Default::default()
+                                        }) {
+                                            Ok(diff) => {
+                                                if let Err(err) = app_state.emit_settings_changed(&diff, &app_handle) {
+                                                    log::error!("failed to apply always-on-top toggle: {err}");
+                                                }
+                                            }
+                                            Err(err) => log::error!("failed to toggle always-on-top: {err}"),
+                                        }
+                                    }
                                 }
                                 continue;
                             }
