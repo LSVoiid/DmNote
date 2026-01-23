@@ -39,6 +39,7 @@ const FALLBACK_POSITION: KeyPosition = {
   dy: 0,
   width: 60,
   height: 60,
+  hidden: false,
   activeImage: "",
   inactiveImage: "",
   activeTransparent: false,
@@ -296,6 +297,7 @@ export default function App() {
 
     // 키 위치
     currentPositions.forEach((pos) => {
+      if (pos.hidden) return;
       xs.push(pos.dx);
       ys.push(pos.dy);
       widths.push(pos.dx + pos.width);
@@ -304,7 +306,7 @@ export default function App() {
 
     // 플러그인 요소 위치 (앵커 기반 계산 포함)
     pluginElements
-      .filter((el) => !el.tabId || el.tabId === selectedKeyType)
+      .filter((el) => !el.hidden && (!el.tabId || el.tabId === selectedKeyType))
       .forEach((element) => {
         let x = element.position.x;
         let y = element.position.y;
@@ -373,13 +375,16 @@ export default function App() {
 
   const topMostY = useMemo(() => {
     if (!displayPositions.length) return 0;
-    return Math.min(...displayPositions.map((position) => position.dy));
+    const visible = displayPositions.filter((position) => !position.hidden);
+    if (visible.length === 0) return 0;
+    return Math.min(...visible.map((position) => position.dy));
   }, [displayPositions]);
 
   const webglTracks = useMemo(
     () =>
       currentKeys.map((key, index) => {
         const originalPosition = currentPositions[index] ?? FALLBACK_POSITION;
+        if (originalPosition.hidden) return null;
         const position = displayPositions[index] ?? originalPosition;
         // noteAutoYCorrection이 false면 원래 위치 사용, 아니면 topMostY로 보정
         const useAutoCorrection = position.noteAutoYCorrection !== false;
@@ -407,7 +412,7 @@ export default function App() {
           borderRadius:
             position.noteBorderRadius ?? DEFAULT_NOTE_BORDER_RADIUS,
         };
-      }),
+      }).filter(Boolean),
     [
       currentKeys,
       currentPositions,

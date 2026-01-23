@@ -441,6 +441,8 @@ export type PluginDisplayElementInternal = PluginDisplayElement & {
   pluginId: string;
   fullId: string;
   measuredSize?: { width: number; height: number };
+  /** 레이어 표시 여부 (true면 숨김) */
+  hidden?: boolean;
   /** 리사이즈 시 사용되는 명시적 너비 */
   width?: number;
   /** 리사이즈 시 사용되는 명시적 높이 */

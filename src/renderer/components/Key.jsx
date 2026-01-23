@@ -46,6 +46,8 @@ export default function DraggableKey({
   counterEnabled = false,
   counterPreviewValue = 0,
 }) {
+  if (position?.hidden) return null;
+
   const macOS = isMac();
   const { displayName } = getKeyInfoByGlobalKey(keyName);
   const {

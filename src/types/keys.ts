@@ -185,6 +185,8 @@ export const keyPositionSchema = z.object({
   dy: z.number(),
   width: z.number().positive(),
   height: z.number().positive(),
+  // 레이어 표시 여부 (false면 그리드/오버레이에서 렌더링하지 않음)
+  hidden: z.boolean().optional().default(false),
   activeImage: z.string().optional().or(z.literal("")),
   inactiveImage: z.string().optional().or(z.literal("")),
   activeTransparent: z.boolean().optional(),

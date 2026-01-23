@@ -76,6 +76,9 @@ pub struct KeyPosition {
     pub dy: f64,
     pub width: f64,
     pub height: f64,
+    /// 레이어 표시 여부 (true면 숨김)
+    #[serde(default)]
+    pub hidden: bool,
     #[serde(default)]
     pub active_image: Option<String>,
     #[serde(default)]

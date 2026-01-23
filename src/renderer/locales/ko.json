@@ -371,6 +371,8 @@
     "noLayers": "레이어 없음",
     "switchToLayer": "레이어 패널로 전환",
     "switchToProperty": "속성 패널로 전환",
-    "delete": "삭제"
+    "delete": "삭제",
+    "hideLayer": "숨기기",
+    "showLayer": "표시하기"
   }
 }

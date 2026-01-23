@@ -84,6 +84,7 @@ export function useGridMarquee({
       // 키 요소 체크
       const keyPositions = positions[selectedKeyType] || [];
       keyPositions.forEach((pos, index) => {
+        if (pos.hidden) return;
         const elementBounds = {
           x: pos.dx,
           y: pos.dy,
@@ -101,6 +102,7 @@ export function useGridMarquee({
 
       // 플러그인 요소 체크 (현재 탭에 속하는 것만)
       pluginElements.forEach((el) => {
+        if (el.hidden) return;
         const belongsToCurrentTab = !el.tabId || el.tabId === selectedKeyType;
         if (belongsToCurrentTab && el.measuredSize) {
           const elementBounds = {

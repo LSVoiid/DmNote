@@ -14,6 +14,8 @@ import { useHistoryStore } from "@stores/useHistoryStore";
 import { getKeyInfoByGlobalKey } from "@utils/KeyMaps";
 import { useLenis } from "@hooks/useLenis";
 import ListPopup, { type ListItem } from "@components/main/Modal/ListPopup";
+import CloseEyeIcon from "@assets/svgs/close_eye.svg";
+import OpenEyeIcon from "@assets/svgs/open_eye.svg";
 
 // ============================================================================
 // 레이어 아이템 타입
@@ -25,6 +27,7 @@ interface LayerItem {
   index?: number; // key인 경우
   name: string;
   zIndex: number;
+  hidden: boolean;
 }
 
 // ============================================================================
@@ -203,6 +206,7 @@ const LayerTabContent: React.FC<LayerTabContentProps> = ({
         index,
         name: keyInfo?.displayName || keyCode || `Key ${index + 1}`,
         zIndex: pos.zIndex ?? index,
+        hidden: !!pos.hidden,
       });
     });
 
@@ -213,6 +217,7 @@ const LayerTabContent: React.FC<LayerTabContentProps> = ({
         id: el.fullId,
         name: el.definitionId || "Plugin",
         zIndex: el.zIndex ?? 0,
+        hidden: !!el.hidden,
       });
     });
 
@@ -371,6 +376,56 @@ const LayerTabContent: React.FC<LayerTabContentProps> = ({
       setSelectedElements,
       toggleSelection,
     ],
+  );
+
+  const handleToggleVisibility = useCallback(
+    async (e: React.MouseEvent, item: LayerItem) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      clearPendingDeselect();
+      onSelectionFromPanel?.();
+
+      const { keyMappings: km, positions: pos } = useKeyStore.getState();
+      const currentPluginElements =
+        usePluginDisplayElementStore.getState().elements;
+      useHistoryStore.getState().pushState(km, pos, currentPluginElements);
+
+      if (item.type === "key" && item.index !== undefined) {
+        const currentPositions = pos[selectedKeyType] || [];
+        const current = currentPositions[item.index];
+        if (!current) return;
+
+        const updatedPositions = { ...pos };
+        const updatedModePositions = [...currentPositions];
+        updatedModePositions[item.index] = {
+          ...current,
+          hidden: !current.hidden,
+        };
+        updatedPositions[selectedKeyType] = updatedModePositions;
+
+        useKeyStore.getState().setLocalUpdateInProgress(true);
+        useKeyStore.getState().setPositions(updatedPositions);
+        try {
+          await window.api.keys.updatePositions(updatedPositions);
+        } catch (error) {
+          console.error("Failed to toggle key visibility", error);
+        } finally {
+          useKeyStore.getState().setLocalUpdateInProgress(false);
+        }
+
+        return;
+      }
+
+      if (item.type === "plugin") {
+        const el = currentPluginElements.find((p) => p.fullId === item.id);
+        if (!el) return;
+        usePluginDisplayElementStore
+          .getState()
+          .updateElement(item.id, { hidden: !el.hidden });
+      }
+    },
+    [clearPendingDeselect, onSelectionFromPanel, selectedKeyType],
   );
 
   // 아이템이 선택되었는지 확인
@@ -667,8 +722,9 @@ const LayerTabContent: React.FC<LayerTabContentProps> = ({
                 onDoubleClick={(e) => handleItemDoubleClick(item, index, e)}
                 onContextMenu={(e) => handleContextMenu(e, item, index)}
                 className={`
-                  relative flex items-center gap-[8px] px-[12px] py-[8px]
+                  relative flex items-center gap-[8px] px-[12px] h-[34px]
                   select-none cursor-grab
+                  ${item.hidden ? "opacity-60" : ""}
                   ${
                     isItemSelected(item)
                       ? "bg-[#3B82F6]/20 text-[#DBDEE8]"
@@ -690,6 +746,32 @@ const LayerTabContent: React.FC<LayerTabContentProps> = ({
 
                 {/* 이름 */}
                 <span className="flex-1 text-[12px] truncate">{item.name}</span>
+
+                {/* 표시/숨김 토글 */}
+                <button
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  onDoubleClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  onClick={(e) => handleToggleVisibility(e, item)}
+                  title={
+                    item.hidden
+                      ? t("propertiesPanel.showLayer") || "Show"
+                      : t("propertiesPanel.hideLayer") || "Hide"
+                  }
+                  className="flex-shrink-0 w-[28px] h-[28px] flex items-center justify-center rounded-[6px] hover:bg-[#4C4D53] cursor-pointer opacity-60 hover:opacity-100 transition-opacity"
+                >
+                  {item.hidden ? (
+                    <CloseEyeIcon width={14} height={14} fill="currentColor" />
+                  ) : (
+                    <OpenEyeIcon width={14} height={14} fill="currentColor" />
+                  )}
+                </button>
               </div>
             ))}
 

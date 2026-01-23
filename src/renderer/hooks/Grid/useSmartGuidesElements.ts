@@ -31,6 +31,7 @@ export function useSmartGuidesElements() {
       // 키 요소 bounds
       const keyPositions = positions[selectedKeyType] || [];
       keyPositions.forEach((pos, index) => {
+        if (pos.hidden) return;
         const id = `key-${index}`;
         if (!excludeSet.has(id)) {
           bounds.push(
@@ -47,6 +48,7 @@ export function useSmartGuidesElements() {
 
       // 플러그인 요소 bounds (현재 탭에 속하는 요소만)
       pluginElements.forEach((el) => {
+        if (el.hidden) return;
         // tabId가 없으면 모든 탭에 표시되는 요소로 간주
         // tabId가 있으면 현재 선택된 탭과 일치해야 함
         const belongsToCurrentTab = !el.tabId || el.tabId === selectedKeyType;

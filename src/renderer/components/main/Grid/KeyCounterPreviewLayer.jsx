@@ -131,6 +131,7 @@ export default function KeyCounterPreviewLayer({
     >
       {positions.map((position, index) => {
         if (!position) return null;
+        if (position.hidden) return null;
         return (
           <KeyCounterPreview
             key={`counter-preview-${index}`}

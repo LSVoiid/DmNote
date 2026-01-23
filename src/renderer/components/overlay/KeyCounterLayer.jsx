@@ -132,6 +132,7 @@ export default function KeyCounterLayer({ keys, positions, mode }) {
       {keys.map((key, index) => {
         const position = positions[index];
         if (!position) return null;
+        if (position.hidden) return null;
         return (
           <KeyCounter
             key={`${mode}-${key}-${index}`}

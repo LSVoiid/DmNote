@@ -199,6 +199,7 @@ export function useKeyManager() {
           dy: 0,
           width: 60,
           height: 60,
+          hidden: false,
           activeImage: "",
           inactiveImage: "",
           activeTransparent: false,
@@ -249,6 +250,7 @@ export function useKeyManager() {
           dy,
           width: 60,
           height: 60,
+          hidden: false,
           activeImage: "",
           inactiveImage: "",
           activeTransparent: false,
@@ -1077,6 +1079,7 @@ export function useKeyManager() {
                   measuredSize: savedEl.measuredSize,
                   resizeAnchor: savedEl.resizeAnchor,
                   zIndex: savedEl.zIndex,
+                  hidden: (savedEl as any).hidden,
                 };
               }
 
@@ -1191,6 +1194,7 @@ export function useKeyManager() {
                 measuredSize: savedEl.measuredSize,
                 resizeAnchor: savedEl.resizeAnchor,
                 zIndex: savedEl.zIndex,
+                hidden: (savedEl as any).hidden,
               };
             }
 

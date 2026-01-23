@@ -14,6 +14,7 @@ interface Position {
   dy: number;
   width?: number;
   height?: number;
+  hidden?: boolean;
 }
 
 interface PluginElementPosition {
@@ -70,6 +71,7 @@ export default function GridMinimap({
   // 현재 탭의 플러그인 요소만 필터링
   const filteredPluginElements = useMemo(() => {
     return pluginElements.filter((el) => {
+      if (el.hidden) return false;
       if (el.tabId) {
         return el.tabId === selectedKeyType;
       }
@@ -126,6 +128,7 @@ export default function GridMinimap({
 
     // 키들의 바운딩 박스 계산
     positions.forEach((pos) => {
+      if (pos.hidden) return;
       const x = pos.dx || 0;
       const y = pos.dy || 0;
       const w = pos.width || 60;
@@ -395,6 +398,7 @@ export default function GridMinimap({
         >
           {/* 키 표시 */}
           {positions.map((pos, index) => {
+            if (pos.hidden) return null;
             const x = ((pos.dx || 0) - bounds.minX) * minimapScale + offsetX;
             const y = ((pos.dy || 0) - bounds.minY) * minimapScale + offsetY;
             const w = (pos.width || 60) * minimapScale;

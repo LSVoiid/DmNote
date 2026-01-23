@@ -78,6 +78,7 @@ export const PluginElementsRenderer: React.FC<PluginElementsRendererProps> = ({
 
   // 현재 탭에 해당하는 요소만 필터링
   const filteredElements = elements.filter((el) => {
+    if (el.hidden) return false;
     // tabId가 없으면(레거시) 모든 탭에 표시하거나, 정책에 따라 처리
     // 여기서는 tabId가 있는 경우 현재 탭과 일치하는지 확인
     if (el.tabId) {
