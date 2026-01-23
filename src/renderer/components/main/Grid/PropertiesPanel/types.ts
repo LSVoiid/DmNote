@@ -49,6 +49,19 @@ export interface NumberInputProps {
   mixedPlaceholder?: string;
 }
 
+export interface OptionalNumberInputProps {
+  value?: number;
+  onChange: (value?: number) => void;
+  onBlur?: () => void;
+  min?: number;
+  max?: number;
+  suffix?: string;
+  width?: string;
+  placeholder?: string;
+  isMixed?: boolean;
+  mixedPlaceholder?: string;
+}
+
 export interface ColorInputProps {
   value: string;
   onChange: (value: string) => void;

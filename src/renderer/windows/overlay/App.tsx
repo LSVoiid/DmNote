@@ -384,12 +384,18 @@ export default function App() {
         // noteAutoYCorrection이 false면 원래 위치 사용, 아니면 topMostY로 보정
         const useAutoCorrection = position.noteAutoYCorrection !== false;
         const trackStartY = useAutoCorrection ? topMostY : position.dy;
+        const keyWidth = position.width;
+        const desiredNoteWidth =
+          typeof position.noteWidth === "number" && Number.isFinite(position.noteWidth)
+            ? Math.max(1, Math.round(position.noteWidth))
+            : keyWidth;
+        const noteOffsetX = (keyWidth - desiredNoteWidth) / 2;
 
         return {
           trackKey: key,
           trackIndex: position.zIndex ?? index,
-          position: { ...position, dy: trackStartY },
-          width: position.width,
+          position: { ...position, dx: position.dx + noteOffsetX, dy: trackStartY },
+          width: desiredNoteWidth,
           height: trackHeight,
           noteColor: position.noteColor,
           noteOpacity: position.noteOpacity,

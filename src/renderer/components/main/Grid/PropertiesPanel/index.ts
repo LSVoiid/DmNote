@@ -5,6 +5,7 @@ export * from "./types";
 export {
   PropertyRow,
   NumberInput,
+  OptionalNumberInput,
   TextInput,
   ColorInput,
   SelectInput,

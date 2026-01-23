@@ -89,6 +89,9 @@ pub struct KeyPosition {
     pub note_opacity: u32,
     #[serde(default)]
     pub note_border_radius: Option<u32>,
+    /// 노트 넓이(px). None이면 키 width를 사용(자동).
+    #[serde(default)]
+    pub note_width: Option<u32>,
     #[serde(default = "default_note_effect_enabled")]
     pub note_effect_enabled: bool,
     #[serde(default = "default_note_glow_enabled")]

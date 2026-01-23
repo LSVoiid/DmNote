@@ -1,6 +1,6 @@
 import React from "react";
 import type { KeyPosition } from "@src/types/keys";
-import { PropertyRow, NumberInput, SectionDivider } from "./index";
+import { PropertyRow, NumberInput, OptionalNumberInput, SectionDivider } from "./index";
 import Checkbox from "@components/main/common/Checkbox";
 import { NOTE_SETTINGS_CONSTRAINTS } from "@src/types/noteSettingsConstraints";
 
@@ -43,6 +43,8 @@ const BatchNoteTabContent: React.FC<BatchNoteTabContentProps> = ({
   batchGlowColorButtonRef,
   t,
 }) => {
+  const noteWidthMixed = getMixedValue((pos) => pos.noteWidth, undefined as any);
+
   return (
     <>
       {/* 노트 효과 표시 */}
@@ -84,6 +86,20 @@ const BatchNoteTabContent: React.FC<BatchNoteTabContentProps> = ({
       </div>
 
       <SectionDivider />
+
+      {/* 노트 넓이 */}
+      <PropertyRow label={t("keySetting.noteWidth") || "노트 넓이"}>
+        {noteWidthMixed.isMixed ? (
+          <span className="text-[#6B6D75] text-style-4 italic">Mixed</span>
+        ) : null}
+        <OptionalNumberInput
+          value={noteWidthMixed.value}
+          onChange={(value) => handleBatchStyleChangeComplete("noteWidth", value)}
+          suffix="px"
+          min={1}
+          placeholder="Auto"
+        />
+      </PropertyRow>
 
       {/* 노트 색상 */}
       <PropertyRow label={t("keySetting.noteColor") || "노트 색상"}>

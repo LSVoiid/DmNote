@@ -199,6 +199,8 @@ export const keyPositionSchema = z.object({
     .min(NOTE_SETTINGS_CONSTRAINTS.borderRadius.min)
     .max(NOTE_SETTINGS_CONSTRAINTS.borderRadius.max)
     .optional(),
+  // 노트 넓이(px). 비어있으면 해당 키 width를 사용(자동)
+  noteWidth: z.number().int().positive().optional(),
   noteEffectEnabled: z.boolean().optional().default(true),
   noteGlowEnabled: z.boolean().optional().default(false),
   noteGlowSize: z.number().int().min(0).max(50).optional().default(20),

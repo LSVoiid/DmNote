@@ -2,6 +2,7 @@ import React, { useMemo, useState, useEffect, useRef } from "react";
 import type {
   PropertyRowProps,
   NumberInputProps,
+  OptionalNumberInputProps,
   TextInputProps,
   ColorInputProps,
   SelectInputProps,
@@ -205,6 +206,173 @@ export const NumberInput: React.FC<NumberInputProps> = ({
         } bg-transparent text-style-4 ${showMixedPlaceholder ? "text-[#6B6D75] italic placeholder:text-[#6B6D75] placeholder:italic" : "text-[#DBDEE8]"} text-center`}
       />
     </div>
+  );
+};
+
+// ============================================================================
+// OptionalNumberInput (allows empty -> undefined, supports placeholder)
+// ============================================================================
+
+export const OptionalNumberInput: React.FC<OptionalNumberInputProps> = ({
+  value,
+  onChange,
+  onBlur,
+  min = 0,
+  max = 9999,
+  suffix,
+  width = "54px",
+  placeholder,
+  isMixed = false,
+  mixedPlaceholder = "Mixed",
+}) => {
+  const hasSuffix = !!suffix;
+
+  const getDisplayValue = (val: number, focused: boolean): string => {
+    if (hasSuffix && !focused) {
+      return `${val}${suffix}`;
+    }
+    return String(val);
+  };
+
+  const [localValue, setLocalValue] = useState<string>(() => {
+    if (isMixed || value == null) return "";
+    return getDisplayValue(value, false);
+  });
+  const [isFocused, setIsFocused] = useState(false);
+  const [hasUserInput, setHasUserInput] = useState(false);
+
+  useEffect(() => {
+    if (!isFocused) {
+      if (isMixed || value == null) {
+        setLocalValue("");
+      } else {
+        setLocalValue(getDisplayValue(value, false));
+      }
+      setHasUserInput(false);
+    }
+  }, [value, isFocused, isMixed, hasSuffix, suffix]);
+
+  // Digits/backspace/delete/arrows/tab/enter/home/end only (no minus, no decimals)
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const allowedKeys = [
+      "Backspace",
+      "Delete",
+      "ArrowLeft",
+      "ArrowRight",
+      "ArrowUp",
+      "ArrowDown",
+      "Tab",
+      "Enter",
+      "Home",
+      "End",
+    ];
+
+    if (allowedKeys.includes(e.key)) return;
+    if (e.ctrlKey || e.metaKey) return;
+    if (/^[0-9]$/.test(e.key)) return;
+
+    e.preventDefault();
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value.replace(/[^0-9]/g, "");
+    setLocalValue(newValue);
+    setHasUserInput(true);
+
+    if (newValue === "") {
+      onChange(undefined);
+      return;
+    }
+
+    const numValue = Number(newValue);
+    if (!Number.isFinite(numValue)) return;
+
+    const clamped = Math.min(Math.max(numValue, min), max);
+    onChange(clamped);
+  };
+
+  const handleFocus = () => {
+    setIsFocused(true);
+    setHasUserInput(false);
+    if (!isMixed && value != null) {
+      setLocalValue(String(value));
+    } else {
+      setLocalValue("");
+    }
+  };
+
+  const handleBlur = () => {
+    setIsFocused(false);
+    const numericValue = localValue.replace(/[^0-9]/g, "");
+
+    // Mixed 상태에서 사용자 입력이 없었으면 Mixed 유지
+    if (isMixed && !hasUserInput) {
+      setLocalValue("");
+      setHasUserInput(false);
+      onBlur?.();
+      return;
+    }
+
+    if (numericValue === "" || isNaN(Number(numericValue))) {
+      setLocalValue("");
+      onChange(undefined);
+      setHasUserInput(false);
+      onBlur?.();
+      return;
+    }
+
+    const numValue = Number(numericValue);
+    const clamped = Math.min(Math.max(numValue, min), max);
+    setLocalValue(getDisplayValue(clamped, false));
+    onChange(clamped);
+    setHasUserInput(false);
+    onBlur?.();
+  };
+
+  const showMixedPlaceholder = isMixed && !isFocused && localValue === "";
+  const effectivePlaceholder = showMixedPlaceholder
+    ? mixedPlaceholder
+    : placeholder;
+
+  const placeholderClass = effectivePlaceholder
+    ? "placeholder:text-[#6B6D75] placeholder:italic"
+    : "";
+  const textClass = showMixedPlaceholder ? "text-[#6B6D75] italic" : "text-[#DBDEE8]";
+
+  if (hasSuffix) {
+    return (
+      <input
+        type="text"
+        inputMode="numeric"
+        value={localValue}
+        onChange={handleChange}
+        onKeyDown={handleKeyDown}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        placeholder={effectivePlaceholder}
+        className={`text-center h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] ${
+          isFocused ? "border-[#459BF8]" : "border-[#3A3943]"
+        } text-style-4 ${textClass} ${placeholderClass}`}
+        style={{ width }}
+      />
+    );
+  }
+
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      value={localValue}
+      onChange={handleChange}
+      onKeyDown={handleKeyDown}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
+      placeholder={effectivePlaceholder}
+      className={`text-center h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] ${
+        isFocused ? "border-[#459BF8]" : "border-[#3A3943]"
+      } text-style-4 ${textClass} ${placeholderClass}`}
+      style={{ width }}
+    />
   );
 };
 

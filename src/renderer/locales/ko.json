@@ -79,6 +79,7 @@
     "keySize": "키 사이즈",
     "size": "크기",
     "noteColor": "노트 색상",
+    "noteWidth": "노트 넓이",
     "noteOpacity": "노트 투명도",
     "noteBorderRadius": "노트 라운딩",
     "noteGlowSize": "글로우 범위",

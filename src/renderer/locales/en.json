@@ -79,6 +79,7 @@
     "keySize": "Key Size",
     "size": "Size",
     "noteColor": "Note Color",
+    "noteWidth": "Note Width",
     "noteOpacity": "Note Opacity",
     "noteBorderRadius": "Note Corner Radius",
     "noteGlowSize": "Glow Size",

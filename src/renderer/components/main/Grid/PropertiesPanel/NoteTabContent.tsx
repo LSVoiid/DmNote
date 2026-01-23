@@ -4,6 +4,7 @@ import type { NoteColor, KeyPosition } from "@src/types/keys";
 import {
   PropertyRow,
   NumberInput,
+  OptionalNumberInput,
   SectionDivider,
 } from "./PropertyInputs";
 import Checkbox from "@components/main/common/Checkbox";
@@ -266,6 +267,17 @@ const NoteTabContent: React.FC<NoteTabContentProps> = ({
       </div>
 
       <SectionDivider />
+
+      {/* 노트 넓이 */}
+      <PropertyRow label={t("keySetting.noteWidth") || "노트 넓이"}>
+        <OptionalNumberInput
+          value={keyPosition.noteWidth}
+          onChange={(value) => handleStyleChangeComplete("noteWidth", value)}
+          suffix="px"
+          min={1}
+          placeholder={`${Math.round(keyPosition.width)}px`}
+        />
+      </PropertyRow>
 
       {/* 노트 색상 */}
       <PropertyRow label={t("keySetting.noteColor") || "노트 색상"}>
