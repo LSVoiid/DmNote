@@ -18,6 +18,10 @@ type PickerTarget = "backgroundColor" | "borderColor" | "fontColor" | "image" | 
 
 type ColorState = "idle" | "active";
 type StyleColorTarget = Exclude<PickerTarget, "image" | null>;
+type ActiveStyleColorProperty =
+  | "activeBackgroundColor"
+  | "activeBorderColor"
+  | "activeFontColor";
 type StyleColorProperty =
   | StyleColorTarget
   | "activeBackgroundColor"
@@ -182,6 +186,23 @@ const StyleTabContent: React.FC<StyleTabContentInternalProps> = ({
     [colorState]
   );
 
+  const activeColorPropertyFor = useCallback(
+    (target: StyleColorTarget): ActiveStyleColorProperty => {
+      switch (target) {
+        case "backgroundColor":
+          return "activeBackgroundColor";
+        case "borderColor":
+          return "activeBorderColor";
+        case "fontColor":
+          return "activeFontColor";
+      }
+    },
+    []
+  );
+
+  const isNonEmptyString = (value: unknown): value is string =>
+    typeof value === "string" && value.trim().length > 0;
+
   // 현재 피커 색상값 가져오기
   const colorValueFor = useCallback(
     (target: StyleColorTarget): string => {
@@ -204,11 +225,30 @@ const StyleTabContent: React.FC<StyleTabContentInternalProps> = ({
     (target: StyleColorTarget, color: string) => {
       const prop = resolveColorProperty(target);
       setLocalColors((prev) => ({ ...prev, [prop]: color }));
-      onKeyUpdate({ index: keyIndex, [prop]: color } as Partial<KeyPosition> & {
-        index: number;
-      });
+
+      const updates: Partial<KeyPosition> = { [prop]: color } as Partial<KeyPosition>;
+
+      // "idle" 상태에서만 변경했을 때 active 값이 비어 있으면,
+      // 현재 표시되던 active 값을 함께 저장해(active가 idle로 덮이는 현상 방지)
+      if (colorState !== "active") {
+        const activeProp = activeColorPropertyFor(target);
+        const currentActive = (keyPosition as any)?.[activeProp] as unknown;
+        if (!isNonEmptyString(currentActive)) {
+          updates[activeProp] = localColors[activeProp];
+        }
+      }
+
+      onKeyUpdate({ index: keyIndex, ...updates });
     },
-    [keyIndex, onKeyUpdate, resolveColorProperty]
+    [
+      activeColorPropertyFor,
+      colorState,
+      keyIndex,
+      keyPosition,
+      localColors,
+      onKeyUpdate,
+      resolveColorProperty,
+    ]
   );
 
   // 위치 변경 핸들러

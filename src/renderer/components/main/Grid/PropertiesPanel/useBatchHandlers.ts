@@ -6,6 +6,10 @@ import type {
 } from "@src/types/keys";
 import { normalizeCounterSettings } from "@src/types/keys";
 
+const DEFAULT_ACTIVE_BACKGROUND_COLOR = "rgba(121, 121, 121, 0.9)";
+const DEFAULT_ACTIVE_BORDER_COLOR = "rgba(255, 255, 255, 0.9)";
+const DEFAULT_ACTIVE_FONT_COLOR = "#FFFFFF";
+
 interface SelectedElement {
   type: string;
   index?: number;
@@ -52,9 +56,51 @@ export function useBatchHandlers({
   // 스타일 변경 완료 (저장)
   const handleBatchStyleChangeComplete = useCallback(
     (property: keyof KeyPosition, value: any) => {
+      const currentPositions = positions[selectedKeyType] || [];
+
       const updates = selectedKeyElements
         .filter((el) => el.index !== undefined)
-        .map((el) => ({ index: el.index!, [property]: value }));
+        .map((el) => {
+          const index = el.index!;
+          const pos = currentPositions[index];
+
+          // idle 값을 바꿀 때 active 값이 비어 있으면,
+          // 현재 표시되던 active 값을 함께 저장해(active가 idle로 따라가는 현상 방지)
+          if (pos) {
+            if (property === "backgroundColor" && pos.activeBackgroundColor == null) {
+              return {
+                index,
+                backgroundColor: value,
+                activeBackgroundColor:
+                  pos.activeBackgroundColor ??
+                  pos.backgroundColor ??
+                  DEFAULT_ACTIVE_BACKGROUND_COLOR,
+              };
+            }
+            if (property === "borderColor" && pos.activeBorderColor == null) {
+              return {
+                index,
+                borderColor: value,
+                activeBorderColor:
+                  pos.activeBorderColor ??
+                  pos.borderColor ??
+                  DEFAULT_ACTIVE_BORDER_COLOR,
+              };
+            }
+            if (property === "fontColor" && pos.activeFontColor == null) {
+              return {
+                index,
+                fontColor: value,
+                activeFontColor:
+                  pos.activeFontColor ??
+                  pos.fontColor ??
+                  DEFAULT_ACTIVE_FONT_COLOR,
+              };
+            }
+          }
+
+          return { index, [property]: value } as { index: number } & Partial<KeyPosition>;
+        });
 
       if (onKeyBatchUpdate && updates.length > 0) {
         onKeyBatchUpdate(updates);
@@ -62,7 +108,13 @@ export function useBatchHandlers({
         updates.forEach((update) => onKeyUpdate(update));
       }
     },
-    [selectedKeyElements, onKeyBatchUpdate, onKeyUpdate],
+    [
+      onKeyBatchUpdate,
+      onKeyUpdate,
+      positions,
+      selectedKeyElements,
+      selectedKeyType,
+    ],
   );
 
   // 정렬 핸들러
