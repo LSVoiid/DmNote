@@ -54,7 +54,7 @@ export interface KeyCounterSettings {
 
 const COUNTER_DEFAULTS: KeyCounterSettings = Object.freeze({
   enabled: true,
-  placement: "outside" as KeyCounterPlacement,
+  placement: "inside" as KeyCounterPlacement,
   align: "top" as KeyCounterAlign,
   // fill: match key text colors (idle/active)
   fill: Object.freeze({ idle: "rgba(121, 121, 121, 0.9)", active: "#FFFFFF" }),
@@ -247,7 +247,7 @@ export type KeyPosition = z.infer<typeof keyPositionSchema>;
 
 export const keyPositionsSchema = z.record(
   z.string(),
-  z.array(keyPositionSchema)
+  z.array(keyPositionSchema),
 );
 export type KeyPositions = Record<string, KeyPosition[]>;
 

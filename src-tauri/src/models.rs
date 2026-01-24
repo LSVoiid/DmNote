@@ -163,7 +163,7 @@ pub enum KeyCounterPlacement {
 
 impl Default for KeyCounterPlacement {
     fn default() -> Self {
-        KeyCounterPlacement::Outside
+        KeyCounterPlacement::Inside
     }
 }
 
@@ -236,7 +236,7 @@ impl Default for KeyCounterSettings {
     fn default() -> Self {
         Self {
             enabled: true,
-            placement: KeyCounterPlacement::Outside,
+            placement: KeyCounterPlacement::Inside,
             align: KeyCounterAlign::Top,
             fill: KeyCounterColor::default(),
             stroke: default_stroke_color(),
