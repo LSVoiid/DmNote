@@ -15,7 +15,7 @@
   </p>
   
   [![GitHub release](https://img.shields.io/github/release/lee-sihun/DmNote.svg?logo=github)](https://github.com/lee-sihun/DmNote/releases)
-  [![GitHub downloads](https://img.shields.io/github/downloads/lee-sihun/DmNote/total.svg?logo=github)](https://github.com/lee-sihun/DmNote/releases/download/1.4.1/DM.NOTE.v.1.4.1.zip)
+  [![GitHub downloads](https://img.shields.io/github/downloads/lee-sihun/DmNote/total.svg?logo=github)](https://github.com/lee-sihun/DmNote/releases/download/1.5.0/DM.NOTE.v.1.5.0.zip)
   [![GitHub license](https://img.shields.io/github/license/lee-sihun/DmNote.svg?logo=github)](https://github.com/lee-sihun/DmNote/blob/master/LICENSE)
 </div>
 
@@ -23,11 +23,9 @@ https://github.com/user-attachments/assets/20fb118d-3982-4925-9004-9ce0936590c2
 
 ## 🌟 개요
 
-**DM Note**는 DJMAX RESPECT V에서 사용하기 위해 만들어진 키뷰어 프로그램입니다. Tauri와 React로 구축 되었으며
-키보드/마우스 입력 감지는 Windows에서는 Raw Input API, macOS에서는 전역 입력 이벤트를 사용합니다.
-간편한 설정으로 스트리밍이나 플레이 영상 제작 시 키 입력을 시각적으로 보여줄 수 있습니다. 현재는 Windows/macOS 환경을 지원하며, 리듬게임 이외의 다른 게임에서도 사용이 가능합니다.
+**DM Note**는 DJMAX RESPECT V에서 사용하기 위해 만들어진 키뷰어 프로그램입니다. Tauri와 React로 구축 되었으며 간편한 설정으로 스트리밍이나 플레이 영상 제작 시 키 입력을 시각적으로 보여줄 수 있습니다. 현재는 Windows/macOS 환경을 지원하며, 이외의 다른 게임에서도 사용이 가능합니다.
 
-[DM NOTE v1.4.1 다운로드](https://github.com/lee-sihun/DmNote/releases/download/1.4.1/DM.NOTE.v.1.4.1.zip)
+[DM NOTE v1.4.1 다운로드](https://github.com/lee-sihun/DmNote/releases/download/1.5.0/DM.NOTE.v.1.5.0.zip)
 
 ## ✨ 주요 기능
 
@@ -38,8 +36,7 @@ https://github.com/user-attachments/assets/20fb118d-3982-4925-9004-9ce0936590c2
 
 ### 🎨 키 스타일 커스터마이징
 
-- 키 사이즈 조절 및 추가/삭제
-- 그리드 기반 키 배치
+- 그리드 기반 키 편집 
 - 이미지 할당 지원
 - 커스텀 CSS 지원
 
@@ -78,7 +75,7 @@ https://github.com/user-attachments/assets/20fb118d-3982-4925-9004-9ce0936590c2
 - **프론트엔드**: React 19 + Typescript + Vite 7
 - **백엔드**: Tauri
 - **스타일링**: Tailwind CSS 3
-- **입력 감지**: Windows Raw Input API
+- **입력 감지**: Raw Input API (Windows), 전역 입력 이벤트 (macOS) 
 - **패키지 매니저**: npm
 
 ### 폴더 구조
@@ -155,5 +152,6 @@ npm run tauri:dev
 - 동시 입력 간격 밀리초(ms) 표시
 - 입력 통계 분석 기능
  -->
+
 
 
