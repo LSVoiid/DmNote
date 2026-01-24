@@ -136,7 +136,7 @@ export default function ShortcutSettingsModal({
     const next = getScrollShadowState(el, contentRef.current);
     setScrollState((prev) =>
       prev.hasTopShadow === next.hasTopShadow &&
-      prev.hasBottomShadow === next.hasBottomShadow
+        prev.hasBottomShadow === next.hasBottomShadow
         ? prev
         : next,
     );
@@ -361,11 +361,11 @@ export default function ShortcutSettingsModal({
     setListeningKey((prev) => (prev === key ? null : key));
   };
 
-  const handleReset = () => {
-    setError(null);
-    setListeningKey(null);
-    setDraft(defaults);
-  };
+  // const handleReset = () => {
+  //   setError(null);
+  //   setListeningKey(null);
+  //   setDraft(defaults);
+  // };
 
   const handleSave = async () => {
     const validationError = validate(safeDraft);
@@ -380,16 +380,14 @@ export default function ShortcutSettingsModal({
   return (
     <Modal onClick={onClose}>
       <div
-        className="flex flex-col bg-[#1A191E] rounded-[13px] border-[1px] border-[#2A2A30] p-[20px] pr-[6px]"
+        className="flex flex-col min-w-[320px] bg-[#1A191E] rounded-[13px] border-[1px] border-[#2A2A30] p-[20px] pr-[6px]"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="relative">
           <div
-            className={`absolute top-0 left-0 ${
-              hasOverflow ? "right-[14px]" : "right-0"
-            } h-[10px] bg-gradient-to-b from-[#1A191E] to-transparent pointer-events-none z-10 ${
-              skipShadowTransition ? "" : "transition-opacity duration-150"
-            } ${scrollState.hasTopShadow ? "opacity-100" : "opacity-0"}`}
+            className={`absolute top-0 left-0 ${hasOverflow ? "right-[14px]" : "right-0"
+              } h-[10px] bg-gradient-to-b from-[#1A191E] to-transparent pointer-events-none z-10 ${skipShadowTransition ? "" : "transition-opacity duration-150"
+              } ${scrollState.hasTopShadow ? "opacity-100" : "opacity-0"}`}
           />
 
           <div
@@ -416,12 +414,12 @@ export default function ShortcutSettingsModal({
                 : "height 100ms ease-in-out",
             }}
           >
-            <div ref={contentRef} className="flex flex-col gap-[16px] py-[4px]">
-              <div className="flex flex-col gap-[10px]">
-                <p className="text-style-3 text-[#DBDEE8]">
+            <div ref={contentRef} className="flex flex-col gap-[28px] py-[4px]">
+              <div className="flex flex-col gap-[12px]">
+                <p className="text-[12px] font-medium text-[#9A9DA8] uppercase tracking-wider">
                   {t("shortcutSetting.sectionOverlay")}
                 </p>
-                <TooltipGroup className="flex flex-col gap-[10px]">
+                <TooltipGroup className="flex flex-col gap-[12px]">
                   {overlayActions.map((action) => {
                     const binding = safeDraft[action.key];
                     const isRowListening = listeningKey === action.key;
@@ -452,11 +450,10 @@ export default function ShortcutSettingsModal({
                               [action.key]: { key: "" },
                             }));
                           }}
-                          className={`flex items-center justify-center h-[23px] min-w-[0px] px-[8.5px] bg-[#2A2A30] rounded-[7px] border-[1px] ${
-                            isRowListening
-                              ? "border-[#459BF8]"
-                              : "border-[#3A3943]"
-                          } text-[#DBDEE8] text-style-2`}
+                          className={`flex items-center justify-center h-[23px] min-w-[0px] px-[8.5px] bg-[#2A2A30] rounded-[7px] border-[1px] ${isRowListening
+                            ? "border-[#459BF8]"
+                            : "border-[#3A3943]"
+                            } text-[#DBDEE8] text-style-2`}
                         >
                           {display}
                         </button>
@@ -466,13 +463,13 @@ export default function ShortcutSettingsModal({
                 </TooltipGroup>
               </div>
 
-              <div className="h-[0.5px] bg-[#2A2A30]" />
 
-              <div className="flex flex-col gap-[10px]">
-                <p className="text-style-3 text-[#DBDEE8]">
+
+              <div className="flex flex-col gap-[12px]">
+                <p className="text-[12px] font-medium text-[#9A9DA8] uppercase tracking-wider">
                   {t("shortcutSetting.sectionCanvas")}
                 </p>
-                <TooltipGroup className="flex flex-col gap-[10px]">
+                <TooltipGroup className="flex flex-col gap-[12px]">
                   {canvasActions.map((action) => {
                     const binding = safeDraft[action.key];
                     const isRowListening = listeningKey === action.key;
@@ -503,11 +500,10 @@ export default function ShortcutSettingsModal({
                               [action.key]: { key: "" },
                             }));
                           }}
-                          className={`flex items-center justify-center h-[23px] min-w-[0px] px-[8.5px] bg-[#2A2A30] rounded-[7px] border-[1px] ${
-                            isRowListening
-                              ? "border-[#459BF8]"
-                              : "border-[#3A3943]"
-                          } text-[#DBDEE8] text-style-2`}
+                          className={`flex items-center justify-center h-[23px] min-w-[0px] px-[8.5px] bg-[#2A2A30] rounded-[7px] border-[1px] ${isRowListening
+                            ? "border-[#459BF8]"
+                            : "border-[#3A3943]"
+                            } text-[#DBDEE8] text-style-2`}
                         >
                           {display}
                         </button>
@@ -520,11 +516,9 @@ export default function ShortcutSettingsModal({
           </div>
 
           <div
-            className={`absolute bottom-0 left-0 ${
-              hasOverflow ? "right-[14px]" : "right-0"
-            } h-[10px] bg-gradient-to-t from-[#1A191E] to-transparent pointer-events-none z-10 ${
-              skipShadowTransition ? "" : "transition-opacity duration-150"
-            } ${scrollState.hasBottomShadow ? "opacity-100" : "opacity-0"}`}
+            className={`absolute bottom-0 left-0 ${hasOverflow ? "right-[14px]" : "right-0"
+              } h-[10px] bg-gradient-to-t from-[#1A191E] to-transparent pointer-events-none z-10 ${skipShadowTransition ? "" : "transition-opacity duration-150"
+              } ${scrollState.hasBottomShadow ? "opacity-100" : "opacity-0"}`}
           />
         </div>
 
@@ -534,9 +528,9 @@ export default function ShortcutSettingsModal({
           </div>
         ) : null}
 
-        <div className="flex gap-[8px] mt-[19px] pr-[14px] justify-end">
+        <div className="flex gap-[8px] mt-[19px] pr-[14px]">
           <button
-            className="w-[150px] h-[30px] bg-[#2A2A30] hover:bg-[#303036] active:bg-[#393941] rounded-[7px] text-[#DCDEE7] text-style-3"
+            className="flex-1 h-[30px] bg-[#2A2A30] hover:bg-[#303036] active:bg-[#393941] rounded-[7px] text-[#DCDEE7] text-style-3"
             onClick={handleSave}
             disabled={isListening}
             style={
@@ -546,7 +540,7 @@ export default function ShortcutSettingsModal({
             {t("shortcutSetting.save")}
           </button>
           <button
-            className="w-[75px] h-[30px] bg-[#3C1E1E] hover:bg-[#442222] active:bg-[#522929] rounded-[7px] text-[#E6DBDB] text-style-3"
+            className="px-[24px] h-[30px] bg-[#3C1E1E] hover:bg-[#442222] active:bg-[#522929] rounded-[7px] text-[#E6DBDB] text-style-3"
             onClick={onClose}
             disabled={isListening}
             style={
@@ -555,7 +549,7 @@ export default function ShortcutSettingsModal({
           >
             {t("shortcutSetting.cancel")}
           </button>
-          <button
+          {/* <button
             className="w-[75px] h-[30px] bg-[#3C1E1E] hover:bg-[#442222] active:bg-[#522929] rounded-[7px] text-[#E6DBDB] text-style-3"
             onClick={handleReset}
             disabled={isListening}
@@ -564,7 +558,7 @@ export default function ShortcutSettingsModal({
             }
           >
             {t("shortcutSetting.reset")}
-          </button>
+          </button> */}
         </div>
       </div>
     </Modal>
