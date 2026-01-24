@@ -334,46 +334,44 @@ const NoteTabContent: React.FC<NoteTabContentProps> = ({
         />
       </div>
 
-      {/* 글로우 색상/크기/투명도 (조건부) */}
-      {keyPosition.noteGlowEnabled && (
-        <>
-          <PropertyRow label={t("keySetting.noteGlowColor") || "글로우 색상"}>
-            <button
-              ref={glowColorButtonRef}
-              onClick={() => handlePickerToggle("glow")}
-              className={`relative w-[80px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] ${
-                pickerFor === "glow" ? "border-[#459BF8]" : "border-[#3A3943]"
-              } flex items-center justify-center text-[#DBDEE8] text-style-2`}
-            >
-              <div
-                className="absolute left-[6px] top-[4.5px] w-[11px] h-[11px] rounded-[2px] border border-[#3A3943]"
-                style={getGlowColorDisplay().style}
-              />
-              <span className="ml-[16px] text-left text-style-4">{getGlowColorDisplay().label}</span>
-            </button>
-          </PropertyRow>
+      {/* 글로우 색상/크기/투명도 */}
+      <PropertyRow label={t("keySetting.noteGlowColor") || "글로우 색상"}>
+        <button
+          ref={glowColorButtonRef}
+          onClick={() => handlePickerToggle("glow")}
+          className={`relative w-[80px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] ${
+            pickerFor === "glow" ? "border-[#459BF8]" : "border-[#3A3943]"
+          } flex items-center justify-center text-[#DBDEE8] text-style-2`}
+        >
+          <div
+            className="absolute left-[6px] top-[4.5px] w-[11px] h-[11px] rounded-[2px] border border-[#3A3943]"
+            style={getGlowColorDisplay().style}
+          />
+          <span className="ml-[16px] text-left text-style-4">{getGlowColorDisplay().label}</span>
+        </button>
+      </PropertyRow>
 
-          <PropertyRow label={t("keySetting.noteGlowSize") || "글로우 크기"}>
-            <NumberInput
-              value={keyPosition.noteGlowSize ?? 20}
-              onChange={(value) => handleStyleChangeComplete("noteGlowSize", value)}
-              suffix="px"
-              min={0}
-              max={50}
-            />
-          </PropertyRow>
+      <PropertyRow label={t("keySetting.noteGlowSize") || "글로우 크기"}>
+        <NumberInput
+          value={keyPosition.noteGlowSize ?? 20}
+          onChange={(value) => handleStyleChangeComplete("noteGlowSize", value)}
+          suffix="px"
+          min={0}
+          max={50}
+        />
+      </PropertyRow>
 
-          <PropertyRow label={t("keySetting.noteGlowOpacity") || "글로우 투명도"}>
-            <NumberInput
-              value={keyPosition.noteGlowOpacity ?? 70}
-              onChange={(value) => handleStyleChangeComplete("noteGlowOpacity", value)}
-              suffix="%"
-              min={0}
-              max={100}
-            />
-          </PropertyRow>
-        </>
-      )}
+      <PropertyRow label={t("keySetting.noteGlowOpacity") || "글로우 투명도"}>
+        <NumberInput
+          value={keyPosition.noteGlowOpacity ?? 70}
+          onChange={(value) =>
+            handleStyleChangeComplete("noteGlowOpacity", value)
+          }
+          suffix="%"
+          min={0}
+          max={100}
+        />
+      </PropertyRow>
 
       {/* 통합 ColorPicker - 단일 인스턴스로 깜빡임 없이 전환 */}
       {pickerFor && (

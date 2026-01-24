@@ -184,63 +184,57 @@ const BatchNoteTabContent: React.FC<BatchNoteTabContentProps> = ({
       </div>
 
       {/* 글로우 색상/크기/투명도 */}
-      {getMixedValue((pos) => pos.noteGlowEnabled, false).value && (
-        <>
-          <PropertyRow label={t("keySetting.noteGlowColor") || "글로우 색상"}>
-            <button
-              ref={batchGlowColorButtonRef}
-              onClick={onGlowColorPickerToggle}
-              className="relative w-[80px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943] flex items-center justify-center text-[#DBDEE8] text-style-2"
-            >
-              <div
-                className="absolute left-[6px] top-[4.5px] w-[11px] h-[11px] rounded-[2px] border border-[#3A3943]"
-                style={getBatchGlowColorDisplay().style}
-              />
-              <span
-                className={`ml-[16px] text-left text-style-4 ${
-                  getBatchGlowColorDisplay().isMixed
-                    ? "italic text-[#6B6D75]"
-                    : ""
-                }`}
-              >
-                {getBatchGlowColorDisplay().label}
-              </span>
-            </button>
-          </PropertyRow>
-
-          <PropertyRow label={t("keySetting.noteGlowSize") || "글로우 크기"}>
-            {getMixedValue((pos) => pos.noteGlowSize, 20).isMixed ? (
-              <span className="text-[#6B6D75] text-style-4 italic">Mixed</span>
-            ) : null}
-            <NumberInput
-              value={getMixedValue((pos) => pos.noteGlowSize, 20).value}
-              onChange={(value) =>
-                handleBatchStyleChangeComplete("noteGlowSize", value)
-              }
-              suffix="px"
-              min={0}
-              max={50}
-            />
-          </PropertyRow>
-
-          <PropertyRow
-            label={t("keySetting.noteGlowOpacity") || "글로우 투명도"}
+      <PropertyRow label={t("keySetting.noteGlowColor") || "글로우 색상"}>
+        <button
+          ref={batchGlowColorButtonRef}
+          onClick={onGlowColorPickerToggle}
+          className="relative w-[80px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943] flex items-center justify-center text-[#DBDEE8] text-style-2"
+        >
+          <div
+            className="absolute left-[6px] top-[4.5px] w-[11px] h-[11px] rounded-[2px] border border-[#3A3943]"
+            style={getBatchGlowColorDisplay().style}
+          />
+          <span
+            className={`ml-[16px] text-left text-style-4 ${
+              getBatchGlowColorDisplay().isMixed
+                ? "italic text-[#6B6D75]"
+                : ""
+            }`}
           >
-            {getMixedValue((pos) => pos.noteGlowOpacity, 70).isMixed ? (
-              <span className="text-[#6B6D75] text-style-4 italic">Mixed</span>
-            ) : null}
-            <NumberInput
-              value={getMixedValue((pos) => pos.noteGlowOpacity, 70).value}
-              onChange={(value) =>
-                handleBatchStyleChangeComplete("noteGlowOpacity", value)
-              }
-              suffix="%"
-              min={0}
-              max={100}
-            />
-          </PropertyRow>
-        </>
-      )}
+            {getBatchGlowColorDisplay().label}
+          </span>
+        </button>
+      </PropertyRow>
+
+      <PropertyRow label={t("keySetting.noteGlowSize") || "글로우 크기"}>
+        {getMixedValue((pos) => pos.noteGlowSize, 20).isMixed ? (
+          <span className="text-[#6B6D75] text-style-4 italic">Mixed</span>
+        ) : null}
+        <NumberInput
+          value={getMixedValue((pos) => pos.noteGlowSize, 20).value}
+          onChange={(value) =>
+            handleBatchStyleChangeComplete("noteGlowSize", value)
+          }
+          suffix="px"
+          min={0}
+          max={50}
+        />
+      </PropertyRow>
+
+      <PropertyRow label={t("keySetting.noteGlowOpacity") || "글로우 투명도"}>
+        {getMixedValue((pos) => pos.noteGlowOpacity, 70).isMixed ? (
+          <span className="text-[#6B6D75] text-style-4 italic">Mixed</span>
+        ) : null}
+        <NumberInput
+          value={getMixedValue((pos) => pos.noteGlowOpacity, 70).value}
+          onChange={(value) =>
+            handleBatchStyleChangeComplete("noteGlowOpacity", value)
+          }
+          suffix="%"
+          min={0}
+          max={100}
+        />
+      </PropertyRow>
     </>
   );
 };
