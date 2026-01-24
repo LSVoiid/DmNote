@@ -72,7 +72,7 @@ const Dropdown: React.FC<DropdownProps> = ({
         onClick={() => setOpen((prev) => !prev)}
         disabled={disabled}
       >
-        <span className={`truncate ${!selected ? "text-[#DBDEE8]" : ""}`}>
+        <span className={`truncate leading-[23px] ${!selected ? "text-[#DBDEE8]" : ""}`}>
           {selected ? selected.label : placeholder}
         </span>
         <svg
@@ -117,7 +117,7 @@ const Dropdown: React.FC<DropdownProps> = ({
                   setOpen(false);
                 }}
               >
-                <span className="truncate">{opt.label}</span>
+                <span className="truncate leading-[23px]">{opt.label}</span>
               </button>
             ))
           )}
