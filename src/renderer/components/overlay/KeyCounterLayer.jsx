@@ -109,6 +109,11 @@ const KeyCounter = memo(({ globalKey, position, mode }) => {
         globalKey={globalKey}
         active={active}
         offsetY={offsetY}
+        fontSize={counterSettings.fontSize}
+        fontWeight={counterSettings.fontWeight}
+        fontItalic={counterSettings.fontItalic}
+        fontUnderline={counterSettings.fontUnderline}
+        fontStrikethrough={counterSettings.fontStrikethrough}
       />
     </div>
   );
@@ -127,6 +132,7 @@ export default function KeyCounterLayer({ keys, positions, mode }) {
       {keys.map((key, index) => {
         const position = positions[index];
         if (!position) return null;
+        if (position.hidden) return null;
         return (
           <KeyCounter
             key={`${mode}-${key}-${index}`}

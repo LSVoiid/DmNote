@@ -6,7 +6,6 @@ import { useSignals } from "@preact/signals-react/runtime";
 import { isMac } from "@utils/platform";
 import { useDraggable } from "@hooks/Grid";
 import { getKeyInfoByGlobalKey } from "@utils/KeyMaps";
-import { GRID_SNAP } from "@hooks/Grid/constants";
 import {
   createDefaultCounterSettings,
   normalizeCounterSettings,
@@ -29,6 +28,7 @@ export default function DraggableKey({
   onPositionChange,
   onClick,
   onCtrlClick,
+  onShiftClick,
   isSelected = false,
   selectedElements = [],
   onMultiDrag,
@@ -42,7 +42,12 @@ export default function DraggableKey({
   panX = 0,
   panY = 0,
   zIndex = 0,
+  // 카운터 미리보기 props
+  counterEnabled = false,
+  counterPreviewValue = 0,
 }) {
+  if (position?.hidden) return null;
+
   const macOS = isMac();
   const { displayName } = getKeyInfoByGlobalKey(keyName);
   const {
@@ -53,10 +58,44 @@ export default function DraggableKey({
     activeImage,
     inactiveImage,
     className,
+    // 스타일 속성들
+    backgroundColor,
+    borderColor,
+    borderWidth,
+    borderRadius,
+    fontSize,
+    fontColor,
+    imageFit,
+    useInlineStyles,
+    displayText,
+    // 글꼴 스타일 속성들
+    fontWeight,
+    fontItalic,
+    fontUnderline,
+    fontStrikethrough,
+    // 카운터 설정
+    counter,
   } = position;
+
+  // 표시할 텍스트: displayText가 있으면 사용, 없으면 기본 displayName
+  const labelText = displayText || displayName;
+
+  // 카운터 설정 정규화
+  const counterSettings = normalizeCounterSettings(
+    counter ?? createDefaultCounterSettings()
+  );
+  
+  // 카운터 표시 조건: 전역 활성화 + 개별 키 활성화 + inside 배치
+  const showInsideCounter =
+    counterEnabled &&
+    counterSettings.enabled &&
+    counterSettings.placement === "inside";
 
   // 스마트 가이드를 위한 다른 요소들의 bounds 가져오기
   const { getOtherElements } = useSmartGuidesElements();
+
+  // 그리드 스냅 크기 가져오기
+  const gridSnapSize = useSettingsStore((state) => state.gridSettings?.gridSnapSize || 5);
 
   // 드래그/리사이즈 중인 상태 (CSS 애니메이션 비활성화용)
   const isDraggingOrResizing = useGridSelectionStore(
@@ -71,7 +110,7 @@ export default function DraggableKey({
   const isSelectionMode = isSelected;
 
   const draggable = useDraggable({
-    gridSize: GRID_SNAP,
+    gridSize: gridSnapSize,
     initialX: dx,
     initialY: dy,
     onPositionChange: (newDx, newDy) => {
@@ -243,7 +282,8 @@ export default function DraggableKey({
             }
           } else {
             // 그리드 스냅
-            finalX = Math.round(newX / GRID_SNAP) * GRID_SNAP;
+            const snapSize = gridSettings?.gridSnapSize || 5;
+            finalX = Math.round(newX / snapSize) * snapSize;
           }
 
           if (snapResult?.didSnapY) {
@@ -256,7 +296,8 @@ export default function DraggableKey({
             }
           } else {
             // 그리드 스냅
-            finalY = Math.round(newY / GRID_SNAP) * GRID_SNAP;
+            const snapSize = gridSettings?.gridSnapSize || 5;
+            finalY = Math.round(newY / snapSize) * snapSize;
           }
 
           // 스냅된 delta 계산
@@ -363,9 +404,11 @@ export default function DraggableKey({
   );
 
   const handleClick = (e) => {
-    // Ctrl+클릭으로 선택 토글 (선택 모드에서도 동작해야 함 - 선택 해제용)
+    // 선택된 상태에서 Ctrl+클릭으로 선택 해제
     const isPrimaryModifierPressed = macOS ? e.metaKey : e.ctrlKey;
-    if (isPrimaryModifierPressed && onCtrlClick) {
+    const isShiftPressed = e.shiftKey;
+    
+    if (isSelectionMode && isPrimaryModifierPressed && onCtrlClick) {
       e.stopPropagation();
       onCtrlClick(e);
       return;
@@ -381,7 +424,26 @@ export default function DraggableKey({
       onEraserClick?.();
       return;
     }
-    if (!draggable.wasMoved) onClick(e);
+
+    // 드래그 중이 아니었을 때만 선택 처리
+    if (!draggable.wasMoved) {
+      // Shift+클릭이면 범위 선택
+      if (isShiftPressed && onShiftClick) {
+        e.stopPropagation();
+        onShiftClick(e);
+        return;
+      }
+      // Ctrl+클릭이면 다중 선택 (추가/제거 토글)
+      if (isPrimaryModifierPressed && onCtrlClick) {
+        e.stopPropagation();
+        onCtrlClick(e);
+        return;
+      }
+      // 일반 클릭이면 단일 선택 (기존 선택 대체)
+      if (onClick) {
+        onClick(e);
+      }
+    }
   };
 
   const handleContextMenu = (e) => {
@@ -396,18 +458,23 @@ export default function DraggableKey({
   const renderDx = draggable.dx;
   const renderDy = draggable.dy;
 
+  // 인라인 스타일 우선 여부에 따라 CSS 변수 또는 직접 값 사용
+  const useInline = useInlineStyles === true;
+
   const keyStyle = useMemo(
     () => ({
       width: `${width}px`,
       height: `${height}px`,
       transform: `translate3d(calc(${renderDx}px + var(--key-offset-x, 0px)), calc(${renderDy}px + var(--key-offset-y, 0px)), 0)`,
-      backgroundColor: `var(--key-bg, ${
-        inactiveImage ? "transparent" : "rgba(46, 46, 47, 0.9)"
-      })`,
-      borderRadius: `var(--key-radius, ${inactiveImage ? "0" : "10px"})`,
-      border: `var(--key-border, ${
-        inactiveImage ? "none" : "3px solid rgba(113, 113, 113, 0.9)"
-      })`,
+      backgroundColor: useInline && backgroundColor
+        ? backgroundColor
+        : `var(--key-bg, ${inactiveImage ? "transparent" : (backgroundColor || "rgba(46, 46, 47, 0.9)")})`,
+      borderRadius: useInline && borderRadius != null
+        ? `${borderRadius}px`
+        : `var(--key-radius, ${inactiveImage ? "0" : (borderRadius != null ? `${borderRadius}px` : "10px")})`,
+      border: useInline && (borderColor || borderWidth != null)
+        ? `${borderWidth ?? 3}px solid ${borderColor || "rgba(113, 113, 113, 0.9)"}`
+        : `var(--key-border, ${inactiveImage ? "none" : `${borderWidth ?? 3}px solid ${borderColor || "rgba(113, 113, 113, 0.9)"}`})`,
       overflow: inactiveImage ? "visible" : "hidden",
       willChange: "transform",
       backfaceVisibility: "hidden",
@@ -418,29 +485,120 @@ export default function DraggableKey({
       boxSizing: "border-box",
       zIndex: position.zIndex ?? zIndex,
     }),
-    [renderDx, renderDy, width, height, inactiveImage, zIndex, position.zIndex]
+    [renderDx, renderDy, width, height, inactiveImage, zIndex, position.zIndex, useInline, backgroundColor, borderColor, borderWidth, borderRadius]
   );
 
   const imageStyle = useMemo(
     () => ({
       width: "100%",
       height: "100%",
-      objectFit: "cover",
+      objectFit: imageFit || "cover",
       display: "block",
       pointerEvents: "none",
       userSelect: "none",
     }),
-    []
+    [imageFit]
   );
 
   const textStyle = useMemo(
-    () => ({
-      willChange: "auto",
-      contain: "layout style paint",
-      color: "var(--key-text-color, #717171)",
-    }),
-    []
+    () => {
+      // text-decoration 조합
+      const textDecorations = [];
+      if (fontUnderline) textDecorations.push("underline");
+      if (fontStrikethrough) textDecorations.push("line-through");
+
+      return {
+        willChange: "auto",
+        contain: "layout style paint",
+        color: useInline && fontColor
+          ? fontColor
+          : `var(--key-text-color, ${fontColor || "rgba(121, 121, 121, 0.9)"})`,
+        fontSize: fontSize ? `${fontSize}px` : undefined,
+        fontWeight: fontWeight ?? 700,
+        fontStyle: fontItalic ? "italic" : "normal",
+        textDecoration: textDecorations.length > 0 ? textDecorations.join(" ") : "none",
+      };
+    },
+    [useInline, fontColor, fontSize, fontWeight, fontItalic, fontUnderline, fontStrikethrough]
   );
+
+  // 카운터 미리보기 렌더링 (Grid 편집용)
+  const counterFillColor = counterSettings.fill.idle;
+  const counterStrokeColor = counterSettings.stroke.idle;
+  const contentGap = Number.isFinite(counterSettings.gap) ? counterSettings.gap : 6;
+  const fillColorCss = toCssRgba(counterFillColor, "#FFFFFF");
+  const strokeColorCss = toCssRgba(counterStrokeColor, "transparent");
+
+  const renderInsideCounterPreview = () => {
+    if (!showInsideCounter) {
+      return null;
+    }
+
+    const displayValue = counterPreviewValue ?? 0;
+    const strokeWidth = strokeColorCss.alpha > 0 ? "1px" : "0px";
+
+    const counterDecorations = [];
+    if (counterSettings.fontUnderline) counterDecorations.push("underline");
+    if (counterSettings.fontStrikethrough)
+      counterDecorations.push("line-through");
+    const counterTextDecoration =
+      counterDecorations.length > 0 ? counterDecorations.join(" ") : "none";
+
+    const counterElement = (
+      <span
+        key="counter"
+        className="counter pointer-events-none select-none"
+        data-text={displayValue}
+        data-counter-state="inactive"
+        style={{
+          fontSize: `${counterSettings.fontSize ?? 16}px`,
+          fontWeight: counterSettings.fontWeight ?? 400,
+          fontStyle: counterSettings.fontItalic ? "italic" : "normal",
+          textDecoration: counterTextDecoration,
+          lineHeight: 1,
+          "--counter-color-default": fillColorCss.css,
+          "--counter-stroke-color-default": strokeColorCss.css,
+          "--counter-stroke-width-default": strokeWidth,
+        }}
+      >
+        {displayValue}
+      </span>
+    );
+
+    const nameElement = (
+      <span
+        key="label"
+        className="font-bold text-[14px] pointer-events-none select-none"
+        style={textStyle}
+      >
+        {labelText}
+      </span>
+    );
+
+    const isHorizontal =
+      counterSettings.align === "left" || counterSettings.align === "right";
+
+    const elements = isHorizontal
+      ? counterSettings.align === "left"
+        ? [counterElement, nameElement]
+        : [nameElement, counterElement]
+      : counterSettings.align === "top"
+      ? [counterElement, nameElement]
+      : [nameElement, counterElement];
+
+    const containerClass = `flex ${
+      isHorizontal ? "" : "flex-col"
+    } w-full h-full items-center pointer-events-none select-none justify-center`;
+
+    return (
+      <div
+        className={containerClass}
+        style={{ padding: "0px", gap: `${contentGap}px` }}
+      >
+        {elements}
+      </div>
+    );
+  };
 
   const attachRef = (node) => {
     // 드래그 훅에 ref 연결 (선택 모드가 아닐 때만)
@@ -461,6 +619,7 @@ export default function DraggableKey({
       style={keyStyle}
       data-state="inactive"
       data-editing={isDraggingOrResizing ? "true" : undefined}
+      data-key-element="true"
       onClick={handleClick}
       onMouseDown={isSelectionMode ? handleSelectionDragMouseDown : undefined}
       onContextMenu={handleContextMenu}
@@ -468,12 +627,14 @@ export default function DraggableKey({
     >
       {inactiveImage ? (
         <img src={inactiveImage} alt="" style={imageStyle} draggable={false} />
+      ) : showInsideCounter ? (
+        renderInsideCounterPreview()
       ) : (
         <div
           className="flex items-center justify-center h-full font-bold"
           style={textStyle}
         >
-          {displayName}
+          {labelText}
         </div>
       )}
     </div>
@@ -497,7 +658,37 @@ export const Key = memo(
       activeTransparent = false,
       idleTransparent = false,
       className, // 단일 클래스 네임으로 통일
+      // 스타일 속성들
+      backgroundColor,
+      activeBackgroundColor,
+      borderColor,
+      activeBorderColor,
+      borderWidth,
+      borderRadius,
+      fontSize,
+      fontColor,
+      activeFontColor,
+      imageFit,
+      useInlineStyles,
+      displayText,
+      // 글꼴 스타일 속성들
+      fontWeight,
+      fontItalic,
+      fontUnderline,
+      fontStrikethrough,
     } = position;
+
+    // 표시할 텍스트: displayText가 있으면 사용, 없으면 기본 keyName
+    const labelText = displayText || keyName;
+
+    // 인라인 스타일 우선 여부
+    const useInline = useInlineStyles === true;
+
+    const stateBackgroundColor = active
+      ? activeBackgroundColor ?? backgroundColor
+      : backgroundColor;
+    const stateBorderColor = active ? activeBorderColor ?? borderColor : borderColor;
+    const stateFontColor = active ? activeFontColor ?? fontColor : fontColor;
 
     // 투명화 옵션 체크
     const isTransparent = active ? activeTransparent : idleTransparent;
@@ -516,39 +707,55 @@ export const Key = memo(
         : null;
 
     const keyStyle = useMemo(
-      () => ({
-        width: `${width}px`,
-        height: `${height}px`,
-        transform: `translate3d(calc(${dx}px + var(--key-offset-x, 0px)), calc(${dy}px + var(--key-offset-y, 0px)), 0)`,
-        backgroundColor: `var(--key-bg, ${
-          currentImage
-            ? "transparent"
-            : active
-            ? "rgba(121, 121, 121, 0.9)"
-            : "rgba(46, 46, 47, 0.9)"
-        })`,
-        borderRadius: `var(--key-radius, ${currentImage ? "0" : "10px"})`,
-        border: `var(--key-border, ${
-          currentImage
+      () => {
+        // 기본 배경색 계산
+        const defaultBgColor = currentImage
+          ? "transparent"
+          : active
+          ? "rgba(121, 121, 121, 0.9)"
+          : "rgba(46, 46, 47, 0.9)";
+        
+        // 기본 테두리색 계산
+        const defaultBorderColor = active
+          ? "rgba(255, 255, 255, 0.9)"
+          : "rgba(113, 113, 113, 0.9)";
+        
+        // 기본 텍스트 색상 계산
+        const defaultTextColor = active && !activeImage
+          ? "#FFFFFF"
+          : "rgba(121, 121, 121, 0.9)";
+
+        return {
+          width: `${width}px`,
+          height: `${height}px`,
+          transform: `translate3d(calc(${dx}px + var(--key-offset-x, 0px)), calc(${dy}px + var(--key-offset-y, 0px)), 0)`,
+          backgroundColor: useInline && stateBackgroundColor
+            ? stateBackgroundColor
+            : `var(--key-bg, ${stateBackgroundColor || defaultBgColor})`,
+          borderRadius: useInline && borderRadius != null
+            ? `${borderRadius}px`
+            : `var(--key-radius, ${currentImage ? "0" : (borderRadius != null ? `${borderRadius}px` : "10px")})`,
+          border: currentImage
             ? "none"
-            : active
-            ? "3px solid rgba(255, 255, 255, 0.9)"
-            : "3px solid rgba(113, 113, 113, 0.9)"
-        })`,
-        color: `var(--key-text-color, ${
-          active && !activeImage ? "#FFFFFF" : "rgba(121, 121, 121, 0.9)"
-        })`,
-        overflow: currentImage ? "visible" : "hidden",
-        // GPU 가속 최적화: active 상태 변경 시에만 willChange 적용
-        willChange: active ? "transform, background-color" : "transform",
-        backfaceVisibility: "hidden",
-        transformStyle: "preserve-3d",
-        contain: "layout style paint",
-        imageRendering: "auto",
-        isolation: "isolate",
-        boxSizing: "border-box",
-        zIndex: position.zIndex,
-      }),
+            : useInline && (stateBorderColor || borderWidth != null)
+              ? `${borderWidth ?? 3}px solid ${stateBorderColor || defaultBorderColor}`
+              : `var(--key-border, ${borderWidth ?? 3}px solid ${stateBorderColor || defaultBorderColor})`,
+          color: useInline && stateFontColor
+            ? stateFontColor
+            : `var(--key-text-color, ${stateFontColor || defaultTextColor})`,
+          fontSize: fontSize ? `${fontSize}px` : undefined,
+          overflow: currentImage ? "visible" : "hidden",
+          // GPU 가속 최적화: active 상태 변경 시에만 willChange 적용
+          willChange: active ? "transform, background-color" : "transform",
+          backfaceVisibility: "hidden",
+          transformStyle: "preserve-3d",
+          contain: "layout style paint",
+          imageRendering: "auto",
+          isolation: "isolate",
+          boxSizing: "border-box",
+          zIndex: position.zIndex,
+        };
+      },
       [
         active,
         activeImage,
@@ -559,6 +766,16 @@ export const Key = memo(
         height,
         currentImage,
         position.zIndex,
+        useInline,
+        backgroundColor,
+        activeBackgroundColor,
+        borderColor,
+        activeBorderColor,
+        borderWidth,
+        borderRadius,
+        fontSize,
+        fontColor,
+        activeFontColor,
       ]
     );
 
@@ -566,22 +783,33 @@ export const Key = memo(
       () => ({
         width: "100%",
         height: "100%",
-        objectFit: "cover",
+        objectFit: imageFit || "cover",
         display: "block",
         pointerEvents: "none",
         userSelect: "none",
         position: "relative",
         zIndex: 0,
       }),
-      []
+      [imageFit]
     );
 
     const textStyle = useMemo(
-      () => ({
-        willChange: "auto",
-        contain: "layout style paint",
-      }),
-      []
+      () => {
+        // text-decoration 조합
+        const textDecorations = [];
+        if (fontUnderline) textDecorations.push("underline");
+        if (fontStrikethrough) textDecorations.push("line-through");
+
+        return {
+          willChange: "auto",
+          contain: "layout style paint",
+          fontSize: fontSize ? `${fontSize}px` : undefined,
+          fontWeight: fontWeight ?? 700,
+          fontStyle: fontItalic ? "italic" : "normal",
+          textDecoration: textDecorations.length > 0 ? textDecorations.join(" ") : "none",
+        };
+      },
+      [fontSize, fontWeight, fontItalic, fontUnderline, fontStrikethrough]
     );
 
     // 텍스트 표시 조건: 현재 상태에 사용할 이미지가 없을 때만 텍스트를 표시
@@ -625,6 +853,13 @@ export const Key = memo(
       const displayValue = counterValue || 0;
       const strokeWidth = strokeColorCss.alpha > 0 ? "1px" : "0px";
 
+      const counterDecorations = [];
+      if (counterSettings.fontUnderline) counterDecorations.push("underline");
+      if (counterSettings.fontStrikethrough)
+        counterDecorations.push("line-through");
+      const counterTextDecoration =
+        counterDecorations.length > 0 ? counterDecorations.join(" ") : "none";
+
       const counterElement = (
         <span
           key="counter"
@@ -632,8 +867,10 @@ export const Key = memo(
           data-text={displayValue}
           data-counter-state={active ? "active" : "inactive"}
           style={{
-            fontSize: "16px",
-            fontWeight: 800,
+            fontSize: `${counterSettings.fontSize ?? 16}px`,
+            fontWeight: counterSettings.fontWeight ?? 400,
+            fontStyle: counterSettings.fontItalic ? "italic" : "normal",
+            textDecoration: counterTextDecoration,
             lineHeight: 1,
             "--counter-color-default": fillColorCss.css,
             "--counter-stroke-color-default": strokeColorCss.css,
@@ -650,7 +887,7 @@ export const Key = memo(
           className="font-bold text-[14px] pointer-events-none select-none"
           style={textStyle}
         >
-          {keyName}
+          {labelText}
         </span>
       );
 
@@ -706,7 +943,7 @@ export const Key = memo(
               className="flex items-center justify-center h-full font-bold"
               style={textStyle}
             >
-              {keyName}
+              {labelText}
             </div>
           )
         ) : null}
@@ -752,6 +989,25 @@ export const Key = memo(
         nextProps.position.idleTransparent &&
       prevProps.position.zIndex === nextProps.position.zIndex &&
       prevProps.position.className === nextProps.position.className &&
+      // 스타일 속성 비교
+      prevProps.position.backgroundColor === nextProps.position.backgroundColor &&
+      prevProps.position.activeBackgroundColor === nextProps.position.activeBackgroundColor &&
+      prevProps.position.borderColor === nextProps.position.borderColor &&
+      prevProps.position.activeBorderColor === nextProps.position.activeBorderColor &&
+      prevProps.position.borderWidth === nextProps.position.borderWidth &&
+      prevProps.position.borderRadius === nextProps.position.borderRadius &&
+      prevProps.position.fontSize === nextProps.position.fontSize &&
+      prevProps.position.fontColor === nextProps.position.fontColor &&
+      prevProps.position.activeFontColor === nextProps.position.activeFontColor &&
+      prevProps.position.imageFit === nextProps.position.imageFit &&
+      prevProps.position.useInlineStyles === nextProps.position.useInlineStyles &&
+      prevProps.position.displayText === nextProps.position.displayText &&
+      // 글꼴 스타일 속성 비교
+      prevProps.position.fontWeight === nextProps.position.fontWeight &&
+      prevProps.position.fontItalic === nextProps.position.fontItalic &&
+      prevProps.position.fontUnderline === nextProps.position.fontUnderline &&
+      prevProps.position.fontStrikethrough === nextProps.position.fontStrikethrough &&
+      // 카운터 설정 비교
       prevProps.position.counter?.enabled ===
         nextProps.position.counter?.enabled &&
       prevProps.position.counter?.placement ===
@@ -766,7 +1022,17 @@ export const Key = memo(
       prevProps.position.counter?.stroke?.active ===
         nextProps.position.counter?.stroke?.active &&
       (prevProps.position.counter?.gap ?? 6) ===
-        (nextProps.position.counter?.gap ?? 6)
+        (nextProps.position.counter?.gap ?? 6) &&
+      (prevProps.position.counter?.fontSize ?? 16) ===
+        (nextProps.position.counter?.fontSize ?? 16) &&
+      (prevProps.position.counter?.fontWeight ?? 400) ===
+        (nextProps.position.counter?.fontWeight ?? 400) &&
+      (prevProps.position.counter?.fontItalic ?? false) ===
+        (nextProps.position.counter?.fontItalic ?? false) &&
+      (prevProps.position.counter?.fontUnderline ?? false) ===
+        (nextProps.position.counter?.fontUnderline ?? false) &&
+      (prevProps.position.counter?.fontStrikethrough ?? false) ===
+        (nextProps.position.counter?.fontStrikethrough ?? false)
     );
   }
 );

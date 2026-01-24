@@ -8,6 +8,7 @@ import Dropdown from "@components/main/common/Dropdown";
 import FlaskIcon from "@assets/svgs/flask.svg";
 import { PluginManagerModal } from "@components/main/Modal/content/PluginManagerModal";
 import { PluginDataDeleteModal } from "@components/main/Modal/content/PluginDataDeleteModal";
+import ShortcutSettingsModal from "@components/main/Modal/content/ShortcutSettingsModal";
 import { applyCounterSnapshot } from "@stores/keyCounterSignals";
 import { extractPluginId } from "@utils/pluginUtils";
 import { isMac } from "@utils/platform";
@@ -63,6 +64,8 @@ export default function Settings({ showAlert, showConfirm }) {
     setOverlayResizeAnchor,
     keyCounterEnabled,
     setKeyCounterEnabled,
+    shortcuts,
+    setShortcuts,
   } = useSettingsStore();
 
   const { checkForUpdates, isChecking } = useUpdateCheck();
@@ -71,6 +74,7 @@ export default function Settings({ showAlert, showConfirm }) {
   const [isScrollHovered, setIsScrollHovered] = useState(false);
   const [isPluginModalOpen, setPluginModalOpen] = useState(false);
   const [isDataDeleteModalOpen, setDataDeleteModalOpen] = useState(false);
+  const [isShortcutModalOpen, setShortcutModalOpen] = useState(false);
   const [pluginToDelete, setPluginToDelete] = useState(null);
   const [isReloadingPlugins, setIsReloadingPlugins] = useState(false);
   const [isAddingPlugins, setIsAddingPlugins] = useState(false);
@@ -389,6 +393,16 @@ export default function Settings({ showAlert, showConfirm }) {
       await window.api.settings.update({ noteEffect: next });
     } catch (error) {
       console.error("Failed to toggle note effect", error);
+    }
+  };
+
+  const handleSaveShortcuts = async (next) => {
+    setShortcuts(next);
+    try {
+      await window.api.settings.update({ shortcuts: next });
+    } catch (error) {
+      console.error("Failed to update shortcuts", error);
+      showAlert?.(t("shortcutSetting.saveFailed"));
     }
   };
 
@@ -725,6 +739,17 @@ export default function Settings({ showAlert, showConfirm }) {
               </div>
               <div className="flex flex-row justify-between items-center">
                 <p className="text-style-3 text-[#FFFFFF]">
+                  {t("settings.shortcuts")}
+                </p>
+                <button
+                  onClick={() => setShortcutModalOpen(true)}
+                  className={actionButtonClass(true)}
+                >
+                  {t("settings.configure")}
+                </button>
+              </div>
+              <div className="flex flex-row justify-between items-center">
+                <p className="text-style-3 text-[#FFFFFF]">
                   {t("settings.graphicsOption")}
                 </p>
                 <Dropdown
@@ -820,6 +845,14 @@ export default function Settings({ showAlert, showConfirm }) {
           onDeletePluginOnly={() => removePluginOnly(pluginToDelete.id)}
           pluginName={pluginToDelete.name}
           t={t}
+        />
+      )}
+      {isShortcutModalOpen && (
+        <ShortcutSettingsModal
+          isOpen={isShortcutModalOpen}
+          shortcuts={shortcuts}
+          onClose={() => setShortcutModalOpen(false)}
+          onSave={handleSaveShortcuts}
         />
       )}
     </div>

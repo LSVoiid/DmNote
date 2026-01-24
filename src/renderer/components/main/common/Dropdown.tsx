@@ -21,7 +21,28 @@ const Dropdown: React.FC<DropdownProps> = ({
   disabled = false,
 }) => {
   const [open, setOpen] = useState(false);
+  const [openUpward, setOpenUpward] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // 드롭다운 열릴 때 위치 계산
+  useEffect(() => {
+    if (open && buttonRef.current) {
+      const buttonRect = buttonRef.current.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      
+      // 하단 메뉴 높이 고려 (약 50px)
+      const bottomPadding = 60;
+      
+      // 드롭다운 메뉴 예상 높이 (옵션당 25px + padding)
+      const estimatedMenuHeight = Math.min(options.length * 25 + 4, 200);
+      
+      // 버튼 아래 공간이 부족하면 위로 펼치기
+      const spaceBelow = viewportHeight - buttonRect.bottom - bottomPadding;
+      setOpenUpward(spaceBelow < estimatedMenuHeight);
+    }
+  }, [open, options.length]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -45,12 +66,13 @@ const Dropdown: React.FC<DropdownProps> = ({
       className={`relative ${disabled ? "opacity-50 pointer-events-none" : ""}`}
     >
       <button
+        ref={buttonRef}
         type="button"
-        className="flex box-border items-center justify-between py-[0px] px-[8px] bg-[#2A2A31] border-[1px] border-[#3A3944] rounded-[7px] text-[#DBDEE8] text-style-2 !leading-[23px] outline-none"
+        className="flex box-border items-center justify-between h-[23px] py-[0px] px-[8px] bg-[#2A2A31] border-[1px] border-[#3A3944] rounded-[7px] text-[#DBDEE8] text-style-2 outline-none"
         onClick={() => setOpen((prev) => !prev)}
         disabled={disabled}
       >
-        <span className={`truncate ${!selected ? "text-[#DBDEE8]" : ""}`}>
+        <span className={`truncate leading-[23px] ${!selected ? "text-[#DBDEE8]" : ""}`}>
           {selected ? selected.label : placeholder}
         </span>
         <svg
@@ -72,7 +94,12 @@ const Dropdown: React.FC<DropdownProps> = ({
         </svg>
       </button>
       {open && (
-        <div className="absolute left-0 top-[26px] flex flex-col justify-center items-center p-[1px] bg-[#2A2A31] border-[1px] border-[#3A3944] rounded-[7px] z-20 overflow-hidden gap-[2px]">
+        <div 
+          ref={menuRef}
+          className={`absolute left-0 flex flex-col justify-center items-center p-[1px] bg-[#2A2A31] border-[1px] border-[#3A3944] rounded-[7px] z-20 overflow-hidden gap-[2px] max-h-[200px] overflow-y-auto ${
+            openUpward ? "bottom-[25px]" : "top-[25px]"
+          }`}
+        >
           {options.length === 0 ? (
             <div className="px-4 py-3 text-[#9AA0AA] text-[18px] font-medium">
               옵션 없음
@@ -82,7 +109,7 @@ const Dropdown: React.FC<DropdownProps> = ({
               <button
                 key={opt.value}
                 type="button"
-                className={`text-left w-full px-[13px] py-[0px] rounded-[7px] text-style-2 text-[#DBDEE8] !leading-[23px] transition-colors duration-100 flex items-center bg-[#2A2A31] hover:bg-[#24232A] ${
+                className={`text-left w-full h-[23px] px-[13px] py-[0px] rounded-[7px] text-style-2 text-[#DBDEE8] transition-colors duration-100 flex items-center bg-[#2A2A31] hover:bg-[#24232A] ${
                   value === opt.value ? "!bg-[#24232A] pointer-events-none" : ""
                 }`}
                 onClick={() => {
@@ -90,7 +117,7 @@ const Dropdown: React.FC<DropdownProps> = ({
                   setOpen(false);
                 }}
               >
-                <span className="truncate">{opt.label}</span>
+                <span className="truncate leading-[23px]">{opt.label}</span>
               </button>
             ))
           )}

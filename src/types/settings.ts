@@ -5,6 +5,7 @@ import {
 } from "@src/types/noteSettings";
 import { type CustomCss } from "@src/types/css";
 import { type CustomJs } from "@src/types/js";
+import { DEFAULT_SHORTCUTS, type ShortcutsState } from "@src/types/shortcuts";
 
 export type OverlayResizeAnchor =
   | "top-left"
@@ -17,12 +18,16 @@ export interface GridSettings {
   alignmentGuides: boolean;
   spacingGuides: boolean;
   sizeMatchGuides: boolean;
+  minimapEnabled: boolean;
+  gridSnapSize: number; // 그리드 스냅 크기 (1-10px)
 }
 
 export const DEFAULT_GRID_SETTINGS: GridSettings = {
   alignmentGuides: true,
   spacingGuides: true,
   sizeMatchGuides: true,
+  minimapEnabled: false,
+  gridSnapSize: 5,
 };
 
 export interface SettingsState {
@@ -43,6 +48,7 @@ export interface SettingsState {
   overlayResizeAnchor: OverlayResizeAnchor;
   keyCounterEnabled: boolean;
   gridSettings: GridSettings;
+  shortcuts: ShortcutsState;
 }
 
 export const DEFAULT_SETTINGS_STATE: SettingsState = {
@@ -63,30 +69,33 @@ export const DEFAULT_SETTINGS_STATE: SettingsState = {
   overlayResizeAnchor: "top-left",
   keyCounterEnabled: false,
   gridSettings: DEFAULT_GRID_SETTINGS,
+  shortcuts: DEFAULT_SHORTCUTS,
 };
 
 export type SettingsPatchInput = Partial<
   Omit<
     SettingsState,
-    "noteSettings" | "customCSS" | "customJS" | "gridSettings"
+    "noteSettings" | "customCSS" | "customJS" | "gridSettings" | "shortcuts"
   >
 > & {
   noteSettings?: Partial<NoteSettings>;
   customCSS?: Partial<CustomCss>;
   customJS?: Partial<CustomJs>;
   gridSettings?: Partial<GridSettings>;
+  shortcuts?: Partial<ShortcutsState>;
 };
 
 export type SettingsPatch = Partial<
   Omit<
     SettingsState,
-    "noteSettings" | "customCSS" | "customJS" | "gridSettings"
+    "noteSettings" | "customCSS" | "customJS" | "gridSettings" | "shortcuts"
   >
 > & {
   noteSettings?: NoteSettings;
   customCSS?: CustomCss;
   customJS?: CustomJs;
   gridSettings?: GridSettings;
+  shortcuts?: ShortcutsState;
 };
 
 export interface SettingsDiff {
@@ -131,6 +140,13 @@ export function normalizeSettingsPatch(
         ...current.gridSettings,
         ...(value as Partial<GridSettings>),
       } as GridSettings;
+      continue;
+    }
+    if (key === "shortcuts") {
+      next.shortcuts = {
+        ...current.shortcuts,
+        ...(value as Partial<ShortcutsState>),
+      } as ShortcutsState;
       continue;
     }
     (next as Record<string, unknown>)[key as string] = value;

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { NOTE_SETTINGS_CONSTRAINTS } from "./noteSettingsConstraints";
 
 export const keyCounterPlacementSchema = z.union([
   z.literal("inside"),
@@ -25,6 +26,11 @@ const keyCounterSettingsInputSchema = z
     fill: keyCounterColorSchema.partial().optional(),
     stroke: keyCounterColorSchema.partial().optional(),
     gap: z.number().int().min(0).optional(),
+    fontSize: z.number().int().min(8).max(72).optional(),
+    fontWeight: z.number().int().min(100).max(900).optional(),
+    fontItalic: z.boolean().optional(),
+    fontUnderline: z.boolean().optional(),
+    fontStrikethrough: z.boolean().optional(),
   })
   .partial();
 
@@ -39,17 +45,27 @@ export interface KeyCounterSettings {
   fill: KeyCounterColor;
   stroke: KeyCounterColor;
   gap: number; // px 단위 간격
+  fontSize: number; // px
+  fontWeight: number; // CSS font-weight
+  fontItalic: boolean;
+  fontUnderline: boolean;
+  fontStrikethrough: boolean;
 }
 
 const COUNTER_DEFAULTS: KeyCounterSettings = Object.freeze({
   enabled: true,
-  placement: "outside" as KeyCounterPlacement,
+  placement: "inside" as KeyCounterPlacement,
   align: "top" as KeyCounterAlign,
-  // fill: idle white, active black
-  fill: Object.freeze({ idle: "#FFFFFF", active: "#000000" }),
-  // stroke: idle black, active white
-  stroke: Object.freeze({ idle: "#000000", active: "#FFFFFF" }),
+  // fill: match key text colors (idle/active)
+  fill: Object.freeze({ idle: "rgba(121, 121, 121, 0.9)", active: "#FFFFFF" }),
+  // stroke: transparent (no outline)
+  stroke: Object.freeze({ idle: "transparent", active: "transparent" }),
   gap: 6,
+  fontSize: 16,
+  fontWeight: 700,
+  fontItalic: false,
+  fontUnderline: false,
+  fontStrikethrough: false,
 });
 
 export function createDefaultCounterSettings(): KeyCounterSettings {
@@ -66,6 +82,11 @@ export function createDefaultCounterSettings(): KeyCounterSettings {
       active: COUNTER_DEFAULTS.stroke.active,
     },
     gap: COUNTER_DEFAULTS.gap,
+    fontSize: COUNTER_DEFAULTS.fontSize,
+    fontWeight: COUNTER_DEFAULTS.fontWeight,
+    fontItalic: COUNTER_DEFAULTS.fontItalic,
+    fontUnderline: COUNTER_DEFAULTS.fontUnderline,
+    fontStrikethrough: COUNTER_DEFAULTS.fontStrikethrough,
   };
 }
 
@@ -76,7 +97,19 @@ export function normalizeCounterSettings(raw: unknown): KeyCounterSettings {
     return fallback;
   }
 
-  const { enabled, placement, align, fill, stroke, gap } = parsed.data;
+  const {
+    enabled,
+    placement,
+    align,
+    fill,
+    stroke,
+    gap,
+    fontSize,
+    fontWeight,
+    fontItalic,
+    fontUnderline,
+    fontStrikethrough,
+  } = parsed.data;
   return {
     enabled: typeof enabled === "boolean" ? enabled : fallback.enabled,
     placement: placement ?? fallback.placement,
@@ -93,6 +126,24 @@ export function normalizeCounterSettings(raw: unknown): KeyCounterSettings {
       typeof gap === "number" && Number.isFinite(gap) && gap >= 0
         ? gap
         : fallback.gap,
+    fontSize:
+      typeof fontSize === "number" && Number.isFinite(fontSize)
+        ? fontSize
+        : fallback.fontSize,
+    fontWeight:
+      typeof fontWeight === "number" && Number.isFinite(fontWeight)
+        ? fontWeight
+        : fallback.fontWeight,
+    fontItalic:
+      typeof fontItalic === "boolean" ? fontItalic : fallback.fontItalic,
+    fontUnderline:
+      typeof fontUnderline === "boolean"
+        ? fontUnderline
+        : fallback.fontUnderline,
+    fontStrikethrough:
+      typeof fontStrikethrough === "boolean"
+        ? fontStrikethrough
+        : fallback.fontStrikethrough,
   };
 }
 
@@ -120,11 +171,22 @@ export const noteColorSchema = z.union([z.string(), gradientNoteColorSchema]);
 export type GradientNoteColor = z.infer<typeof gradientNoteColorSchema>;
 export type NoteColor = z.infer<typeof noteColorSchema>;
 
+// 이미지 맞춤 설정 (CSS object-fit과 동일)
+export const imageFitSchema = z.union([
+  z.literal("cover"),
+  z.literal("contain"),
+  z.literal("fill"),
+  z.literal("none"),
+]);
+export type ImageFit = z.infer<typeof imageFitSchema>;
+
 export const keyPositionSchema = z.object({
   dx: z.number(),
   dy: z.number(),
   width: z.number().positive(),
   height: z.number().positive(),
+  // 레이어 표시 여부 (false면 그리드/오버레이에서 렌더링하지 않음)
+  hidden: z.boolean().optional().default(false),
   activeImage: z.string().optional().or(z.literal("")),
   inactiveImage: z.string().optional().or(z.literal("")),
   activeTransparent: z.boolean().optional(),
@@ -132,10 +194,25 @@ export const keyPositionSchema = z.object({
   count: z.number().int().nonnegative(),
   noteColor: noteColorSchema,
   noteOpacity: z.number().int().min(0).max(100),
+  // 그라디언트용 노트 투명도(Top/Bottom). 없으면 noteOpacity를 사용.
+  noteOpacityTop: z.number().int().min(0).max(100).optional(),
+  noteOpacityBottom: z.number().int().min(0).max(100).optional(),
+  // 노트 모서리 반경 (키별 설정, 없으면 기본값 사용)
+  noteBorderRadius: z
+    .number()
+    .int()
+    .min(NOTE_SETTINGS_CONSTRAINTS.borderRadius.min)
+    .max(NOTE_SETTINGS_CONSTRAINTS.borderRadius.max)
+    .optional(),
+  // 노트 넓이(px). 비어있으면 해당 키 width를 사용(자동)
+  noteWidth: z.number().int().positive().optional(),
   noteEffectEnabled: z.boolean().optional().default(true),
   noteGlowEnabled: z.boolean().optional().default(false),
   noteGlowSize: z.number().int().min(0).max(50).optional().default(20),
   noteGlowOpacity: z.number().int().min(0).max(100).optional().default(70),
+  // 그라디언트용 글로우 투명도(Top/Bottom). 없으면 noteGlowOpacity를 사용.
+  noteGlowOpacityTop: z.number().int().min(0).max(100).optional(),
+  noteGlowOpacityBottom: z.number().int().min(0).max(100).optional(),
   noteGlowColor: noteColorSchema.optional(),
   noteAutoYCorrection: z.boolean().optional().default(true),
   className: z.string().optional().or(z.literal("")),
@@ -144,13 +221,33 @@ export const keyPositionSchema = z.object({
     .any()
     .transform((value) => normalizeCounterSettings(value))
     .default(createDefaultCounterSettings()),
+  // 스타일 관련 속성들
+  backgroundColor: z.string().optional(),
+  activeBackgroundColor: z.string().optional(),
+  borderColor: z.string().optional(),
+  activeBorderColor: z.string().optional(),
+  borderWidth: z.number().optional(),
+  borderRadius: z.number().optional(),
+  fontSize: z.number().optional(),
+  fontColor: z.string().optional(),
+  activeFontColor: z.string().optional(),
+  imageFit: imageFitSchema.optional(),
+  // 인라인 스타일 우선 여부 (true: 속성 패널 스타일 우선, false: 커스텀 CSS 우선)
+  useInlineStyles: z.boolean().optional(),
+  // 키에 표시할 커스텀 텍스트 (없으면 기본 키 이름 표시)
+  displayText: z.string().optional(),
+  // 글꼴 스타일 속성들
+  fontWeight: z.number().optional(), // CSS font-weight 값 (400, 700 등)
+  fontItalic: z.boolean().optional(),
+  fontUnderline: z.boolean().optional(),
+  fontStrikethrough: z.boolean().optional(),
 });
 
 export type KeyPosition = z.infer<typeof keyPositionSchema>;
 
 export const keyPositionsSchema = z.record(
   z.string(),
-  z.array(keyPositionSchema)
+  z.array(keyPositionSchema),
 );
 export type KeyPositions = Record<string, KeyPosition[]>;
 

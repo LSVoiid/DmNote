@@ -257,18 +257,24 @@ export type PluginSettingType =
   | "color"
   | "number"
   | "string"
-  | "select";
+  | "select"
+  | "divider";
 
-export interface PluginSettingSchema {
-  type: PluginSettingType;
-  default: any;
-  label: string;
-  min?: number; // for number
-  max?: number; // for number
-  step?: number; // for number
-  options?: { label: string; value: any }[]; // for select
-  placeholder?: string; // for string/number
-}
+export type PluginSettingSchema =
+  | {
+      type: "divider";
+      label?: string;
+    }
+  | {
+      type: Exclude<PluginSettingType, "divider">;
+      default: any;
+      label: string;
+      min?: number; // for number
+      max?: number; // for number
+      step?: number; // for number
+      options?: { label: string; value: any }[]; // for select
+      placeholder?: string; // for string/number
+    };
 
 export interface PluginDefinitionHookContext {
   setState: (updates: Record<string, any>) => void;
@@ -359,6 +365,12 @@ export interface PluginDefinition {
     delete?: string; // 요소 메뉴 라벨 (예: "KPS 패널 삭제")
     items?: PluginDefinitionContextMenuItem[];
   };
+  /**
+   * 설정 UI 표시 방식
+   * - "panel": 속성 패널 (기본값)
+   * - "modal": 기존 모달
+   */
+  settingsUI?: "panel" | "modal";
   settings?: Record<string, PluginSettingSchema>;
   messages?: PluginMessages;
   template: (
@@ -385,6 +397,12 @@ export interface PluginSettingsDefinition {
   settings: Record<string, PluginSettingSchema>;
   /** 다국어 메시지 번들 */
   messages?: PluginMessages;
+  /**
+   * 설정 UI 표시 방식
+   * - "panel": 속성 패널 (기본값)
+   * - "modal": 기존 모달
+   */
+  settingsUI?: "panel" | "modal";
   /** 설정 변경 시 호출되는 콜백 */
   onChange?: (
     newSettings: Record<string, any>,
@@ -423,6 +441,8 @@ export type PluginDisplayElementInternal = PluginDisplayElement & {
   pluginId: string;
   fullId: string;
   measuredSize?: { width: number; height: number };
+  /** 레이어 표시 여부 (true면 숨김) */
+  hidden?: boolean;
   /** 리사이즈 시 사용되는 명시적 너비 */
   width?: number;
   /** 리사이즈 시 사용되는 명시적 높이 */

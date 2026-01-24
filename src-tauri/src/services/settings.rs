@@ -4,7 +4,7 @@ use anyhow::Result;
 
 use crate::models::{
     CustomCss, CustomCssPatch, CustomJs, CustomJsPatch, NoteSettings, NoteSettingsPatch,
-    SettingsDiff, SettingsPatch, SettingsPatchInput, SettingsState,
+    SettingsDiff, SettingsPatch, SettingsPatchInput, SettingsState, ShortcutsState,
 };
 use crate::store::AppStore;
 
@@ -45,6 +45,7 @@ impl SettingsService {
             state.overlay_resize_anchor = next.overlay_resize_anchor.clone();
             state.key_counter_enabled = next.key_counter_enabled;
             state.grid_settings = next.grid_settings.clone();
+            state.shortcuts = next.shortcuts.clone();
         })?;
 
         Ok(SettingsDiff {
@@ -115,6 +116,47 @@ fn normalize_patch(patch: &SettingsPatchInput, current: &SettingsState) -> Setti
     if let Some(value) = patch.grid_settings.as_ref() {
         normalized.grid_settings = Some(value.clone());
     }
+    if let Some(value) = patch.shortcuts.as_ref() {
+        let normalize_binding = |binding: &crate::models::ShortcutBinding| {
+            if binding.key.trim().is_empty() {
+                crate::models::ShortcutBinding {
+                    key: String::new(),
+                    ctrl: false,
+                    shift: false,
+                    alt: false,
+                    meta: false,
+                }
+            } else {
+                binding.clone()
+            }
+        };
+        let mut merged: ShortcutsState = current.shortcuts.clone();
+        if let Some(binding) = value.toggle_overlay.as_ref() {
+            merged.toggle_overlay = normalize_binding(binding);
+        }
+        if let Some(binding) = value.toggle_overlay_lock.as_ref() {
+            merged.toggle_overlay_lock = normalize_binding(binding);
+        }
+        if let Some(binding) = value.toggle_always_on_top.as_ref() {
+            merged.toggle_always_on_top = normalize_binding(binding);
+        }
+        if let Some(binding) = value.switch_key_mode.as_ref() {
+            merged.switch_key_mode = normalize_binding(binding);
+        }
+        if let Some(binding) = value.toggle_settings_panel.as_ref() {
+            merged.toggle_settings_panel = normalize_binding(binding);
+        }
+        if let Some(binding) = value.zoom_in.as_ref() {
+            merged.zoom_in = normalize_binding(binding);
+        }
+        if let Some(binding) = value.zoom_out.as_ref() {
+            merged.zoom_out = normalize_binding(binding);
+        }
+        if let Some(binding) = value.reset_zoom.as_ref() {
+            merged.reset_zoom = normalize_binding(binding);
+        }
+        normalized.shortcuts = Some(merged);
+    }
     normalized
 }
 
@@ -170,13 +212,13 @@ fn apply_changes(mut current: SettingsState, patch: &SettingsPatch) -> SettingsS
     if let Some(value) = patch.grid_settings.as_ref() {
         current.grid_settings = value.clone();
     }
+    if let Some(value) = patch.shortcuts.as_ref() {
+        current.shortcuts = value.clone();
+    }
     current
 }
 
 fn apply_note_patch(mut settings: NoteSettings, patch: &NoteSettingsPatch) -> NoteSettings {
-    if let Some(value) = patch.border_radius {
-        settings.border_radius = value;
-    }
     if let Some(value) = patch.speed {
         settings.speed = value;
     }

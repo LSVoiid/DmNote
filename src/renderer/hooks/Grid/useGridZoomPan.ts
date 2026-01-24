@@ -8,6 +8,8 @@ import {
 } from "@stores/useGridViewStore";
 import { useGridSelectionStore } from "@stores/useGridSelectionStore";
 import { isMac } from "@utils/platform";
+import { useSettingsStore } from "@stores/useSettingsStore";
+import type { ShortcutBinding } from "@src/types/shortcuts";
 
 interface UseGridZoomPanOptions {
   mode: string;
@@ -182,30 +184,39 @@ export function useGridZoomPan({
         return;
       }
 
-      const isPrimaryModifierPressed = macOS ? e.metaKey : e.ctrlKey;
+      const matchesShortcut = (event: KeyboardEvent, binding?: ShortcutBinding) => {
+        if (!binding?.key) return false;
+        const ctrl = !!binding.ctrl;
+        const shift = !!binding.shift;
+        const alt = !!binding.alt;
+        const meta = !!binding.meta;
+        return (
+          event.code === binding.key &&
+          event.ctrlKey === ctrl &&
+          event.shiftKey === shift &&
+          event.altKey === alt &&
+          event.metaKey === meta
+        );
+      };
 
-      // (Ctrl/Cmd)+0: 줌 리셋
-      if (isPrimaryModifierPressed && e.key === "0") {
+      const { shortcuts } = useSettingsStore.getState();
+      if (matchesShortcut(e, shortcuts?.resetZoom)) {
         e.preventDefault();
         resetZoom();
         return;
       }
-
-      // (Ctrl/Cmd)++: 줌 인 (= 또는 + 키)
-      if (isPrimaryModifierPressed && (e.key === "+" || e.key === "=")) {
+      if (matchesShortcut(e, shortcuts?.zoomIn)) {
         e.preventDefault();
         zoomIn();
         return;
       }
-
-      // (Ctrl/Cmd)+-: 줌 아웃
-      if (isPrimaryModifierPressed && e.key === "-") {
+      if (matchesShortcut(e, shortcuts?.zoomOut)) {
         e.preventDefault();
         zoomOut();
         return;
       }
     },
-    [macOS, resetZoom, zoomIn, zoomOut]
+    [resetZoom, zoomIn, zoomOut]
   );
 
   /**

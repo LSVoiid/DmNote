@@ -11,11 +11,6 @@ import {
 export default function NoteSetting({ onClose, settings, onSave }) {
   const { t } = useTranslation();
   const initial = settings || {};
-  const [borderRadius, setBorderRadius] = useState(
-    Number.isFinite(Number(initial.borderRadius))
-      ? Number(initial.borderRadius)
-      : 2
-  );
   const [speed, setSpeed] = useState(
     Number.isFinite(Number(initial.speed)) ? Number(initial.speed) : 180
   );
@@ -33,17 +28,12 @@ export default function NoteSetting({ onClose, settings, onSave }) {
     { label: t("noteSetting.auto"), value: "auto" },
     { label: t("noteSetting.top"), value: "top" },
     { label: t("noteSetting.bottom"), value: "bottom" },
+    { label: t("noteSetting.none"), value: "none" },
   ];
 
   const handleSave = async () => {
     const normalized = {
       ...settings,
-      borderRadius: clampValue(
-        parseInt(
-          borderRadius || NOTE_SETTINGS_CONSTRAINTS.borderRadius.default
-        ),
-        "borderRadius"
-      ),
       speed: clampValue(
         parseInt(speed || NOTE_SETTINGS_CONSTRAINTS.speed.default),
         "speed"
@@ -69,38 +59,6 @@ export default function NoteSetting({ onClose, settings, onSave }) {
         className="flex flex-col items-center justify-center p-[20px] bg-[#1A191E] rounded-[13px] gap-[19px] border-[1px] border-[#2A2A30]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex justify-between w-full items-center">
-          <p className="text-white text-style-2">
-            {t("noteSetting.borderRadius")}
-          </p>
-          <input
-            type="number"
-            min={NOTE_SETTINGS_CONSTRAINTS.borderRadius.min}
-            max={NOTE_SETTINGS_CONSTRAINTS.borderRadius.max}
-            value={borderRadius}
-            onChange={(e) => {
-              const v = e.target.value;
-              if (v === "") {
-                setBorderRadius("");
-              } else {
-                const num = parseInt(v);
-                if (!Number.isNaN(num)) {
-                  setBorderRadius(clampValue(num, "borderRadius"));
-                }
-              }
-            }}
-            onBlur={(e) => {
-              if (e.target.value === "" || isNaN(parseInt(e.target.value))) {
-                setBorderRadius(NOTE_SETTINGS_CONSTRAINTS.borderRadius.default);
-              } else {
-                const num = parseInt(e.target.value);
-                setBorderRadius(clampValue(num, "borderRadius"));
-              }
-            }}
-            className="text-center w-[47px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943] focus:border-[#459BF8] text-style-4 text-[#DBDEE8]"
-          />
-        </div>
-
         <div className="flex justify-between w-full items-center">
           <p className="text-white text-style-2">{t("noteSetting.speed")}</p>
           <input

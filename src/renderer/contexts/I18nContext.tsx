@@ -20,12 +20,32 @@ interface I18nContextValue {
 }
 
 const STORAGE_KEY = "dmnote:locale";
+const LOCALE_INIT_KEY = "dmnote:locale_initialized";
 const DEFAULT_LOCALE: SupportedLocale = "ko";
 
 const I18nContext = createContext<I18nContextValue | null>(null);
 
 function isSupportedLocale(value: unknown): value is SupportedLocale {
   return value === "ko" || value === "en";
+}
+
+function safeLocalStorageGet(key: string) {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage.getItem(key);
+  } catch (error) {
+    console.warn("Failed to read localStorage", error);
+    return null;
+  }
+}
+
+function safeLocalStorageSet(key: string, value: string) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(key, value);
+  } catch (error) {
+    console.warn("Failed to persist localStorage", error);
+  }
 }
 
 function getNestedValue(messages: Messages, path: string) {
@@ -48,16 +68,33 @@ function interpolate(
   });
 }
 
-function loadPersistedLocale(): SupportedLocale {
+function detectBrowserLocale(): SupportedLocale {
+  if (typeof navigator === "undefined") return DEFAULT_LOCALE;
+
+  const candidates: string[] = [];
   try {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (isSupportedLocale(stored)) {
-      return stored;
+    if (Array.isArray(navigator.languages)) {
+      candidates.push(...navigator.languages);
     }
-  } catch (error) {
-    console.warn("Failed to read stored locale", error);
+    if (navigator.language) {
+      candidates.push(navigator.language);
+    }
+  } catch {
+    // ignore
   }
-  return DEFAULT_LOCALE;
+
+  const normalized = candidates
+    .filter(Boolean)
+    .map((value) => String(value).trim().toLowerCase());
+
+  const isKorean = normalized.some((value) => value === "ko" || value.startsWith("ko-"));
+  return isKorean ? "ko" : "en";
+}
+
+function loadInitialLocale(): SupportedLocale {
+  const stored = safeLocalStorageGet(STORAGE_KEY);
+  if (isSupportedLocale(stored)) return stored;
+  return detectBrowserLocale();
 }
 
 async function importLocaleMessages(locale: SupportedLocale) {
@@ -67,7 +104,7 @@ async function importLocaleMessages(locale: SupportedLocale) {
 
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<SupportedLocale>(() =>
-    loadPersistedLocale()
+    loadInitialLocale()
   );
   const [messages, setMessages] = useState<Messages>({});
   const [hasInitialized, setHasInitialized] = useState(false);
@@ -98,24 +135,29 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     (async () => {
       try {
         const settings: SettingsState = await window.api.settings.get();
-        if (!cancelled && isSupportedLocale(settings.language)) {
+        if (cancelled) return;
+
+        const storedLocale = safeLocalStorageGet(STORAGE_KEY);
+        const hasLocaleInit = safeLocalStorageGet(LOCALE_INIT_KEY) === "1";
+        const shouldAutoInitLocale =
+          !hasLocaleInit && !isSupportedLocale(storedLocale);
+        const detected = detectBrowserLocale();
+
+        if (shouldAutoInitLocale) {
+          safeLocalStorageSet(LOCALE_INIT_KEY, "1");
+          if (isSupportedLocale(settings.language) && settings.language !== detected) {
+            setLocaleState(detected);
+            safeLocalStorageSet(STORAGE_KEY, detected);
+            window.api.settings.update({ language: detected }).catch((error) => {
+              console.error("Failed to update initial language", error);
+            });
+            return;
+          }
+        }
+
+        if (isSupportedLocale(settings.language)) {
           setLocaleState(settings.language);
-          try {
-            window.localStorage.setItem(STORAGE_KEY, settings.language);
-          } catch (error) {
-            console.warn("Failed to persist locale", error);
-          }
-          try {
-            const loadedMessages = await importLocaleMessages(
-              settings.language
-            );
-            if (!cancelled) {
-              setMessages(loadedMessages);
-              setHasInitialized(true);
-            }
-          } catch (error) {
-            console.error("Failed to preload locale messages", error);
-          }
+          safeLocalStorageSet(STORAGE_KEY, settings.language);
         }
       } catch (error) {
         console.error("Failed to fetch initial language", error);
@@ -132,11 +174,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
       const next = diff.changed.language;
       if (isSupportedLocale(next)) {
         setLocaleState(next);
-        try {
-          window.localStorage.setItem(STORAGE_KEY, next);
-        } catch (error) {
-          console.warn("Failed to persist locale", error);
-        }
+        safeLocalStorageSet(STORAGE_KEY, next);
       }
     });
 
@@ -151,11 +189,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
 
   const changeLocale = useCallback((next: SupportedLocale) => {
     setLocaleState(next);
-    try {
-      window.localStorage.setItem(STORAGE_KEY, next);
-    } catch (error) {
-      console.warn("Failed to persist locale", error);
-    }
+    safeLocalStorageSet(STORAGE_KEY, next);
     window.api.settings.update({ language: next }).catch((error) => {
       console.error("Failed to update language", error);
     });

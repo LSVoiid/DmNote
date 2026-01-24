@@ -12,17 +12,22 @@ import { usePalette } from "@hooks/usePalette";
 import CustomAlert from "@components/main/Modal/content/Alert";
 import NoteSettingModal from "@components/main/Modal/content/NoteSetting";
 import LaboratoryModal from "@components/main/Modal/content/Laboratory";
-import GridSettingsModal from "@components/main/Modal/content/GridSettingsModal";
 import UpdateModal from "@components/main/Modal/content/UpdateModal";
+import PropertiesPanel from "@components/main/Grid/PropertiesPanel";
 import { useSettingsStore } from "@stores/useSettingsStore";
+import type { ShortcutBinding } from "@src/types/shortcuts";
 import FloatingPopup from "@components/main/Modal/FloatingPopup";
 import Palette from "@components/main/Modal/content/Palette";
 import ColorPicker from "@components/main/Modal/content/ColorPicker";
 import { useKeyStore } from "@stores/useKeyStore";
 import { useAppBootstrap } from "@hooks/useAppBootstrap";
 import { useUpdateCheck } from "@hooks/useUpdateCheck";
+import { usePropertiesPanelStore } from "@stores/usePropertiesPanelStore";
+
+import { useUIStore } from "@stores/useUIStore";
 
 export default function App() {
+  const setGridAreaHovered = useUIStore((state) => state.setGridAreaHovered);
   const { selectedKeyType, setSelectedKeyType, isBootstrapped } = useKeyStore();
   useCustomCssInjection();
   useCustomJsInjection();
@@ -94,6 +99,10 @@ export default function App() {
     handlePositionChange,
     handleKeyUpdate,
     handleKeyPreview,
+    handleKeyBatchPreview,
+    handleKeyStyleUpdate,
+    handleKeyBatchStyleUpdate,
+    handleKeyMappingChange,
     handleNoteColorUpdate,
     handleNoteColorPreview,
     handleCounterSettingsUpdate,
@@ -119,7 +128,6 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isNoteSettingOpen, setIsNoteSettingOpen] = useState(false);
   const [isLaboratoryOpen, setIsLaboratoryOpen] = useState(false);
-  const [isGridSettingsOpen, setIsGridSettingsOpen] = useState(false);
   const [skipModalAnimationOnReturn, setSkipModalAnimationOnReturn] =
     useState(false);
   const {
@@ -133,7 +141,26 @@ export default function App() {
     noteSettings,
     setNoteSettings,
     developerModeEnabled,
+    shortcuts,
   } = useSettingsStore();
+
+  const matchesShortcut = React.useCallback(
+    (event: KeyboardEvent, binding?: ShortcutBinding) => {
+      if (!binding?.key) return false;
+      const ctrl = !!binding.ctrl;
+      const shift = !!binding.shift;
+      const alt = !!binding.alt;
+      const meta = !!binding.meta;
+      return (
+        event.code === binding.key &&
+        event.ctrlKey === ctrl &&
+        event.shiftKey === shift &&
+        event.altKey === alt &&
+        event.metaKey === meta
+      );
+    },
+    []
+  );
 
   // 개발자 모드 비활성 시 DevTools 단축키 차단
   useEffect(() => {
@@ -205,7 +232,7 @@ export default function App() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key !== "Tab" || e.shiftKey) return;
+      if (!matchesShortcut(e, shortcuts?.switchKeyMode)) return;
       const active = document.activeElement as HTMLElement | null;
       if (active) {
         const tag = (active.tagName || "").toLowerCase();
@@ -218,6 +245,9 @@ export default function App() {
       );
       if (hasModal) return;
 
+      // 키 리스닝 중이면 탭 전환 차단
+      if ((window as any).__dmn_isKeyListening) return;
+
       const defaults = ["4key", "5key", "6key", "8key"];
       if (!isBootstrapped || !defaults.includes(selectedKeyType)) return;
       e.preventDefault();
@@ -228,7 +258,48 @@ export default function App() {
     };
     window.addEventListener("keydown", handler, true);
     return () => window.removeEventListener("keydown", handler, true);
-  }, [selectedKeyType, setSelectedKeyType, isBootstrapped]);
+  }, [
+    matchesShortcut,
+    selectedKeyType,
+    setSelectedKeyType,
+    isBootstrapped,
+    shortcuts?.switchKeyMode,
+  ]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (!matchesShortcut(e, shortcuts?.toggleSettingsPanel)) return;
+      // 캔버스(그리드) 화면에서만 동작
+      if (isSettingsOpen) return;
+      const active = document.activeElement as HTMLElement | null;
+      if (active) {
+        const tag = (active.tagName || "").toLowerCase();
+        const editable = active.isContentEditable;
+        if (tag === "input" || tag === "textarea" || editable) return;
+      }
+
+      // 모달이 열려있으면 토글 차단
+      const hasModal = document.querySelector(
+        "[data-dmn-modal-backdrop='true']"
+      );
+      if (hasModal) return;
+
+      // 키 리스닝 중이면 토글 차단
+      if ((window as any).__dmn_isKeyListening) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      usePropertiesPanelStore.getState().requestCanvasPanelToggle();
+    };
+
+    window.addEventListener("keydown", handler, true);
+    return () => window.removeEventListener("keydown", handler, true);
+  }, [
+    matchesShortcut,
+    shortcuts?.toggleSettingsPanel,
+    isSettingsOpen,
+  ]);
 
   const showAlert = (message: string, confirmText?: string) => {
     setAlertState({
@@ -432,44 +503,61 @@ export default function App() {
   return (
     <div className="bg-[#111012] w-full h-full flex flex-col overflow-hidden rounded-[7px] border border-[rgba(255,255,255,0.1)]">
       <TitleBar />
-      <div className="flex-1 bg-[#2A2A31] overflow-hidden">
+      <div className="flex-1 bg-[#2A2A31] overflow-hidden flex">
         {isSettingsOpen ? (
-          <div className="h-full overflow-y-auto">
+          <div className="h-full w-full overflow-y-auto">
             <SettingTab showAlert={showAlert} showConfirm={showConfirm} />
           </div>
         ) : (
-          <Grid
-            selectedKey={selectedKey}
-            setSelectedKey={setSelectedKey}
-            keyMappings={keyMappings}
-            positions={positions}
-            onPositionChange={handlePositionChange}
-            onKeyUpdate={handleKeyUpdate}
-            onKeyPreview={handleKeyPreview}
-            onNoteColorUpdate={handleNoteColorUpdate}
-            onNoteColorPreview={handleNoteColorPreview}
-            onCounterUpdate={handleCounterSettingsUpdate}
-            onCounterPreview={handleCounterSettingsPreview}
-            onKeyDelete={handleDeleteKey}
-            onAddKeyAt={handleAddKeyAt}
-            onKeyDuplicate={handleDuplicateKey}
-            onMoveToFront={handleMoveToFront}
-            onMoveToBack={handleMoveToBack}
-            onMoveForward={handleMoveForward}
-            onMoveBackward={handleMoveBackward}
-            color={color}
-            activeTool={activeTool}
-            showConfirm={showConfirm}
-            showAlert={showAlert}
-            shouldSkipModalAnimation={skipModalAnimationOnReturn}
-            onModalAnimationConsumed={() =>
-              setSkipModalAnimationOnReturn(false)
-            }
-            onUndo={handleUndo}
-            onRedo={handleRedo}
-            canUndo={canUndo}
-            canRedo={canRedo}
-          />
+          <div
+            className="flex-1 h-full overflow-hidden relative"
+            onMouseEnter={() => setGridAreaHovered(true)}
+            onMouseLeave={() => setGridAreaHovered(false)}
+          >
+            <Grid
+              selectedKey={selectedKey}
+              setSelectedKey={setSelectedKey}
+              keyMappings={keyMappings}
+              positions={positions}
+              onPositionChange={handlePositionChange}
+              onKeyUpdate={handleKeyUpdate}
+              onKeyPreview={handleKeyPreview}
+              onNoteColorUpdate={handleNoteColorUpdate}
+              onNoteColorPreview={handleNoteColorPreview}
+              onCounterUpdate={handleCounterSettingsUpdate}
+              onCounterPreview={handleCounterSettingsPreview}
+              onKeyDelete={handleDeleteKey}
+              onAddKeyAt={handleAddKeyAt}
+              onKeyDuplicate={handleDuplicateKey}
+              onMoveToFront={handleMoveToFront}
+              onMoveToBack={handleMoveToBack}
+              onMoveForward={handleMoveForward}
+              onMoveBackward={handleMoveBackward}
+              color={color}
+              activeTool={activeTool}
+              showConfirm={showConfirm}
+              showAlert={showAlert}
+              shouldSkipModalAnimation={skipModalAnimationOnReturn}
+              onModalAnimationConsumed={() =>
+                setSkipModalAnimationOnReturn(false)
+              }
+              onUndo={handleUndo}
+              onRedo={handleRedo}
+              canUndo={canUndo}
+              canRedo={canRedo}
+            />
+            <PropertiesPanel
+              onPositionChange={handlePositionChange}
+              onKeyUpdate={(data) => {
+                const { index, ...updates } = data;
+                handleKeyStyleUpdate(index, updates);
+              }}
+              onKeyBatchUpdate={handleKeyBatchStyleUpdate}
+              onKeyPreview={handleKeyPreview}
+              onKeyBatchPreview={handleKeyBatchPreview}
+              onKeyMappingChange={handleKeyMappingChange}
+            />
+          </div>
         )}
       </div>
       <ToolBar
@@ -507,7 +595,6 @@ export default function App() {
         showAlert={showAlert}
         onOpenNoteSetting={() => setIsNoteSettingOpen(true)}
         onOpenLaboratory={() => setIsLaboratoryOpen(true)}
-        onOpenGridSettings={() => setIsGridSettingsOpen(true)}
         primaryButtonRef={primaryButtonRef}
       />
       {palette && (
@@ -558,9 +645,6 @@ export default function App() {
           }}
           onClose={() => setIsLaboratoryOpen(false)}
         />
-      )}
-      {isGridSettingsOpen && (
-        <GridSettingsModal onClose={() => setIsGridSettingsOpen(false)} />
       )}
       <CustomAlert
         isOpen={alertState.isOpen}

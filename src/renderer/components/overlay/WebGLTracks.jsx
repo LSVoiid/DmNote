@@ -235,15 +235,16 @@ const fragmentShader = `
     float trackRelativeY = gradientRatio;
 
     float fadePosFlag = uFadePosition;
+    bool fadeDisabled = fadePosFlag > 2.5;
     bool invertForFade = false;
-    if (fadePosFlag < 0.5) {
+    if (!fadeDisabled && fadePosFlag < 0.5) {
       invertForFade = (vReverse > 0.5);
-    } else if (abs(fadePosFlag - 1.0) < 0.1) {
+    } else if (!fadeDisabled && abs(fadePosFlag - 1.0) < 0.1) {
       invertForFade = false;
-    } else {
+    } else if (!fadeDisabled) {
       invertForFade = true;
     }
-    if (invertForFade) {
+    if (!fadeDisabled && invertForFade) {
       trackRelativeY = 1.0 - trackRelativeY;
     }
 
@@ -267,7 +268,7 @@ const fragmentShader = `
     }
 
     // 트랙 페이드 영역 적용 (상단 또는 하단)
-    if (trackRelativeY < fadeRatio) {
+    if (!fadeDisabled && trackRelativeY < fadeRatio) {
       alpha *= clamp(trackRelativeY / fadeRatio, 0.0, 1.0);
     }
 
@@ -350,13 +351,15 @@ export const WebGLTracks = memo(
             value:
               laboratoryEnabled && noteSettings.delayedNoteEnabled ? 1.0 : 0.0,
           },
-          // fadePosition: 'auto' | 'top' | 'bottom' -> 0 | 1 | 2
+          // fadePosition: 'auto' | 'top' | 'bottom' | 'none' -> 0 | 1 | 2 | 3
           uFadePosition: {
             value:
               noteSettings.fadePosition === "top"
                 ? 1.0
                 : noteSettings.fadePosition === "bottom"
                 ? 2.0
+                : noteSettings.fadePosition === "none"
+                ? 3.0
                 : 0.0,
           },
         },
@@ -702,6 +705,8 @@ export const WebGLTracks = memo(
             ? 1.0
             : noteSettings.fadePosition === "bottom"
             ? 2.0
+            : noteSettings.fadePosition === "none"
+            ? 3.0
             : 0.0;
       }
     }, [

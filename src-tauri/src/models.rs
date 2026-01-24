@@ -76,6 +76,9 @@ pub struct KeyPosition {
     pub dy: f64,
     pub width: f64,
     pub height: f64,
+    /// 레이어 표시 여부 (true면 숨김)
+    #[serde(default)]
+    pub hidden: bool,
     #[serde(default)]
     pub active_image: Option<String>,
     #[serde(default)]
@@ -87,6 +90,11 @@ pub struct KeyPosition {
     pub count: u32,
     pub note_color: NoteColor,
     pub note_opacity: u32,
+    #[serde(default)]
+    pub note_border_radius: Option<u32>,
+    /// 노트 넓이(px). None이면 키 width를 사용(자동).
+    #[serde(default)]
+    pub note_width: Option<u32>,
     #[serde(default = "default_note_effect_enabled")]
     pub note_effect_enabled: bool,
     #[serde(default = "default_note_glow_enabled")]
@@ -105,6 +113,45 @@ pub struct KeyPosition {
     pub z_index: Option<i32>,
     #[serde(default)]
     pub counter: KeyCounterSettings,
+    // 스타일 관련 속성들
+    #[serde(default)]
+    pub background_color: Option<String>,
+    #[serde(default)]
+    pub active_background_color: Option<String>,
+    #[serde(default)]
+    pub border_color: Option<String>,
+    #[serde(default)]
+    pub active_border_color: Option<String>,
+    #[serde(default)]
+    pub border_width: Option<f64>,
+    #[serde(default)]
+    pub border_radius: Option<f64>,
+    #[serde(default)]
+    pub font_size: Option<f64>,
+    #[serde(default)]
+    pub font_color: Option<String>,
+    #[serde(default)]
+    pub active_font_color: Option<String>,
+    #[serde(default)]
+    pub image_fit: Option<ImageFit>,
+    /// 인라인 스타일 우선 여부 (true: 속성 패널 스타일 우선, false: 커스텀 CSS 우선)
+    #[serde(default)]
+    pub use_inline_styles: Option<bool>,
+    /// 키에 표시할 커스텀 텍스트 (None이면 기본 키 이름 표시)
+    #[serde(default)]
+    pub display_text: Option<String>,
+    /// 글꼴 굵기 (CSS font-weight 값, 예: 400, 700)
+    #[serde(default)]
+    pub font_weight: Option<u32>,
+    /// 이탤릭체 여부
+    #[serde(default)]
+    pub font_italic: Option<bool>,
+    /// 밑줄 여부
+    #[serde(default)]
+    pub font_underline: Option<bool>,
+    /// 취소선 여부
+    #[serde(default)]
+    pub font_strikethrough: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -116,7 +163,7 @@ pub enum KeyCounterPlacement {
 
 impl Default for KeyCounterPlacement {
     fn default() -> Self {
-        KeyCounterPlacement::Outside
+        KeyCounterPlacement::Inside
     }
 }
 
@@ -166,6 +213,16 @@ pub struct KeyCounterSettings {
     pub stroke: KeyCounterColor,
     #[serde(default = "default_gap")]
     pub gap: u32,
+    #[serde(default = "default_counter_font_size")]
+    pub font_size: u32,
+    #[serde(default = "default_counter_font_weight")]
+    pub font_weight: u32,
+    #[serde(default)]
+    pub font_italic: bool,
+    #[serde(default)]
+    pub font_underline: bool,
+    #[serde(default)]
+    pub font_strikethrough: bool,
 }
 
 fn default_stroke_color() -> KeyCounterColor {
@@ -179,16 +236,23 @@ impl Default for KeyCounterSettings {
     fn default() -> Self {
         Self {
             enabled: true,
-            placement: KeyCounterPlacement::Outside,
+            placement: KeyCounterPlacement::Inside,
             align: KeyCounterAlign::Top,
             fill: KeyCounterColor::default(),
             stroke: default_stroke_color(),
             gap: default_gap(),
+            font_size: default_counter_font_size(),
+            font_weight: default_counter_font_weight(),
+            font_italic: false,
+            font_underline: false,
+            font_strikethrough: false,
         }
     }
 }
 
 fn default_gap() -> u32 { 6 }
+fn default_counter_font_size() -> u32 { 16 }
+fn default_counter_font_weight() -> u32 { 400 }
 
 fn default_counter_enabled() -> bool { true }
 fn default_note_effect_enabled() -> bool { true }
@@ -200,7 +264,9 @@ fn default_note_auto_y_correction() -> bool { true }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct NoteSettings {
-    pub border_radius: u32,
+    // Legacy: global note rounding (migrated to per-key noteBorderRadius).
+    #[serde(default, skip_serializing)]
+    pub border_radius: Option<u32>,
     pub speed: u32,
     pub track_height: u32,
     pub reverse: bool,
@@ -218,12 +284,29 @@ pub enum FadePosition {
     Auto,
     Top,
     Bottom,
+    None,
+}
+
+/// 이미지 맞춤 설정 (CSS object-fit과 동일)
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "kebab-case")]
+pub enum ImageFit {
+    Cover,
+    Contain,
+    Fill,
+    None,
+}
+
+impl Default for ImageFit {
+    fn default() -> Self {
+        ImageFit::Cover
+    }
 }
 
 impl Default for NoteSettings {
     fn default() -> Self {
         Self {
-            border_radius: 2,
+            border_radius: None,
             speed: 180,
             track_height: 150,
             reverse: false,
@@ -386,10 +469,20 @@ pub struct GridSettings {
     /// 크기 일치 가이드 활성화 (리사이즈 시 크기 일치 스냅)
     #[serde(default = "default_true")]
     pub size_match_guides: bool,
+    /// 미니맵 표시 여부
+    #[serde(default = "default_true")]
+    pub minimap_enabled: bool,
+    /// 그리드 스냅 크기 (1-10px)
+    #[serde(default = "default_grid_snap_size")]
+    pub grid_snap_size: u32,
 }
 
 fn default_true() -> bool {
     true
+}
+
+fn default_grid_snap_size() -> u32 {
+    5
 }
 
 impl Default for GridSettings {
@@ -398,6 +491,8 @@ impl Default for GridSettings {
             alignment_guides: true,
             spacing_guides: true,
             size_match_guides: true,
+            minimap_enabled: true,
+            grid_snap_size: default_grid_snap_size(),
         }
     }
 }
@@ -483,6 +578,9 @@ pub struct AppStoreData {
     /// 그리드 스마트 가이드 설정
     #[serde(default)]
     pub grid_settings: GridSettings,
+    /// 단축키 설정
+    #[serde(default)]
+    pub shortcuts: ShortcutsState,
     /// 플러그인 데이터 저장소 (plugin_data_* 키로 저장)
     #[serde(default, flatten)]
     pub plugin_data: HashMap<String, serde_json::Value>,
@@ -521,9 +619,203 @@ impl Default for AppStoreData {
             overlay_bounds_are_logical: false,
             key_counter_enabled: false,
             grid_settings: GridSettings::default(),
+            shortcuts: ShortcutsState::default(),
             plugin_data: HashMap::new(),
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ShortcutBinding {
+    pub key: String,
+    #[serde(default)]
+    pub ctrl: bool,
+    #[serde(default)]
+    pub shift: bool,
+    #[serde(default)]
+    pub alt: bool,
+    #[serde(default)]
+    pub meta: bool,
+}
+
+fn default_toggle_overlay_shortcut() -> ShortcutBinding {
+    // Windows/Linux: Ctrl+Shift+O
+    // macOS: Cmd+Shift+O
+    if cfg!(target_os = "macos") {
+        ShortcutBinding {
+            key: "KeyO".to_string(),
+            ctrl: false,
+            shift: true,
+            alt: false,
+            meta: true,
+        }
+    } else {
+        ShortcutBinding {
+            key: "KeyO".to_string(),
+            ctrl: true,
+            shift: true,
+            alt: false,
+            meta: false,
+        }
+    }
+}
+
+fn default_switch_key_mode_shortcut() -> ShortcutBinding {
+    ShortcutBinding {
+        key: "Tab".to_string(),
+        ctrl: false,
+        shift: false,
+        alt: false,
+        meta: false,
+    }
+}
+
+fn default_unbound_shortcut() -> ShortcutBinding {
+    ShortcutBinding {
+        key: "".to_string(),
+        ctrl: false,
+        shift: false,
+        alt: false,
+        meta: false,
+    }
+}
+
+fn default_toggle_settings_panel_shortcut() -> ShortcutBinding {
+    if cfg!(target_os = "macos") {
+        ShortcutBinding {
+            key: "KeyB".to_string(),
+            ctrl: false,
+            shift: false,
+            alt: false,
+            meta: true,
+        }
+    } else {
+        ShortcutBinding {
+            key: "KeyB".to_string(),
+            ctrl: true,
+            shift: false,
+            alt: false,
+            meta: false,
+        }
+    }
+}
+
+fn default_zoom_in_shortcut() -> ShortcutBinding {
+    if cfg!(target_os = "macos") {
+        ShortcutBinding {
+            key: "Equal".to_string(),
+            ctrl: false,
+            shift: false,
+            alt: false,
+            meta: true,
+        }
+    } else {
+        ShortcutBinding {
+            key: "Equal".to_string(),
+            ctrl: true,
+            shift: false,
+            alt: false,
+            meta: false,
+        }
+    }
+}
+
+fn default_zoom_out_shortcut() -> ShortcutBinding {
+    if cfg!(target_os = "macos") {
+        ShortcutBinding {
+            key: "Minus".to_string(),
+            ctrl: false,
+            shift: false,
+            alt: false,
+            meta: true,
+        }
+    } else {
+        ShortcutBinding {
+            key: "Minus".to_string(),
+            ctrl: true,
+            shift: false,
+            alt: false,
+            meta: false,
+        }
+    }
+}
+
+fn default_zoom_reset_shortcut() -> ShortcutBinding {
+    if cfg!(target_os = "macos") {
+        ShortcutBinding {
+            key: "Digit0".to_string(),
+            ctrl: false,
+            shift: false,
+            alt: false,
+            meta: true,
+        }
+    } else {
+        ShortcutBinding {
+            key: "Digit0".to_string(),
+            ctrl: true,
+            shift: false,
+            alt: false,
+            meta: false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ShortcutsState {
+    #[serde(default = "default_toggle_overlay_shortcut")]
+    pub toggle_overlay: ShortcutBinding,
+    #[serde(default = "default_unbound_shortcut")]
+    pub toggle_overlay_lock: ShortcutBinding,
+    #[serde(default = "default_unbound_shortcut")]
+    pub toggle_always_on_top: ShortcutBinding,
+    #[serde(default = "default_switch_key_mode_shortcut")]
+    pub switch_key_mode: ShortcutBinding,
+    #[serde(default = "default_toggle_settings_panel_shortcut")]
+    pub toggle_settings_panel: ShortcutBinding,
+    #[serde(default = "default_zoom_in_shortcut")]
+    pub zoom_in: ShortcutBinding,
+    #[serde(default = "default_zoom_out_shortcut")]
+    pub zoom_out: ShortcutBinding,
+    #[serde(default = "default_zoom_reset_shortcut")]
+    pub reset_zoom: ShortcutBinding,
+}
+
+impl Default for ShortcutsState {
+    fn default() -> Self {
+        Self {
+            toggle_overlay: default_toggle_overlay_shortcut(),
+            toggle_overlay_lock: default_unbound_shortcut(),
+            toggle_always_on_top: default_unbound_shortcut(),
+            switch_key_mode: default_switch_key_mode_shortcut(),
+            toggle_settings_panel: default_toggle_settings_panel_shortcut(),
+            zoom_in: default_zoom_in_shortcut(),
+            zoom_out: default_zoom_out_shortcut(),
+            reset_zoom: default_zoom_reset_shortcut(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ShortcutsPatchInput {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub toggle_overlay: Option<ShortcutBinding>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub toggle_overlay_lock: Option<ShortcutBinding>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub toggle_always_on_top: Option<ShortcutBinding>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub switch_key_mode: Option<ShortcutBinding>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub toggle_settings_panel: Option<ShortcutBinding>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub zoom_in: Option<ShortcutBinding>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub zoom_out: Option<ShortcutBinding>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reset_zoom: Option<ShortcutBinding>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -577,6 +869,8 @@ pub struct SettingsState {
     pub key_counter_enabled: bool,
     #[serde(default)]
     pub grid_settings: GridSettings,
+    #[serde(default)]
+    pub shortcuts: ShortcutsState,
 }
 
 impl Default for SettingsState {
@@ -603,6 +897,7 @@ impl Default for SettingsState {
             overlay_resize_anchor: OverlayResizeAnchor::TopLeft,
             key_counter_enabled: false,
             grid_settings: GridSettings::default(),
+            shortcuts: ShortcutsState::default(),
         }
     }
 }
@@ -610,7 +905,6 @@ impl Default for SettingsState {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct NoteSettingsPatch {
-    pub border_radius: Option<u32>,
     pub speed: Option<u32>,
     pub track_height: Option<u32>,
     pub reverse: Option<bool>,
@@ -624,7 +918,6 @@ pub struct NoteSettingsPatch {
 impl Default for NoteSettingsPatch {
     fn default() -> Self {
         Self {
-            border_radius: None,
             speed: None,
             track_height: None,
             reverse: None,
@@ -661,6 +954,7 @@ pub struct SettingsPatchInput {
     pub overlay_resize_anchor: Option<OverlayResizeAnchor>,
     pub key_counter_enabled: Option<bool>,
     pub grid_settings: Option<GridSettings>,
+    pub shortcuts: Option<ShortcutsPatchInput>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -711,6 +1005,7 @@ impl SettingsDiff {
             p.overlay_resize_anchor.is_some(),
             p.key_counter_enabled.is_some(),
             p.grid_settings.is_some(),
+            p.shortcuts.is_some(),
         ]
         .iter()
         .filter(|&&x| x)
@@ -759,4 +1054,6 @@ pub struct SettingsPatch {
     pub key_counter_enabled: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub grid_settings: Option<GridSettings>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shortcuts: Option<ShortcutsState>,
 }

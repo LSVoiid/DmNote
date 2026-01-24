@@ -4,7 +4,7 @@ import { useSmartGuidesStore } from "@stores/useSmartGuidesStore";
 import { useGridSelectionStore } from "@stores/useGridSelectionStore";
 import { useSettingsStore } from "@stores/useSettingsStore";
 import { calculateBounds, calculateSnapPoints } from "@utils/smartGuides";
-import { GRID_SNAP, DRAG_THRESHOLD } from "./constants";
+import { DRAG_THRESHOLD } from "./constants";
 
 // 위치 클램핑 함수
 const clampPosition = (value) => {
@@ -13,11 +13,10 @@ const clampPosition = (value) => {
 
 // 줌 레벨에 따른 동적 그리드 스냅 크기 계산
 // 화면상 일정한 드래그 거리를 유지하면서 최소 1px 보장
-const BASE_GRID_SIZE = GRID_SNAP;
 const MIN_GRID_SIZE = 1;
 
-const calculateDynamicGridSize = (zoom) => {
-  const dynamicSize = Math.round(BASE_GRID_SIZE / zoom);
+const calculateDynamicGridSize = (zoom, baseGridSize) => {
+  const dynamicSize = Math.round(baseGridSize / zoom);
   return Math.max(dynamicSize, MIN_GRID_SIZE);
 };
 
@@ -122,8 +121,11 @@ export const useDraggable = ({
       // 현재 줌/팬 값 캡처
       const currentZoom = zoomRef.current;
 
+      // gridSettings에서 스냅 크기 가져오기
+      const gridSnapSize = useSettingsStore.getState().gridSettings?.gridSnapSize || 5;
+
       // 줌 레벨에 따른 동적 그리드 크기 계산
-      const dynamicGridSize = calculateDynamicGridSize(currentZoom);
+      const dynamicGridSize = calculateDynamicGridSize(currentZoom, gridSnapSize);
 
       // 무한 캔버스에서는 경계 제한 없음
       // 시작 위치 계산 (줌 반영)

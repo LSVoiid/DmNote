@@ -9,6 +9,7 @@ import type {
   KeyPositions,
   NoteColor,
   KeyCounterSettings,
+  ImageFit,
 } from "@src/types/keys";
 import {
   createDefaultCounterSettings,
@@ -198,6 +199,7 @@ export function useKeyManager() {
           dy: 0,
           width: 60,
           height: 60,
+          hidden: false,
           activeImage: "",
           inactiveImage: "",
           activeTransparent: false,
@@ -248,6 +250,7 @@ export function useKeyManager() {
           dy,
           width: 60,
           height: 60,
+          hidden: false,
           activeImage: "",
           inactiveImage: "",
           activeTransparent: false,
@@ -428,21 +431,30 @@ export function useKeyManager() {
     });
   };
 
-  // Ű ���� �̸����� (�̹���/ȸ��/ũ��/Ÿ����)
+  // 키 설정 미리보기 (이미지/회전/크기/스타일)
   const handleKeyPreview = (
     index: number,
-    updates: Partial<
-      Pick<
-        KeyUpdatePayload,
-        | "activeImage"
-        | "inactiveImage"
-        | "activeTransparent"
-        | "idleTransparent"
-        | "width"
-        | "height"
-        | "className"
-      >
-    >
+    updates: Partial<{
+      activeImage: string;
+      inactiveImage: string;
+      activeTransparent: boolean;
+      idleTransparent: boolean;
+      width: number;
+      height: number;
+      className: string;
+      backgroundColor: string;
+      activeBackgroundColor: string;
+      borderColor: string;
+      activeBorderColor: string;
+      borderWidth: number;
+      borderRadius: number;
+      fontSize: number;
+      fontColor: string;
+      activeFontColor: string;
+      imageFit: ImageFit;
+      useInlineStyles: boolean;
+      displayText: string;
+    }>
   ) => {
     const state = useKeyStore.getState();
     const mode = state.selectedKeyType || selectedKeyType;
@@ -486,6 +498,55 @@ export function useKeyManager() {
                 updates.className !== undefined
                   ? updates.className
                   : pos.className ?? "",
+              // 새 스타일 속성들
+              backgroundColor:
+                updates.backgroundColor !== undefined
+                  ? updates.backgroundColor
+                  : pos.backgroundColor,
+              activeBackgroundColor:
+                updates.activeBackgroundColor !== undefined
+                  ? updates.activeBackgroundColor
+                  : pos.activeBackgroundColor,
+              borderColor:
+                updates.borderColor !== undefined
+                  ? updates.borderColor
+                  : pos.borderColor,
+              activeBorderColor:
+                updates.activeBorderColor !== undefined
+                  ? updates.activeBorderColor
+                  : pos.activeBorderColor,
+              borderWidth:
+                updates.borderWidth !== undefined
+                  ? updates.borderWidth
+                  : pos.borderWidth,
+              borderRadius:
+                updates.borderRadius !== undefined
+                  ? updates.borderRadius
+                  : pos.borderRadius,
+              fontSize:
+                updates.fontSize !== undefined
+                  ? updates.fontSize
+                  : pos.fontSize,
+              fontColor:
+                updates.fontColor !== undefined
+                  ? updates.fontColor
+                  : pos.fontColor,
+              activeFontColor:
+                updates.activeFontColor !== undefined
+                  ? updates.activeFontColor
+                  : pos.activeFontColor,
+              imageFit:
+                updates.imageFit !== undefined
+                  ? updates.imageFit
+                  : pos.imageFit,
+              useInlineStyles:
+                updates.useInlineStyles !== undefined
+                  ? updates.useInlineStyles
+                  : pos.useInlineStyles,
+              displayText:
+                updates.displayText !== undefined
+                  ? updates.displayText
+                  : pos.displayText,
             }
           : pos
       ),
@@ -494,6 +555,144 @@ export function useKeyManager() {
     setPositions(updatedPositions);
     window.api.keys.updatePositions(updatedPositions).catch((error) => {
       console.error("Failed to preview key settings", error);
+    });
+  };
+
+  // 다중 선택 시 여러 키를 한 번에 프리뷰 (배치 프리뷰)
+  const handleKeyBatchPreview = (
+    updates: Array<{
+      index: number;
+      activeImage?: string;
+      inactiveImage?: string;
+      activeTransparent?: boolean;
+      idleTransparent?: boolean;
+      width?: number;
+      height?: number;
+      className?: string;
+      backgroundColor?: string;
+      activeBackgroundColor?: string;
+      borderColor?: string;
+      activeBorderColor?: string;
+      borderWidth?: number;
+      borderRadius?: number;
+      fontSize?: number;
+      fontColor?: string;
+      activeFontColor?: string;
+      imageFit?: ImageFit;
+      useInlineStyles?: boolean;
+      displayText?: string;
+      noteColor?: NoteColor;
+      noteGlowColor?: NoteColor;
+    }>
+  ) => {
+    if (updates.length === 0) return;
+
+    const state = useKeyStore.getState();
+    const mode = state.selectedKeyType || selectedKeyType;
+    const currentPositions = state.positions;
+    const current = currentPositions[mode] || [];
+
+    // 업데이트할 인덱스들을 Map으로 변환
+    const updateMap = new Map<number, (typeof updates)[number]>();
+    for (const update of updates) {
+      if (current[update.index]) {
+        updateMap.set(update.index, update);
+      }
+    }
+
+    if (updateMap.size === 0) return;
+
+    const updatedPositions: KeyPositions = {
+      ...currentPositions,
+      [mode]: current.map((pos, i) => {
+        const update = updateMap.get(i);
+        if (!update) return pos;
+
+        return {
+          ...pos,
+          activeImage:
+            update.activeImage !== undefined
+              ? update.activeImage
+              : pos.activeImage,
+          inactiveImage:
+            update.inactiveImage !== undefined
+              ? update.inactiveImage
+              : pos.inactiveImage,
+          activeTransparent:
+            update.activeTransparent !== undefined
+              ? update.activeTransparent
+              : pos.activeTransparent ?? false,
+          idleTransparent:
+            update.idleTransparent !== undefined
+              ? update.idleTransparent
+              : pos.idleTransparent ?? false,
+          width:
+            typeof update.width === "number" && !Number.isNaN(update.width)
+              ? update.width
+              : pos.width,
+          height:
+            typeof update.height === "number" && !Number.isNaN(update.height)
+              ? update.height
+              : pos.height,
+          className:
+            update.className !== undefined
+              ? update.className
+              : pos.className ?? "",
+          backgroundColor:
+            update.backgroundColor !== undefined
+              ? update.backgroundColor
+              : pos.backgroundColor,
+          activeBackgroundColor:
+            update.activeBackgroundColor !== undefined
+              ? update.activeBackgroundColor
+              : pos.activeBackgroundColor,
+          borderColor:
+            update.borderColor !== undefined
+              ? update.borderColor
+              : pos.borderColor,
+          activeBorderColor:
+            update.activeBorderColor !== undefined
+              ? update.activeBorderColor
+              : pos.activeBorderColor,
+          borderWidth:
+            update.borderWidth !== undefined
+              ? update.borderWidth
+              : pos.borderWidth,
+          borderRadius:
+            update.borderRadius !== undefined
+              ? update.borderRadius
+              : pos.borderRadius,
+          fontSize:
+            update.fontSize !== undefined ? update.fontSize : pos.fontSize,
+          fontColor:
+            update.fontColor !== undefined ? update.fontColor : pos.fontColor,
+          activeFontColor:
+            update.activeFontColor !== undefined
+              ? update.activeFontColor
+              : pos.activeFontColor,
+          imageFit:
+            update.imageFit !== undefined ? update.imageFit : pos.imageFit,
+          useInlineStyles:
+            update.useInlineStyles !== undefined
+              ? update.useInlineStyles
+              : pos.useInlineStyles,
+          displayText:
+            update.displayText !== undefined
+              ? update.displayText
+              : pos.displayText,
+          noteColor:
+            update.noteColor !== undefined ? update.noteColor : pos.noteColor,
+          noteGlowColor:
+            update.noteGlowColor !== undefined
+              ? update.noteGlowColor
+              : pos.noteGlowColor,
+        };
+      }),
+    };
+
+    setPositions(updatedPositions);
+    window.api.keys.updatePositions(updatedPositions).catch((error) => {
+      console.error("Failed to batch preview key settings", error);
     });
   };
 
@@ -880,6 +1079,7 @@ export function useKeyManager() {
                   measuredSize: savedEl.measuredSize,
                   resizeAnchor: savedEl.resizeAnchor,
                   zIndex: savedEl.zIndex,
+                  hidden: (savedEl as any).hidden,
                 };
               }
 
@@ -994,6 +1194,7 @@ export function useKeyManager() {
                 measuredSize: savedEl.measuredSize,
                 resizeAnchor: savedEl.resizeAnchor,
                 zIndex: savedEl.zIndex,
+                hidden: (savedEl as any).hidden,
               };
             }
 
@@ -1057,6 +1258,93 @@ export function useKeyManager() {
     setPluginElements,
   ]);
 
+  // 속성 패널에서 키 매핑 변경 (인덱스로 키 코드 업데이트)
+  const handleKeyMappingChange = useCallback(
+    (index: number, newKey: string) => {
+      saveToHistory();
+
+      const mapping = keyMappings[selectedKeyType] || [];
+      const updatedMappings: KeyMappings = {
+        ...keyMappings,
+        [selectedKeyType]: mapping.map((key, i) =>
+          i === index ? newKey : key
+        ),
+      };
+
+      setKeyMappings(updatedMappings);
+      window.api.keys.update(updatedMappings).catch((error) => {
+        console.error("Failed to update key mapping", error);
+      });
+    },
+    [selectedKeyType, keyMappings, saveToHistory, setKeyMappings]
+  );
+
+  // 속성 패널에서 인덱스로 키 속성 업데이트 (히스토리 포함)
+  const handleKeyStyleUpdate = useCallback(
+    (index: number, updates: Partial<KeyPositions[string][number]>) => {
+      const state = useKeyStore.getState();
+      const mode = state.selectedKeyType || selectedKeyType;
+      const currentPositions = state.positions;
+      const current = currentPositions[mode] || [];
+      if (!current[index]) return;
+
+      // 히스토리에 현재 상태 저장
+      saveToHistory();
+
+      const updatedPositions: KeyPositions = {
+        ...currentPositions,
+        [mode]: current.map((pos, i) =>
+          i === index ? { ...pos, ...updates } : pos
+        ),
+      };
+
+      setPositions(updatedPositions);
+      window.api.keys.updatePositions(updatedPositions).catch((error) => {
+        console.error("Failed to update key style", error);
+      });
+    },
+    [selectedKeyType, saveToHistory, setPositions]
+  );
+
+  // 다중 선택 시 여러 키를 한 번에 업데이트 (배치 업데이트)
+  const handleKeyBatchStyleUpdate = useCallback(
+    (updates: Array<{ index: number } & Partial<KeyPositions[string][number]>>) => {
+      if (updates.length === 0) return;
+
+      const state = useKeyStore.getState();
+      const mode = state.selectedKeyType || selectedKeyType;
+      const currentPositions = state.positions;
+      const current = currentPositions[mode] || [];
+
+      // 업데이트할 인덱스들을 Map으로 변환하여 O(1) 조회
+      const updateMap = new Map<number, Partial<KeyPositions[string][number]>>();
+      for (const { index, ...rest } of updates) {
+        if (current[index]) {
+          updateMap.set(index, rest);
+        }
+      }
+
+      if (updateMap.size === 0) return;
+
+      // 히스토리에 현재 상태 저장 (한 번만)
+      saveToHistory();
+
+      const updatedPositions: KeyPositions = {
+        ...currentPositions,
+        [mode]: current.map((pos, i) => {
+          const update = updateMap.get(i);
+          return update ? { ...pos, ...update } : pos;
+        }),
+      };
+
+      setPositions(updatedPositions);
+      window.api.keys.updatePositions(updatedPositions).catch((error) => {
+        console.error("Failed to batch update key styles", error);
+      });
+    },
+    [selectedKeyType, saveToHistory, setPositions]
+  );
+
   return {
     selectedKey,
     setSelectedKey,
@@ -1065,6 +1353,10 @@ export function useKeyManager() {
     handlePositionChange,
     handleKeyUpdate,
     handleKeyPreview,
+    handleKeyBatchPreview,
+    handleKeyStyleUpdate,
+    handleKeyBatchStyleUpdate,
+    handleKeyMappingChange,
     handleNoteColorUpdate,
     handleNoteColorPreview,
     handleCounterSettingsUpdate,

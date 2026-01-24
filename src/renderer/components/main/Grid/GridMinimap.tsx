@@ -14,6 +14,7 @@ interface Position {
   dy: number;
   width?: number;
   height?: number;
+  hidden?: boolean;
 }
 
 interface PluginElementPosition {
@@ -31,6 +32,9 @@ interface GridMinimapProps {
   containerRef: React.RefObject<HTMLDivElement>;
   mode: string;
   visible?: boolean;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  onResetZoom: () => void;
 }
 
 const MINIMAP_WIDTH = 120;
@@ -45,6 +49,9 @@ export default function GridMinimap({
   containerRef,
   mode,
   visible = false,
+  onZoomIn,
+  onZoomOut,
+  onResetZoom,
 }: GridMinimapProps) {
   const { setPan } = useGridViewStore();
   const [isDragging, setIsDragging] = useState(false);
@@ -64,6 +71,7 @@ export default function GridMinimap({
   // 현재 탭의 플러그인 요소만 필터링
   const filteredPluginElements = useMemo(() => {
     return pluginElements.filter((el) => {
+      if (el.hidden) return false;
       if (el.tabId) {
         return el.tabId === selectedKeyType;
       }
@@ -120,6 +128,7 @@ export default function GridMinimap({
 
     // 키들의 바운딩 박스 계산
     positions.forEach((pos) => {
+      if (pos.hidden) return;
       const x = pos.dx || 0;
       const y = pos.dy || 0;
       const w = pos.width || 60;
@@ -267,77 +276,178 @@ export default function GridMinimap({
   return (
     <div
       ref={minimapRef}
-      className="absolute bottom-2 right-2 bg-black/60 rounded cursor-pointer select-none"
+      className="absolute bottom-2 left-2 flex flex-col gap-[2px] select-none"
       style={{
-        width: MINIMAP_WIDTH,
-        height: MINIMAP_HEIGHT,
-        outline: "1px solid rgba(255, 255, 255, 0.2)",
-        outlineOffset: "-1px",
         opacity: shouldShow ? 1 : 0,
         transition: "opacity 200ms ease-out",
         pointerEvents: shouldShow ? "auto" : "none",
       }}
-      onClick={handleMinimapClick}
-      onMouseDown={handleMouseDown}
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
     >
-      {/* 키 및 플러그인 요소 표시 */}
-      <svg
-        width={MINIMAP_WIDTH}
-        height={MINIMAP_HEIGHT}
-        className="absolute inset-0"
+      {/* 줌 컨트롤 (미니맵 위) */}
+      <div
+        className="flex items-center cursor-default"
+        style={{
+          width: MINIMAP_WIDTH,
+          height: 23,
+          backgroundColor: "rgba(0, 0, 0, 0.6)",
+          borderRadius: 4,
+          border: "1px solid rgba(255, 255, 255, 0.2)",
+          boxSizing: "border-box",
+          overflow: "hidden",
+        }}
       >
-        {/* 키 표시 */}
-        {positions.map((pos, index) => {
-          const x = ((pos.dx || 0) - bounds.minX) * minimapScale + offsetX;
-          const y = ((pos.dy || 0) - bounds.minY) * minimapScale + offsetY;
-          const w = (pos.width || 60) * minimapScale;
-          const h = (pos.height || 60) * minimapScale;
+        {/* 초기화 버튼 */}
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={(e) => {
+            e.stopPropagation();
+            onResetZoom();
+          }}
+          className="flex-1 flex items-center justify-center h-full text-white/70 hover:text-white cursor-pointer"
+          style={{
+            borderTopLeftRadius: 3,
+            borderBottomLeftRadius: 3,
+            backgroundColor: "transparent",
+            transition: "background-color 150ms, color 150ms",
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.1)"}
+          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
+          title="Reset zoom (Ctrl+0)"
+        >
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            {/* 좌상단 ㄱ */}
+            <path d="M2 4.5V2H4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            {/* 우상단 ㄱ 뒤집힌 */}
+            <path d="M7.5 2H10V4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            {/* 좌하단 ㄴ */}
+            <path d="M2 7.5V10H4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            {/* 우하단 ㄴ 뒤집힌 */}
+            <path d="M7.5 10H10V7.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </div>
+        {/* 확대 버튼 */}
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={(e) => {
+            e.stopPropagation();
+            onZoomIn();
+          }}
+          className="flex-1 flex items-center justify-center h-full text-white/70 hover:text-white cursor-pointer"
+          style={{
+            backgroundColor: "transparent",
+            transition: "background-color 150ms, color 150ms",
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.1)"}
+          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
+          title="Zoom in (Ctrl++)"
+        >
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <path d="M6 3V9M3 6H9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+        </div>
+        {/* 축소 버튼 */}
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={(e) => {
+            e.stopPropagation();
+            onZoomOut();
+          }}
+          className="flex-1 flex items-center justify-center h-full text-white/70 hover:text-white cursor-pointer"
+          style={{
+            backgroundColor: "transparent",
+            transition: "background-color 150ms, color 150ms",
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.1)"}
+          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
+          title="Zoom out (Ctrl+-)"
+        >
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <path d="M3 6H9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+        </div>
+        {/* 현재 배율 */}
+        <span
+          className="w-[42px] h-full flex items-center justify-center text-white/70 text-xs"
+          style={{ borderTopRightRadius: 4, borderBottomRightRadius: 4 }}
+        >
+          {Math.round(zoom * 100)}%
+        </span>
+      </div>
+      {/* 미니맵 */}
+      <div
+        className="relative bg-black/60 rounded cursor-pointer"
+        style={{
+          width: MINIMAP_WIDTH,
+          height: MINIMAP_HEIGHT,
+          border: "1px solid rgba(255, 255, 255, 0.2)",
+          boxSizing: "border-box",
+        }}
+        onClick={handleMinimapClick}
+        onMouseDown={handleMouseDown}
+      >
+        {/* 키 및 플러그인 요소 표시 */}
+        <svg
+          width={MINIMAP_WIDTH}
+          height={MINIMAP_HEIGHT}
+          className="absolute top-0 left-0"
+        >
+          {/* 키 표시 */}
+          {positions.map((pos, index) => {
+            if (pos.hidden) return null;
+            const x = ((pos.dx || 0) - bounds.minX) * minimapScale + offsetX;
+            const y = ((pos.dy || 0) - bounds.minY) * minimapScale + offsetY;
+            const w = (pos.width || 60) * minimapScale;
+            const h = (pos.height || 60) * minimapScale;
 
-          return (
-            <rect
-              key={`key-${index}`}
-              x={x}
-              y={y}
-              width={Math.max(w, 2)}
-              height={Math.max(h, 2)}
-              fill="rgba(255, 255, 255, 0.6)"
-              rx={1}
-            />
-          );
-        })}
-        {/* 플러그인 요소 표시 (다른 색상으로 구분) */}
-        {pluginPositions.map((pos, index) => {
-          const x = (pos.x - bounds.minX) * minimapScale + offsetX;
-          const y = (pos.y - bounds.minY) * minimapScale + offsetY;
-          const w = pos.width * minimapScale;
-          const h = pos.height * minimapScale;
+            return (
+              <rect
+                key={`key-${index}`}
+                x={x}
+                y={y}
+                width={Math.max(w, 2)}
+                height={Math.max(h, 2)}
+                fill="rgba(255, 255, 255, 0.6)"
+                rx={1}
+              />
+            );
+          })}
+          {/* 플러그인 요소 표시 (다른 색상으로 구분) */}
+          {pluginPositions.map((pos, index) => {
+            const x = (pos.x - bounds.minX) * minimapScale + offsetX;
+            const y = (pos.y - bounds.minY) * minimapScale + offsetY;
+            const w = pos.width * minimapScale;
+            const h = pos.height * minimapScale;
 
-          return (
-            <rect
-              key={`plugin-${index}`}
-              x={x}
-              y={y}
-              width={Math.max(w, 2)}
-              height={Math.max(h, 2)}
-              fill="rgba(168, 85, 247, 0.6)"
-              rx={1}
-            />
-          );
-        })}
-        {/* 현재 뷰포트 표시 */}
-        <rect
-          x={viewport.x}
-          y={viewport.y}
-          width={viewport.width}
-          height={viewport.height}
-          fill="rgba(59, 130, 246, 0.2)"
-          stroke="rgba(59, 130, 246, 0.8)"
-          strokeWidth={1}
-          rx={2}
-        />
-      </svg>
+            return (
+              <rect
+                key={`plugin-${index}`}
+                x={x}
+                y={y}
+                width={Math.max(w, 2)}
+                height={Math.max(h, 2)}
+                fill="rgba(168, 85, 247, 0.6)"
+                rx={1}
+              />
+            );
+          })}
+          {/* 현재 뷰포트 표시 */}
+          <rect
+            x={viewport.x}
+            y={viewport.y}
+            width={viewport.width}
+            height={viewport.height}
+            fill="rgba(59, 130, 246, 0.2)"
+            stroke="rgba(59, 130, 246, 0.8)"
+            strokeWidth={1}
+            rx={2}
+          />
+        </svg>
+      </div>
     </div>
   );
 }

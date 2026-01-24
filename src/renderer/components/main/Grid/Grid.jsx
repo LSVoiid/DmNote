@@ -22,12 +22,13 @@ import GridBackground from "./GridBackground";
 import MarqueeSelectionOverlay from "./MarqueeSelectionOverlay";
 import ResizeHandles from "./ResizeHandles";
 import GroupResizeHandles, { isElementResizable } from "./GroupResizeHandles";
-import { useGridSelectionStore } from "@stores/useGridSelectionStore";
+import KeyCounterPreviewLayer from "./KeyCounterPreviewLayer";
+import { useGridSelectionStore, isElementInMarquee } from "@stores/useGridSelectionStore";
 import { useHistoryStore } from "@stores/useHistoryStore";
 import { useUIStore } from "@stores/useUIStore";
 import { useSmartGuidesStore } from "@stores/useSmartGuidesStore";
+import { useSettingsStore } from "@stores/useSettingsStore";
 import {
-  GRID_SNAP,
   snapCursorToGrid,
   useGridKeyboard,
   useGridSelection,
@@ -68,6 +69,9 @@ export default function Grid({
   canRedo,
 }) {
   const selectedKeyType = useKeyStore((state) => state.selectedKeyType);
+  const keyCounterEnabled = useSettingsStore((state) => state.keyCounterEnabled);
+  const minimapEnabled = useSettingsStore((state) => state.gridSettings.minimapEnabled);
+  const gridSnapSize = useSettingsStore((state) => state.gridSettings?.gridSnapSize || 5);
   const { t, i18n } = useTranslation();
   const locale = i18n.language;
 
@@ -115,6 +119,15 @@ export default function Grid({
     (state) => state.toggleSelection
   );
   const clearSelection = useGridSelectionStore((state) => state.clearSelection);
+  const setSelectedElements = useGridSelectionStore(
+    (state) => state.setSelectedElements
+  );
+  const lastSelectedKeyBounds = useGridSelectionStore(
+    (state) => state.lastSelectedKeyBounds
+  );
+  const setLastSelectedKeyBounds = useGridSelectionStore(
+    (state) => state.setLastSelectedKeyBounds
+  );
 
   // 클립보드 상태 (복사/붙여넣기용)
   const clipboard = useGridSelectionStore((state) => state.clipboard);
@@ -241,8 +254,8 @@ export default function Grid({
   // 탭 CSS 모달 상태
   const [isTabCssModalOpen, setIsTabCssModalOpen] = useState(false);
 
-  // 그리드 호버 상태 (미니맵 표시용)
-  const [isGridHovered, setIsGridHovered] = useState(false);
+  // 그리드 영역 호버 상태 (미니맵 표시용) - useUIStore에서 관리
+  const isGridAreaHovered = useUIStore((state) => state.isGridAreaHovered);
 
   // 기타 설정 팝업 열림 상태 (미니맵 표시 제어용)
   const isExtrasPopupOpen = useUIStore((state) => state.isExtrasPopupOpen);
@@ -297,10 +310,119 @@ export default function Grid({
             setIsContextOpen(false);
             setContextPosition(null);
           }
-          setSelectedKey({ key: keyMappings[selectedKeyType][index], index });
+          // 단일 선택: 기존 선택을 해제하고 이 키만 선택
+          clearSelection();
+          toggleSelection({ type: "key", id: `key-${index}`, index });
+          // 마지막 선택 키 좌표 저장 (Shift+클릭 범위 선택용)
+          const pos = positions[selectedKeyType]?.[index];
+          if (pos) {
+            setLastSelectedKeyBounds({
+              x: pos.dx,
+              y: pos.dy,
+              width: pos.width || 60,
+              height: pos.height || 60,
+            });
+          }
         }}
         onCtrlClick={() => {
+          // 다중 선택: 기존 선택 유지하면서 추가/제거
           toggleSelection({ type: "key", id: `key-${index}`, index });
+          // 마지막 선택 키 좌표 저장 (Shift+클릭 범위 선택용)
+          const pos = positions[selectedKeyType]?.[index];
+          if (pos) {
+            setLastSelectedKeyBounds({
+              x: pos.dx,
+              y: pos.dy,
+              width: pos.width || 60,
+              height: pos.height || 60,
+            });
+          }
+        }}
+        onShiftClick={() => {
+          // 좌표 기반 범위 선택
+          if (!lastSelectedKeyBounds) {
+            // 이전 선택이 없으면 단일 선택처럼 동작
+            clearSelection();
+            toggleSelection({ type: "key", id: `key-${index}`, index });
+            const pos = positions[selectedKeyType]?.[index];
+            if (pos) {
+              setLastSelectedKeyBounds({
+                x: pos.dx,
+                y: pos.dy,
+                width: pos.width || 60,
+                height: pos.height || 60,
+              });
+            }
+            return;
+          }
+
+          const clickedPos = positions[selectedKeyType]?.[index];
+          if (!clickedPos) return;
+
+          // 두 키 사이의 사각형 영역 계산
+          const clickedBounds = {
+            x: clickedPos.dx,
+            y: clickedPos.dy,
+            width: clickedPos.width || 60,
+            height: clickedPos.height || 60,
+          };
+
+          const minX = Math.min(lastSelectedKeyBounds.x, clickedBounds.x);
+          const maxX = Math.max(
+            lastSelectedKeyBounds.x + lastSelectedKeyBounds.width,
+            clickedBounds.x + clickedBounds.width
+          );
+          const minY = Math.min(lastSelectedKeyBounds.y, clickedBounds.y);
+          const maxY = Math.max(
+            lastSelectedKeyBounds.y + lastSelectedKeyBounds.height,
+            clickedBounds.y + clickedBounds.height
+          );
+
+          const rangeRect = {
+            left: minX,
+            top: minY,
+            width: maxX - minX,
+            height: maxY - minY,
+          };
+
+          // 범위 내 모든 키 선택
+          const newSelectedElements = [];
+          positions[selectedKeyType]?.forEach((pos, i) => {
+            const elementBounds = {
+              x: pos.dx,
+              y: pos.dy,
+              width: pos.width || 60,
+              height: pos.height || 60,
+            };
+            if (isElementInMarquee(elementBounds, rangeRect)) {
+              newSelectedElements.push({
+                type: "key",
+                id: `key-${i}`,
+                index: i,
+              });
+            }
+          });
+
+          // 범위 내 플러그인 요소도 선택
+          pluginElements.forEach((el) => {
+            const belongsToCurrentTab = !el.tabId || el.tabId === selectedKeyType;
+            if (belongsToCurrentTab && el.measuredSize) {
+              const elementBounds = {
+                x: el.position.x,
+                y: el.position.y,
+                width: el.measuredSize.width,
+                height: el.measuredSize.height,
+              };
+              if (isElementInMarquee(elementBounds, rangeRect)) {
+                newSelectedElements.push({
+                  type: "plugin",
+                  id: el.fullId,
+                });
+              }
+            }
+          });
+
+          setSelectedElements(newSelectedElements);
         }}
         isSelected={selectedElements.some(
           (el) => el.type === "key" && el.index === index
@@ -347,6 +469,8 @@ export default function Grid({
         zoom={zoom}
         panX={panX}
         panY={panY}
+        counterEnabled={keyCounterEnabled}
+        counterPreviewValue={0}
       />
     ));
   };
@@ -411,7 +535,7 @@ export default function Grid({
           <div
             className="flex items-center justify-center h-full font-bold"
             style={{
-              color: "var(--key-text-color, #717171)",
+              color: "var(--key-text-color, rgba(121, 121, 121, 0.9))",
               willChange: "auto",
               contain: "layout style paint",
             }}
@@ -460,6 +584,7 @@ export default function Grid({
         gridRef.current = node;
         gridContainerRef.current = node;
       }}
+      data-grid-container
       className="relative w-full h-full bg-[#3A3943] rounded-[0px] overflow-hidden"
       style={{ backgroundColor: color === "transparent" ? "#3A3943" : color }}
       onContextMenu={(e) => {
@@ -488,9 +613,8 @@ export default function Grid({
           }
         }
       }}
-      onMouseEnter={() => setIsGridHovered(true)}
+      onMouseEnter={() => {}}
       onMouseLeave={() => {
-        setIsGridHovered(false);
         if (duplicateState) setDuplicateCursor(null);
       }}
       onMouseDownCapture={(e) => {
@@ -514,7 +638,7 @@ export default function Grid({
     >
       {/* 정확한 그리드 배경 */}
       <GridBackground
-        gridSize={GRID_SNAP}
+        gridSize={gridSnapSize}
         zoom={zoom}
         panX={panX}
         panY={panY}
@@ -532,6 +656,13 @@ export default function Grid({
         }}
       >
         {renderKeys()}
+        {/* Outside 카운터 미리보기 레이어 */}
+        {keyCounterEnabled && (
+          <KeyCounterPreviewLayer
+            positions={positions[selectedKeyType]}
+            previewValue={0}
+          />
+        )}
         {renderDuplicateGhost()}
         <PluginElementsRenderer
           windowType="main"
@@ -1110,19 +1241,27 @@ export default function Grid({
         />
       )}
       {/* 미니맵 */}
-      <GridMinimap
-        positions={positions[selectedKeyType] || []}
-        zoom={zoom}
-        panX={panX}
-        panY={panY}
-        containerRef={gridContainerRef}
-        mode={selectedKeyType}
-        visible={
-          isGridHovered && !isExtrasPopupOpen && !isExportImportPopupOpen
-        }
-      />
-      {/* 줌 레벨 표시 */}
-      <ZoomIndicator zoom={zoom} />
+      {minimapEnabled && (
+        <GridMinimap
+          positions={positions[selectedKeyType] || []}
+          zoom={zoom}
+          panX={panX}
+          panY={panY}
+          containerRef={gridContainerRef}
+          mode={selectedKeyType}
+          visible={
+            // 기존 로직: 그리드 호버 시에만 표시
+            // isGridAreaHovered && !isExtrasPopupOpen && !isExportImportPopupOpen
+            // 변경: minimapEnabled가 true면 항상 표시
+            true
+          }
+          onZoomIn={zoomIn}
+          onZoomOut={zoomOut}
+          onResetZoom={resetZoom}
+        />
+      )}
+      {/* 줌 레벨 표시 - 미니맵 내부로 통합됨 */}
+      {/* <ZoomIndicator zoom={zoom} /> */}
       {/* 탭 CSS 설정 모달 */}
       <TabCssModal
         isOpen={isTabCssModalOpen}

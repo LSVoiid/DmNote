@@ -278,7 +278,7 @@ export function createDropdown(options: DropdownOptions): string {
   const itemsHtml = items
     .map(
       (opt) => `
-    <button type="button" class="text-left w-full px-[13px] py-[0px] rounded-[7px] text-style-2 text-[#DBDEE8] !leading-[23px] transition-colors duration-100 flex items-center bg-[#2A2A31] hover:bg-[#24232A] ${
+    <button type="button" class="text-left w-full h-[23px] px-[13px] py-[0px] rounded-[7px] text-style-2 text-[#DBDEE8] transition-colors duration-100 flex items-center bg-[#2A2A31] hover:bg-[#24232A] ${
       selected === opt.value ? "!bg-[#24232A]" : ""
     }" data-value="${opt.value}">
       <span class="truncate">${opt.label}</span>
@@ -290,7 +290,7 @@ export function createDropdown(options: DropdownOptions): string {
   return `<div class="relative plugin-dropdown" ${idAttr} ${onChangeAttr} data-selected="${
     selected || ""
   }">
-    <button type="button" class="flex items-center justify-between py-[0px] px-[8px] bg-[#2A2A31] border-[1px] border-[#3A3944] rounded-[7px] text-[#DBDEE8] text-style-2 !leading-[23px] outline-none ${
+    <button type="button" class="flex items-center justify-between h-[23px] py-[0px] px-[8px] bg-[#2A2A31] border-[1px] border-[#3A3944] rounded-[7px] text-[#DBDEE8] text-style-2 outline-none ${
       disabled ? "opacity-50 pointer-events-none" : ""
     }" data-dropdown-toggle>
       <span class="truncate">${displayText}</span>

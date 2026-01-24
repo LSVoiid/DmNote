@@ -10,7 +10,7 @@ const vertexShader = `
   attribute vec4 noteColorTop;
   attribute vec4 noteColorBottom;
   attribute float noteRadius;
-  attribute vec2 noteGlow; // x: glow size, y: glow opacity (0-1)
+  attribute vec3 noteGlow; // x: glow size, y: glow opacity top (0-1), z: glow opacity bottom (0-1)
   attribute vec3 noteGlowColorTop;
   attribute vec3 noteGlowColorBottom;
   attribute float trackIndex;
@@ -29,7 +29,7 @@ const vertexShader = `
   varying vec2 vHalfSize;
   varying float vRadius;
   varying float vGlowSize;
-  varying float vGlowOpacity;
+  varying vec2 vGlowOpacity;
   varying vec3 vGlowColorTop;
   varying vec3 vGlowColorBottom;
   varying float vTrackTopY;
@@ -55,7 +55,8 @@ const vertexShader = `
     bool isActive = endTime == 0.0;
     float rawNoteLength = 0.0;
     float glowSize = max(noteGlow.x, 0.0);
-    float glowOpacity = clamp(noteGlow.y, 0.0, 1.0);
+    float glowOpacityTop = clamp(noteGlow.y, 0.0, 1.0);
+    float glowOpacityBottom = clamp(noteGlow.z, 0.0, 1.0);
 
     if (isActive) {
       rawNoteLength = max(0.0, (uTime - startTime) * uFlowSpeed / 1000.0);
@@ -122,7 +123,7 @@ const vertexShader = `
     vLocalPos = vec2(position.x * expandedWidth, position.y * expandedLength);
     vRadius = noteRadius;
     vGlowSize = glowSize;
-    vGlowOpacity = glowOpacity;
+    vGlowOpacity = vec2(glowOpacityTop, glowOpacityBottom);
     vGlowColorTop = noteGlowColorTop;
     vGlowColorBottom = noteGlowColorBottom;
     vTrackTopY = trackTopY;
@@ -146,7 +147,7 @@ const fragmentShader = `
   varying vec2 vHalfSize;
   varying float vRadius;
   varying float vGlowSize;
-  varying float vGlowOpacity;
+  varying vec2 vGlowOpacity;
   varying vec3 vGlowColorTop;
   varying vec3 vGlowColorBottom;
   varying float vTrackTopY;
@@ -165,20 +166,22 @@ const fragmentShader = `
     float trackRelativeY = gradientRatio;
 
     float fadePosFlag = uFadePosition;
+    bool fadeDisabled = fadePosFlag > 2.5;
     bool invertForFade = false;
-    if (fadePosFlag < 0.5) {
+    if (!fadeDisabled && fadePosFlag < 0.5) {
       invertForFade = (vReverse > 0.5);
-    } else if (abs(fadePosFlag - 1.0) < 0.1) {
+    } else if (!fadeDisabled && abs(fadePosFlag - 1.0) < 0.1) {
       invertForFade = false;
-    } else {
+    } else if (!fadeDisabled) {
       invertForFade = true;
     }
-    if (invertForFade) {
+    if (!fadeDisabled && invertForFade) {
       trackRelativeY = 1.0 - trackRelativeY;
     }
 
     vec4 baseColor = mix(vColorTop, vColorBottom, gradientRatio);
     vec3 glowColor = mix(vGlowColorTop, vGlowColorBottom, gradientRatio);
+    float glowOpacity = mix(vGlowOpacity.x, vGlowOpacity.y, gradientRatio);
     float fadeZone = 50.0;
     float fadeRatio = fadeZone / trackHeight;
 
@@ -194,11 +197,11 @@ const fragmentShader = `
       float outside = max(dist, 0.0);
       float range = max(vGlowSize, 0.0001);
       float glowFalloff = clamp(1.0 - outside / range, 0.0, 1.0);
-      glowAlpha = baseColor.a * vGlowOpacity * pow(glowFalloff, 2.0);
+      glowAlpha = baseColor.a * glowOpacity * pow(glowFalloff, 2.0);
     }
 
     float fadeMask = 1.0;
-    if (trackRelativeY < fadeRatio) {
+    if (!fadeDisabled && trackRelativeY < fadeRatio) {
       fadeMask = clamp(trackRelativeY / fadeRatio, 0.0, 1.0);
     }
     bodyAlpha *= fadeMask;
@@ -266,7 +269,7 @@ export const WebGLTracksOGL = memo(
       const renderer = new Renderer({
         canvas,
         alpha: true,
-        antialias: true,
+        antialias: false,
         dpr: window.devicePixelRatio,
         premultipliedAlpha: true,
       });
@@ -286,6 +289,15 @@ export const WebGLTracksOGL = memo(
         bottom: 0,
         near: 1,
         far: 1000,
+      });
+      // OGL Camera.orthographic() uses `this.left || -1` defaults, so `left/bottom = 0`
+      // can incorrectly become `-1` when updateProjectionMatrix() is used.
+      // Force an explicit orthographic projection so WebGL coords match DOM pixels 1:1.
+      camera.orthographic({
+        left: 0,
+        right: window.innerWidth,
+        top: window.innerHeight,
+        bottom: 0,
       });
       camera.position.z = 5;
       cameraRef.current = camera;
@@ -318,7 +330,7 @@ export const WebGLTracksOGL = memo(
       });
       geometry.addAttribute("noteGlow", {
         instanced: 1,
-        size: 2,
+        size: 3,
         data: noteBuffer.noteGlow,
       });
       geometry.addAttribute("noteGlowColorTop", {
@@ -358,6 +370,8 @@ export const WebGLTracksOGL = memo(
                 ? 1.0
                 : noteSettings.fadePosition === "bottom"
                 ? 2.0
+                : noteSettings.fadePosition === "none"
+                ? 3.0
                 : 0.0,
           },
         },
@@ -469,11 +483,12 @@ export const WebGLTracksOGL = memo(
         renderer.dpr = dpr;
         renderer.setSize(width, height);
         if (cameraRef.current) {
-          cameraRef.current.left = 0;
-          cameraRef.current.right = width;
-          cameraRef.current.top = height;
-          cameraRef.current.bottom = 0;
-          cameraRef.current.updateProjectionMatrix();
+          cameraRef.current.orthographic({
+            left: 0,
+            right: width,
+            top: height,
+            bottom: 0,
+          });
         }
         if (programRef.current) {
           programRef.current.uniforms.uScreenHeight.value = height;
@@ -518,6 +533,8 @@ export const WebGLTracksOGL = memo(
           ? 1.0
           : noteSettings.fadePosition === "bottom"
           ? 2.0
+          : noteSettings.fadePosition === "none"
+          ? 3.0
           : 0.0;
     }, [noteSettings]);
 

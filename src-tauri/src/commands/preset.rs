@@ -124,7 +124,6 @@ pub fn preset_load(
 
     let desired_settings = preset.note_settings.unwrap_or_else(NoteSettings::default);
     let mut note_patch = NoteSettingsPatch::default();
-    note_patch.border_radius = Some(desired_settings.border_radius);
     note_patch.speed = Some(desired_settings.speed);
     note_patch.track_height = Some(desired_settings.track_height);
     note_patch.reverse = Some(desired_settings.reverse);

@@ -1,0 +1,195 @@
+import React from "react";
+import type { KeyCounterSettings } from "@src/types/keys";
+import { PropertyRow, NumberInput, FontStyleToggle, SectionDivider } from "./index";
+import Checkbox from "@components/main/common/Checkbox";
+import Dropdown from "@components/main/common/Dropdown";
+
+interface BatchCounterTabContentProps {
+  // 카운터 설정 (첫 번째 선택 키 기준)
+  batchCounterSettings: KeyCounterSettings;
+  // 핸들러
+  handleBatchCounterUpdate: (updates: Partial<KeyCounterSettings>) => void;
+  // 컬러 디스플레이 (현재 상태 기준)
+  colorState: "idle" | "active";
+  getCounterColorDisplay: (target: "fill" | "stroke") => string;
+  // 컬러 피커 토글
+  onFillPickerToggle: () => void;
+  onStrokePickerToggle: () => void;
+  // Refs
+  batchCounterFillButtonRef: React.RefObject<HTMLButtonElement>;
+  batchCounterStrokeButtonRef: React.RefObject<HTMLButtonElement>;
+  isFillPickerOpen: boolean;
+  isStrokePickerOpen: boolean;
+  // 번역
+  t: (key: string) => string;
+}
+
+const BatchCounterTabContent: React.FC<BatchCounterTabContentProps> = ({
+  batchCounterSettings,
+  handleBatchCounterUpdate,
+  colorState,
+  getCounterColorDisplay,
+  onFillPickerToggle,
+  onStrokePickerToggle,
+  batchCounterFillButtonRef,
+  batchCounterStrokeButtonRef,
+  isFillPickerOpen,
+  isStrokePickerOpen,
+  t,
+}) => {
+  const getDisplayColor = (color: string): string => {
+    if (!color) return "#ffffff";
+    if (color.startsWith("rgba") || color.startsWith("rgb")) return color;
+    if (color.startsWith("#")) return color;
+    return "#ffffff";
+  };
+
+  return (
+    <>
+      {/* 카운터 사용 */}
+      <div className="flex justify-between items-center w-full h-[23px]">
+        <p className="text-white text-style-2">
+          {t("counterSetting.counterEnabled") || "카운터 표시"}
+        </p>
+        <Checkbox
+          checked={batchCounterSettings.enabled}
+          onChange={() =>
+            handleBatchCounterUpdate({
+              enabled: !batchCounterSettings.enabled,
+            })
+          }
+        />
+      </div>
+
+      <SectionDivider />
+
+      {/* 배치 영역 */}
+      <PropertyRow label={t("counterSetting.placementArea") || "배치 영역"}>
+        <Dropdown
+          options={[
+            {
+              label: t("counterSetting.placementInside") || "내부",
+              value: "inside",
+            },
+            {
+              label: t("counterSetting.placementOutside") || "외부",
+              value: "outside",
+            },
+          ]}
+          value={batchCounterSettings.placement}
+          onChange={(value) =>
+            handleBatchCounterUpdate({
+              placement: value as "inside" | "outside",
+            })
+          }
+        />
+      </PropertyRow>
+
+      {/* 정렬 방향 */}
+      <PropertyRow label={t("counterSetting.alignDirection") || "정렬 방향"}>
+        <Dropdown
+          options={[
+            { label: t("counterSetting.alignTop") || "상단", value: "top" },
+            {
+              label: t("counterSetting.alignBottom") || "하단",
+              value: "bottom",
+            },
+            { label: t("counterSetting.alignLeft") || "좌측", value: "left" },
+            {
+              label: t("counterSetting.alignRight") || "우측",
+              value: "right",
+            },
+          ]}
+          value={batchCounterSettings.align}
+          onChange={(value) =>
+            handleBatchCounterUpdate({
+              align: value as "top" | "bottom" | "left" | "right",
+            })
+          }
+        />
+      </PropertyRow>
+
+      {/* 간격 */}
+      <PropertyRow label={t("counterSetting.gap") || "간격"}>
+        <NumberInput
+          value={batchCounterSettings.gap}
+          onChange={(value) => handleBatchCounterUpdate({ gap: value })}
+          suffix="px"
+          min={0}
+          max={100}
+          width="54px"
+        />
+      </PropertyRow>
+
+      <SectionDivider />
+
+      {/* 채우기 색상 */}
+      <PropertyRow label={t("counterSetting.fill") || "채우기"}>
+        <button
+          ref={batchCounterFillButtonRef}
+          type="button"
+          onClick={onFillPickerToggle}
+          className={`w-[23px] h-[23px] rounded-[7px] border-[1px] overflow-hidden cursor-pointer transition-colors flex-shrink-0 ${
+            isFillPickerOpen
+              ? "border-[#459BF8]"
+              : "border-[#3A3943] hover:border-[#505058]"
+          }`}
+          style={{ backgroundColor: getDisplayColor(getCounterColorDisplay("fill")) }}
+          title={`${t("counterSetting.fill") || "채우기"} (${colorState === "active" ? t("counterSetting.active") || "입력" : t("counterSetting.idle") || "대기"})`}
+        />
+      </PropertyRow>
+
+      {/* 외곽선 색상 */}
+      <PropertyRow label={t("counterSetting.stroke") || "외곽선"}>
+        <button
+          ref={batchCounterStrokeButtonRef}
+          type="button"
+          onClick={onStrokePickerToggle}
+          className={`w-[23px] h-[23px] rounded-[7px] border-[1px] overflow-hidden cursor-pointer transition-colors flex-shrink-0 ${
+            isStrokePickerOpen
+              ? "border-[#459BF8]"
+              : "border-[#3A3943] hover:border-[#505058]"
+          }`}
+          style={{ backgroundColor: getDisplayColor(getCounterColorDisplay("stroke")) }}
+          title={`${t("counterSetting.stroke") || "외곽선"} (${colorState === "active" ? t("counterSetting.active") || "입력" : t("counterSetting.idle") || "대기"})`}
+        />
+      </PropertyRow>
+
+      <SectionDivider />
+
+      {/* 폰트 크기 */}
+      <PropertyRow label={t("counterSetting.fontSize") || "폰트 크기"}>
+        <NumberInput
+          value={batchCounterSettings.fontSize ?? 16}
+          onChange={(value) => handleBatchCounterUpdate({ fontSize: value })}
+          suffix="px"
+          min={8}
+          max={72}
+          width="54px"
+        />
+      </PropertyRow>
+
+      {/* 폰트 스타일 */}
+      <PropertyRow label={t("counterSetting.fontStyle") || "폰트 스타일"}>
+        <FontStyleToggle
+          isBold={(batchCounterSettings.fontWeight ?? 400) >= 700}
+          isItalic={batchCounterSettings.fontItalic ?? false}
+          isUnderline={batchCounterSettings.fontUnderline ?? false}
+          isStrikethrough={batchCounterSettings.fontStrikethrough ?? false}
+          onBoldChange={(value) =>
+            handleBatchCounterUpdate({ fontWeight: value ? 700 : 400 })
+          }
+          onItalicChange={(value) => handleBatchCounterUpdate({ fontItalic: value })}
+          onUnderlineChange={(value) =>
+            handleBatchCounterUpdate({ fontUnderline: value })
+          }
+          onStrikethroughChange={(value) =>
+            handleBatchCounterUpdate({ fontStrikethrough: value })
+          }
+        />
+      </PropertyRow>
+    </>
+  );
+};
+
+export default BatchCounterTabContent;

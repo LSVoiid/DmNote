@@ -18,7 +18,6 @@ import { useKeyStore as useKeyStoreForHistory } from "@stores/useKeyStore";
 import { useSmartGuidesElements } from "@hooks/Grid";
 import { useSmartGuidesStore } from "@stores/useSmartGuidesStore";
 import { useSettingsStore } from "@stores/useSettingsStore";
-import { GRID_SNAP } from "@hooks/Grid/constants";
 import {
   calculateBounds,
   calculateSnapPoints,
@@ -27,6 +26,7 @@ import {
 import {
   useGridSelectionStore,
   SelectedElement,
+  isElementInMarquee,
 } from "@stores/useGridSelectionStore";
 import { usePluginDisplayElementStore } from "@stores/usePluginDisplayElementStore";
 import { useKeyStore } from "@stores/useKeyStore";
@@ -409,6 +409,9 @@ export const PluginElement: React.FC<PluginElementProps> = ({
   // 스마트 가이드를 위한 다른 요소들의 bounds 가져오기
   const { getOtherElements } = useSmartGuidesElements();
 
+  // 그리드 스냅 크기 가져오기
+  const gridSnapSize = useSettingsStore((state) => state.gridSettings?.gridSnapSize || 5);
+
   // 선택 드래그 상태
   const multiDragRef = useRef<{
     isDragging: boolean;
@@ -434,7 +437,7 @@ export const PluginElement: React.FC<PluginElementProps> = ({
 
   // 드래그 지원 (main 윈도우에서만)
   const draggable = useDraggable({
-    gridSize: GRID_SNAP,
+    gridSize: gridSnapSize,
     initialX: calculatedPosition.x,
     initialY: calculatedPosition.y,
     onDragStart: saveToHistory, // 드래그 시작 시 히스토리 저장
@@ -620,7 +623,8 @@ export const PluginElement: React.FC<PluginElementProps> = ({
             }
           } else {
             // 그리드 스냅
-            finalX = Math.round(newX / GRID_SNAP) * GRID_SNAP;
+            const snapSize = gridSettings?.gridSnapSize || 5;
+            finalX = Math.round(newX / snapSize) * snapSize;
           }
 
           if (snapResult?.didSnapY) {
@@ -633,7 +637,8 @@ export const PluginElement: React.FC<PluginElementProps> = ({
             }
           } else {
             // 그리드 스냅
-            finalY = Math.round(newY / GRID_SNAP) * GRID_SNAP;
+            const snapSize = gridSettings?.gridSnapSize || 5;
+            finalY = Math.round(newY / snapSize) * snapSize;
           }
 
           // 스냅된 delta 계산
@@ -1311,6 +1316,128 @@ export const PluginElement: React.FC<PluginElementProps> = ({
         type: "plugin",
         id: element.fullId,
       });
+      // 마지막 선택 요소 좌표 저장
+      if (element.measuredSize) {
+        useGridSelectionStore.getState().setLastSelectedKeyBounds({
+          x: element.position.x,
+          y: element.position.y,
+          width: element.measuredSize.width,
+          height: element.measuredSize.height,
+        });
+      }
+      return;
+    }
+
+    // Shift+클릭으로 범위 선택 (메인 윈도우에서만)
+    if (e.shiftKey && windowType === "main") {
+      e.stopPropagation();
+      const lastBounds = useGridSelectionStore.getState().lastSelectedKeyBounds;
+      
+      if (!lastBounds) {
+        // 이전 선택이 없으면 단일 선택처럼 동작
+        useGridSelectionStore.getState().selectElement({
+          type: "plugin",
+          id: element.fullId,
+        });
+        if (element.measuredSize) {
+          useGridSelectionStore.getState().setLastSelectedKeyBounds({
+            x: element.position.x,
+            y: element.position.y,
+            width: element.measuredSize.width,
+            height: element.measuredSize.height,
+          });
+        }
+        return;
+      }
+
+      // 현재 클릭한 플러그인 요소의 bounds
+      const clickedBounds = {
+        x: element.position.x,
+        y: element.position.y,
+        width: element.measuredSize?.width || 100,
+        height: element.measuredSize?.height || 100,
+      };
+
+      // 두 요소 사이의 사각형 영역 계산
+      const minX = Math.min(lastBounds.x, clickedBounds.x);
+      const maxX = Math.max(
+        lastBounds.x + lastBounds.width,
+        clickedBounds.x + clickedBounds.width
+      );
+      const minY = Math.min(lastBounds.y, clickedBounds.y);
+      const maxY = Math.max(
+        lastBounds.y + lastBounds.height,
+        clickedBounds.y + clickedBounds.height
+      );
+
+      const rangeRect = {
+        left: minX,
+        top: minY,
+        width: maxX - minX,
+        height: maxY - minY,
+      };
+
+      // 범위 내 모든 요소 선택
+      const newSelectedElements: SelectedElement[] = [];
+      const { positions, selectedKeyType } = useKeyStore.getState();
+      const pluginElements = usePluginDisplayElementStore.getState().elements;
+
+      // 키 요소 체크
+      positions[selectedKeyType]?.forEach((pos, i) => {
+        const elementBounds = {
+          x: pos.dx,
+          y: pos.dy,
+          width: pos.width || 60,
+          height: pos.height || 60,
+        };
+        if (isElementInMarquee(elementBounds, rangeRect)) {
+          newSelectedElements.push({
+            type: "key",
+            id: `key-${i}`,
+            index: i,
+          });
+        }
+      });
+
+      // 플러그인 요소 체크
+      pluginElements.forEach((el) => {
+        const belongsToCurrentTab = !el.tabId || el.tabId === selectedKeyType;
+        if (belongsToCurrentTab && el.measuredSize) {
+          const elementBounds = {
+            x: el.position.x,
+            y: el.position.y,
+            width: el.measuredSize.width,
+            height: el.measuredSize.height,
+          };
+          if (isElementInMarquee(elementBounds, rangeRect)) {
+            newSelectedElements.push({
+              type: "plugin",
+              id: el.fullId,
+            });
+          }
+        }
+      });
+
+      useGridSelectionStore.getState().setSelectedElements(newSelectedElements);
+      return;
+    }
+
+    const settingsUI = definition?.settingsUI ?? "panel";
+    if (windowType === "main" && settingsUI !== "modal") {
+      e.stopPropagation();
+      useGridSelectionStore.getState().selectElement({
+        type: "plugin",
+        id: element.fullId,
+      });
+      // 마지막 선택 요소 좌표 저장
+      if (element.measuredSize) {
+        useGridSelectionStore.getState().setLastSelectedKeyBounds({
+          x: element.position.x,
+          y: element.position.y,
+          width: element.measuredSize.width,
+          height: element.measuredSize.height,
+        });
+      }
       return;
     }
 

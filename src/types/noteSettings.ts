@@ -5,14 +5,10 @@ export const fadePositionSchema = z.union([
   z.literal("auto"),
   z.literal("top"),
   z.literal("bottom"),
+  z.literal("none"),
 ]);
 
 export const noteSettingsSchema = z.object({
-  borderRadius: z
-    .number()
-    .int()
-    .min(NOTE_SETTINGS_CONSTRAINTS.borderRadius.min)
-    .max(NOTE_SETTINGS_CONSTRAINTS.borderRadius.max),
   speed: z
     .number()
     .int()
@@ -46,7 +42,6 @@ export const noteSettingsSchema = z.object({
 export type NoteSettings = z.infer<typeof noteSettingsSchema>;
 
 export const NOTE_SETTINGS_DEFAULTS: NoteSettings = Object.freeze({
-  borderRadius: NOTE_SETTINGS_CONSTRAINTS.borderRadius.default,
   speed: NOTE_SETTINGS_CONSTRAINTS.speed.default,
   trackHeight: NOTE_SETTINGS_CONSTRAINTS.trackHeight.default,
   reverse: false,

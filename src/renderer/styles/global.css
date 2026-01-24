@@ -245,6 +245,55 @@ input[type="number"]::-webkit-outer-spin-button {
   background: #5a5963;
 }
 
+/* PropertiesPanel overlay scrollbar (no layout shrink) */
+.properties-panel-overlay-scroll {
+  position: relative;
+  overflow: hidden;
+}
+
+.properties-panel-overlay-viewport {
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+
+.properties-panel-overlay-viewport::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.properties-panel-overlay-bar {
+  position: absolute;
+  top: 0;
+  right: 0px;
+  bottom: 0;
+  width: 4px;
+  opacity: 0;
+  transition: opacity 120ms ease-out;
+  pointer-events: none;
+}
+
+.properties-panel-overlay-scroll:hover .properties-panel-overlay-bar {
+  opacity: 1;
+}
+
+.properties-panel-overlay-thumb {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: #3a3943;
+  border-radius: 2px;
+}
+
+.properties-panel-overlay-scroll:hover .properties-panel-overlay-thumb {
+  background: #4a4953;
+}
+
+.properties-panel-overlay-scroll:active .properties-panel-overlay-thumb {
+  background: #5a5963;
+}
+
 /* Settings scroll - only show on hover */
 .settings-content-scroll {
   overscroll-behavior: contain;

@@ -19,7 +19,6 @@ type SettingToolProps = {
   showAlert?: (message: string) => void;
   onOpenNoteSetting?: () => void;
   onOpenLaboratory?: () => void;
-  onOpenGridSettings?: () => void;
 };
 
 const SettingTool = ({
@@ -29,7 +28,6 @@ const SettingTool = ({
   showAlert,
   onOpenNoteSetting,
   onOpenLaboratory,
-  onOpenGridSettings,
 }: SettingToolProps) => {
   const { t } = useTranslation();
   const [isOverlayVisible, setIsOverlayVisible] = useState(true);
@@ -87,7 +85,6 @@ const SettingTool = ({
   }, []);
 
   const menuItems: ListItem[] = [
-    { id: "grid", label: t("tooltip.gridSettings") },
     { id: "lab", label: t("tooltip.laboratory"), disabled: !laboratoryEnabled },
     { id: "note", label: t("tooltip.noteSettings"), disabled: !noteEffect },
   ];
@@ -208,9 +205,7 @@ const SettingTool = ({
                   onClose={() => setIsExtrasOpen(false)}
                   items={menuItems}
                   onSelect={(id) => {
-                    if (id === "grid") {
-                      onOpenGridSettings?.();
-                    } else if (id === "lab") {
+                    if (id === "lab") {
                       onOpenLaboratory?.();
                     } else if (id === "note") {
                       onOpenNoteSetting?.();

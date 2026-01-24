@@ -28,6 +28,11 @@ use store::AppStore;
 fn main() {
     #[cfg(target_os = "windows")]
     {
+        // WebView2 투명 오버레이(레이어드/알파) 이슈가 특정 런타임 버전에서 발생할 수 있어,
+        // 고정(Fixed) 런타임을 번들/지정한 경우 우선 사용하도록 합니다.
+        apply_embedded_webview2_fixed_runtime_override();
+        apply_webview2_fixed_runtime_override();
+
         // GPU/하드웨어 가속 강제 활성화 및 렌더링 최적화 플래그
         let gpu_flags = [
             "--disable-blink-features=VSync",           // VSync 비활성화 (입력 지연 감소)
@@ -367,4 +372,162 @@ fn register_dev_capability(app: &tauri::App) -> Result<(), Box<dyn std::error::E
 
     app.add_capability(builder)
         .map_err(|err| -> Box<dyn std::error::Error> { err.into() })
+}
+
+#[cfg(target_os = "windows")]
+fn apply_webview2_fixed_runtime_override() {
+    use std::env;
+    const KEY: &str = "WEBVIEW2_BROWSER_EXECUTABLE_FOLDER";
+
+    if env::var_os("DMNOTE_WEBVIEW2_USE_SYSTEM").is_some() {
+        return;
+    }
+
+    if env::var_os(KEY).is_some() {
+        return;
+    }
+
+    let mut candidates: Vec<PathBuf> = Vec::new();
+
+    if let Some(dir) = env::var_os("DMNOTE_WEBVIEW2_FIXED_RUNTIME_DIR") {
+        candidates.push(PathBuf::from(dir));
+    }
+
+    if let Ok(exe) = env::current_exe() {
+        if let Some(exe_dir) = exe.parent() {
+            candidates.push(exe_dir.join("webview2-fixed-runtime"));
+            candidates.push(exe_dir.join("WebView2FixedRuntime"));
+            candidates.push(exe_dir.join("resources").join("webview2-fixed-runtime"));
+            candidates.push(
+                exe_dir
+                    .join("..")
+                    .join("resources")
+                    .join("webview2-fixed-runtime"),
+            );
+        }
+    }
+
+    if cfg!(debug_assertions) {
+        // `tauri dev`에서는 바이너리 위치가 변하므로, 저장소 기준 경로도 함께 확인합니다.
+        candidates.push(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("webview2-fixed-runtime"));
+        candidates.push(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("..")
+                .join("webview2-fixed-runtime"),
+        );
+    }
+
+    for candidate in candidates {
+        if is_valid_webview2_fixed_runtime_dir(&candidate) {
+            env::set_var(KEY, &candidate);
+            log::info!(
+                "using fixed WebView2 runtime override: {}",
+                candidate.display()
+            );
+            return;
+        }
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn is_valid_webview2_fixed_runtime_dir(dir: &PathBuf) -> bool {
+    dir.is_dir() && dir.join("msedgewebview2.exe").is_file()
+}
+
+#[cfg(all(target_os = "windows", dmnote_embedded_webview2))]
+fn apply_embedded_webview2_fixed_runtime_override() {
+    use std::env;
+    use std::fs;
+
+    const KEY: &str = "WEBVIEW2_BROWSER_EXECUTABLE_FOLDER";
+    const VERSION_FILE: &str = "dmnote-webview2-fixed-runtime-version.txt";
+
+    if env::var_os("DMNOTE_WEBVIEW2_USE_SYSTEM").is_some() {
+        return;
+    }
+    if env::var_os(KEY).is_some() {
+        return;
+    }
+
+    let embedded_version = option_env!("DMNOTE_WEBVIEW2_EMBEDDED_VERSION").unwrap_or("unknown");
+    let embedded_arch = option_env!("DMNOTE_WEBVIEW2_EMBEDDED_ARCH").unwrap_or("x64");
+
+    let extract_dir = match dirs_next::data_local_dir() {
+        Some(dir) => dir
+            .join("com.dmnote.desktop")
+            .join("webview2-fixed-runtime")
+            .join(format!("{embedded_version}-{embedded_arch}")),
+        None => return,
+    };
+
+    let expected_version_file = extract_dir.join(VERSION_FILE);
+    let needs_extract = match (read_first_line_trimmed(&expected_version_file), is_valid_webview2_fixed_runtime_dir(&extract_dir)) {
+        (Some(v), true) if v == embedded_version => false,
+        _ => true,
+    };
+
+    if needs_extract {
+        // Clean up previous attempts.
+        let _ = fs::remove_dir_all(&extract_dir);
+        if let Err(err) = fs::create_dir_all(&extract_dir) {
+            log::warn!("failed to create embedded webview2 dir {}: {err}", extract_dir.display());
+            return;
+        }
+
+        static ZIP_BYTES: &[u8] = include_bytes!(env!("DMNOTE_WEBVIEW2_EMBEDDED_ZIP"));
+        if let Err(err) = extract_zip_bytes_to_dir(ZIP_BYTES, &extract_dir) {
+            log::warn!(
+                "failed to extract embedded webview2 runtime to {}: {err}",
+                extract_dir.display()
+            );
+            return;
+        }
+    }
+
+    if is_valid_webview2_fixed_runtime_dir(&extract_dir) {
+        env::set_var(KEY, &extract_dir);
+        log::info!("using embedded fixed WebView2 runtime: {}", extract_dir.display());
+    }
+}
+
+#[cfg(any(not(target_os = "windows"), not(dmnote_embedded_webview2)))]
+fn apply_embedded_webview2_fixed_runtime_override() {}
+
+#[cfg(all(target_os = "windows", dmnote_embedded_webview2))]
+fn read_first_line_trimmed(path: &std::path::Path) -> Option<String> {
+    let content = std::fs::read_to_string(path).ok()?;
+    content.lines().next().map(|l| l.trim().to_string())
+}
+
+#[cfg(all(target_os = "windows", dmnote_embedded_webview2))]
+fn extract_zip_bytes_to_dir(zip_bytes: &[u8], dest_dir: &std::path::Path) -> Result<(), String> {
+    use std::io::{self, Cursor, Write};
+
+    let reader = Cursor::new(zip_bytes);
+    let mut archive = zip::ZipArchive::new(reader).map_err(|e| e.to_string())?;
+
+    for i in 0..archive.len() {
+        let mut file = archive.by_index(i).map_err(|e| e.to_string())?;
+        let enclosed = match file.enclosed_name() {
+            Some(name) => name.to_owned(),
+            None => continue,
+        };
+        let out_path = dest_dir.join(enclosed);
+
+        if file.is_dir() {
+            std::fs::create_dir_all(&out_path).map_err(|e| e.to_string())?;
+            continue;
+        }
+
+        if let Some(parent) = out_path.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+
+        let mut out_file = std::fs::File::create(&out_path).map_err(|e| e.to_string())?;
+        io::copy(&mut file, &mut out_file).map_err(|e| e.to_string())?;
+
+        let _ = out_file.flush();
+    }
+
+    Ok(())
 }

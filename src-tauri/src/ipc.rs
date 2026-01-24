@@ -20,6 +20,10 @@ fn default_device_kind() -> InputDeviceKind {
 pub enum DaemonCommand {
     /// Toggle overlay visibility (Ctrl+Shift+O)
     ToggleOverlay,
+    /// Toggle overlay lock (global shortcut)
+    ToggleOverlayLock,
+    /// Toggle always-on-top (global shortcut)
+    ToggleAlwaysOnTop,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

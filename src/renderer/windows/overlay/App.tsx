@@ -10,7 +10,10 @@ import React, {
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { isMac } from "@utils/platform";
 import { Key } from "@components/Key";
-import { DEFAULT_NOTE_SETTINGS } from "@constants/overlayConfig";
+import {
+  DEFAULT_NOTE_BORDER_RADIUS,
+  DEFAULT_NOTE_SETTINGS,
+} from "@constants/overlayConfig";
 import { useCustomCssInjection } from "@hooks/useCustomCssInjection";
 import { useCustomJsInjection } from "@hooks/useCustomJsInjection";
 import { useBlockBrowserShortcuts } from "@hooks/useBlockBrowserShortcuts";
@@ -36,6 +39,7 @@ const FALLBACK_POSITION: KeyPosition = {
   dy: 0,
   width: 60,
   height: 60,
+  hidden: false,
   activeImage: "",
   inactiveImage: "",
   activeTransparent: false,
@@ -293,6 +297,7 @@ export default function App() {
 
     // 키 위치
     currentPositions.forEach((pos) => {
+      if (pos.hidden) return;
       xs.push(pos.dx);
       ys.push(pos.dy);
       widths.push(pos.dx + pos.width);
@@ -301,7 +306,7 @@ export default function App() {
 
     // 플러그인 요소 위치 (앵커 기반 계산 포함)
     pluginElements
-      .filter((el) => !el.tabId || el.tabId === selectedKeyType)
+      .filter((el) => !el.hidden && (!el.tabId || el.tabId === selectedKeyType))
       .forEach((element) => {
         let x = element.position.x;
         let y = element.position.y;
@@ -370,35 +375,50 @@ export default function App() {
 
   const topMostY = useMemo(() => {
     if (!displayPositions.length) return 0;
-    return Math.min(...displayPositions.map((position) => position.dy));
+    const visible = displayPositions.filter((position) => !position.hidden);
+    if (visible.length === 0) return 0;
+    return Math.min(...visible.map((position) => position.dy));
   }, [displayPositions]);
 
   const webglTracks = useMemo(
     () =>
       currentKeys.map((key, index) => {
         const originalPosition = currentPositions[index] ?? FALLBACK_POSITION;
+        if (originalPosition.hidden) return null;
         const position = displayPositions[index] ?? originalPosition;
         // noteAutoYCorrection이 false면 원래 위치 사용, 아니면 topMostY로 보정
         const useAutoCorrection = position.noteAutoYCorrection !== false;
         const trackStartY = useAutoCorrection ? topMostY : position.dy;
+        const keyWidth = position.width;
+        const desiredNoteWidth =
+          typeof position.noteWidth === "number" && Number.isFinite(position.noteWidth)
+            ? Math.max(1, Math.round(position.noteWidth))
+            : keyWidth;
+        const noteOffsetX = (keyWidth - desiredNoteWidth) / 2;
 
         return {
           trackKey: key,
           trackIndex: position.zIndex ?? index,
-          position: { ...position, dy: trackStartY },
-          width: position.width,
+          position: { ...position, dx: position.dx + noteOffsetX, dy: trackStartY },
+          width: desiredNoteWidth,
           height: trackHeight,
           noteColor: position.noteColor,
           noteOpacity: position.noteOpacity,
+          noteOpacityTop: position.noteOpacityTop ?? position.noteOpacity,
+          noteOpacityBottom: position.noteOpacityBottom ?? position.noteOpacity,
           noteGlowEnabled: position.noteGlowEnabled ?? false,
           noteGlowSize: position.noteGlowSize ?? 20,
           noteGlowOpacity: position.noteGlowOpacity ?? 70,
+          noteGlowOpacityTop:
+            position.noteGlowOpacityTop ?? (position.noteGlowOpacity ?? 70),
+          noteGlowOpacityBottom:
+            position.noteGlowOpacityBottom ?? (position.noteGlowOpacity ?? 70),
           noteGlowColor: position.noteGlowColor ?? position.noteColor,
           flowSpeed: noteSettings?.speed ?? DEFAULT_NOTE_SETTINGS.speed,
           borderRadius:
-            noteSettings?.borderRadius ?? DEFAULT_NOTE_SETTINGS.borderRadius,
+            position.noteBorderRadius ?? DEFAULT_NOTE_BORDER_RADIUS,
         };
-      }),
+      }).filter(Boolean),
     [
       currentKeys,
       currentPositions,
@@ -406,7 +426,7 @@ export default function App() {
       topMostY,
       trackHeight,
       noteSettings?.speed,
-      noteSettings?.borderRadius,
+      DEFAULT_NOTE_BORDER_RADIUS,
     ]
   );
 
