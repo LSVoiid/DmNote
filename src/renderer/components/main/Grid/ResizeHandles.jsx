@@ -152,6 +152,7 @@ export default function ResizeHandles({
     startMouseX: 0,
     startMouseY: 0,
     startBounds: null,
+    startAspectRatio: 1,
   });
 
   const handleMouseDown = useCallback(
@@ -160,6 +161,14 @@ export default function ResizeHandles({
       e.stopPropagation();
       lockCustomCursor(handle.cursor, e);
 
+      const startAspectRatio =
+        Number.isFinite(bounds?.width) &&
+        Number.isFinite(bounds?.height) &&
+        bounds.width > 0 &&
+        bounds.height > 0
+          ? bounds.width / bounds.height
+          : 1;
+
       resizeRef.current = {
         isResizing: true,
         handleId: handle.id,
@@ -167,6 +176,7 @@ export default function ResizeHandles({
         startMouseY: e.clientY,
         startBounds: { ...bounds },
         handle,
+        startAspectRatio,
       };
 
       onResizeStart?.(handle);
@@ -174,56 +184,99 @@ export default function ResizeHandles({
       const handleMouseMove = (moveEvent) => {
         if (!resizeRef.current.isResizing) return;
 
-        const { handle, startMouseX, startMouseY, startBounds } =
+        const { handle, startMouseX, startMouseY, startBounds, startAspectRatio } =
           resizeRef.current;
 
         // 마우스 이동량 계산 (줌 보정)
         const rawDeltaX = (moveEvent.clientX - startMouseX) / zoom;
         const rawDeltaY = (moveEvent.clientY - startMouseY) / zoom;
 
-        // 새 bounds 계산 (스냅 전)
-        let newX = startBounds.x;
-        let newY = startBounds.y;
-        let newWidth = startBounds.width;
-        let newHeight = startBounds.height;
+        // store에서 스냅 크기 가져오기
+        const snapSize =
+          useSettingsStore.getState().gridSettings?.gridSnapSize || 5;
 
-        // 핸들 방향에 따라 크기 조정
+        const snap = (value) => Math.round(value / snapSize) * snapSize;
+
+        // 새 bounds 계산 (스냅 전)
+        let nextWidth = startBounds.width;
+        let nextHeight = startBounds.height;
+
+        // 핸들 방향에 따라 크기 조정 (크기만 계산)
         if (handle.dx === -1) {
-          // 왼쪽 핸들: x 이동 + width 조정
-          newWidth = Math.max(MIN_SIZE, startBounds.width - rawDeltaX);
-          if (newWidth > MIN_SIZE) {
-            newX = startBounds.x + rawDeltaX;
-          } else {
-            newX = startBounds.x + startBounds.width - MIN_SIZE;
-          }
+          nextWidth = Math.max(MIN_SIZE, startBounds.width - rawDeltaX);
         } else if (handle.dx === 1) {
-          // 오른쪽 핸들: width만 조정
-          newWidth = Math.max(MIN_SIZE, startBounds.width + rawDeltaX);
+          nextWidth = Math.max(MIN_SIZE, startBounds.width + rawDeltaX);
         }
 
         if (handle.dy === -1) {
-          // 위쪽 핸들: y 이동 + height 조정
-          newHeight = Math.max(MIN_SIZE, startBounds.height - rawDeltaY);
-          if (newHeight > MIN_SIZE) {
-            newY = startBounds.y + rawDeltaY;
-          } else {
-            newY = startBounds.y + startBounds.height - MIN_SIZE;
-          }
+          nextHeight = Math.max(MIN_SIZE, startBounds.height - rawDeltaY);
         } else if (handle.dy === 1) {
-          // 아래쪽 핸들: height만 조정
-          newHeight = Math.max(MIN_SIZE, startBounds.height + rawDeltaY);
+          nextHeight = Math.max(MIN_SIZE, startBounds.height + rawDeltaY);
         }
 
-        // 그리드 스냅 적용 (store에서 스냅 크기 가져오기)
-        const snapSize = useSettingsStore.getState().gridSettings?.gridSnapSize || 5;
-        newX = Math.round(newX / snapSize) * snapSize;
-        newY = Math.round(newY / snapSize) * snapSize;
-        newWidth = Math.round(newWidth / snapSize) * snapSize;
-        newHeight = Math.round(newHeight / snapSize) * snapSize;
+        const keepAspect =
+          !!moveEvent.shiftKey &&
+          Number.isFinite(startAspectRatio) &&
+          startAspectRatio > 0 &&
+          Number.isFinite(startBounds.width) &&
+          Number.isFinite(startBounds.height) &&
+          startBounds.width > 0 &&
+          startBounds.height > 0;
 
-        // 최소 크기 보장
-        newWidth = Math.max(MIN_SIZE, newWidth);
-        newHeight = Math.max(MIN_SIZE, newHeight);
+        let newWidth = nextWidth;
+        let newHeight = nextHeight;
+
+        if (keepAspect) {
+          const isCorner = handle.dx !== 0 && handle.dy !== 0;
+          const primary =
+            handle.dx !== 0 && handle.dy === 0
+              ? "width"
+              : handle.dy !== 0 && handle.dx === 0
+              ? "height"
+              : isCorner
+              ? (() => {
+                  const relW =
+                    Math.abs(newWidth - startBounds.width) / startBounds.width;
+                  const relH =
+                    Math.abs(newHeight - startBounds.height) /
+                    startBounds.height;
+                  return relW >= relH ? "width" : "height";
+                })()
+              : "width";
+
+          if (primary === "width") {
+            newWidth = Math.max(MIN_SIZE, snap(newWidth));
+            const scale = newWidth / startBounds.width;
+            newHeight = Math.max(MIN_SIZE, startBounds.height * scale);
+          } else {
+            newHeight = Math.max(MIN_SIZE, snap(newHeight));
+            const scale = newHeight / startBounds.height;
+            newWidth = Math.max(MIN_SIZE, startBounds.width * scale);
+          }
+        } else {
+          newWidth = Math.max(MIN_SIZE, snap(newWidth));
+          newHeight = Math.max(MIN_SIZE, snap(newHeight));
+        }
+
+        // 위치 계산 (크기/비율 확정 후 앵커 기준으로 재계산)
+        let newX = startBounds.x;
+        let newY = startBounds.y;
+
+        if (handle.dx === -1) {
+          newX = startBounds.x + (startBounds.width - newWidth);
+        } else if (handle.dx === 0) {
+          newX = startBounds.x + (startBounds.width - newWidth) / 2;
+        }
+
+        if (handle.dy === -1) {
+          newY = startBounds.y + (startBounds.height - newHeight);
+        } else if (handle.dy === 0) {
+          newY = startBounds.y + (startBounds.height - newHeight) / 2;
+        }
+
+        // 위치는 항상 스냅 적용
+        newX = snap(newX);
+        newY = snap(newY);
 
         onResize?.({
           x: newX,
