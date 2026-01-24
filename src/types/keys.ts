@@ -56,13 +56,13 @@ const COUNTER_DEFAULTS: KeyCounterSettings = Object.freeze({
   enabled: true,
   placement: "outside" as KeyCounterPlacement,
   align: "top" as KeyCounterAlign,
-  // fill: idle white, active black
-  fill: Object.freeze({ idle: "#FFFFFF", active: "#000000" }),
-  // stroke: idle black, active white
-  stroke: Object.freeze({ idle: "#000000", active: "#FFFFFF" }),
+  // fill: match key text colors (idle/active)
+  fill: Object.freeze({ idle: "rgba(121, 121, 121, 0.9)", active: "#FFFFFF" }),
+  // stroke: transparent (no outline)
+  stroke: Object.freeze({ idle: "transparent", active: "transparent" }),
   gap: 6,
   fontSize: 16,
-  fontWeight: 400,
+  fontWeight: 700,
   fontItalic: false,
   fontUnderline: false,
   fontStrikethrough: false,

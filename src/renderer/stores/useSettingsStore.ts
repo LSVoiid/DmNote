@@ -19,7 +19,7 @@ const DEFAULT_GRID_SETTINGS: GridSettings = {
   alignmentGuides: true,
   spacingGuides: true,
   sizeMatchGuides: true,
-  minimapEnabled: true,
+  minimapEnabled: false,
   gridSnapSize: 5,
 };
 
