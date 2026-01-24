@@ -3,8 +3,8 @@ import Modal from "@components/main/Modal/Modal";
 import { useLenis } from "@hooks/useLenis";
 import { useTranslation } from "@contexts/I18nContext";
 import { isMac } from "@utils/platform";
-import { TooltipGroup } from "@components/main/Modal/TooltipGroup";
-import FloatingTooltip from "@components/main/Modal/FloatingTooltip";
+// import { TooltipGroup } from "@components/main/Modal/TooltipGroup";
+// import FloatingTooltip from "@components/main/Modal/FloatingTooltip";
 import { getScrollShadowState } from "@utils/scrollShadow";
 import {
   DEFAULT_SHORTCUTS,
@@ -257,16 +257,12 @@ export default function ShortcutSettingsModal({
     window.addEventListener("keydown", onKeyDown, true);
     window.addEventListener("keyup", block, true);
     window.addEventListener("keypress", block, true);
-    window.addEventListener("mousedown", block, true);
-    window.addEventListener("contextmenu", block, true);
 
     return () => {
       (window as any).__dmn_isKeyListening = false;
       window.removeEventListener("keydown", onKeyDown, true);
       window.removeEventListener("keyup", block, true);
       window.removeEventListener("keypress", block, true);
-      window.removeEventListener("mousedown", block, true);
-      window.removeEventListener("contextmenu", block, true);
     };
   }, [isListening, listeningKey]);
 
@@ -378,10 +374,26 @@ export default function ShortcutSettingsModal({
   if (!isOpen) return null;
 
   return (
-    <Modal onClick={onClose}>
+    <Modal
+      onClick={() => {
+        if (isListening) {
+          setError(null);
+          setListeningKey(null);
+          return;
+        }
+        onClose();
+      }}
+    >
       <div
         className="flex flex-col min-w-[320px] bg-[#1A191E] rounded-[13px] border-[1px] border-[#2A2A30] p-[20px] pr-[6px]"
         onClick={(event) => event.stopPropagation()}
+        onPointerDownCapture={(event) => {
+          if (!isListening) return;
+          const target = event.target as HTMLElement | null;
+          if (target?.closest("button")) return;
+          setError(null);
+          setListeningKey(null);
+        }}
       >
         <div className="relative">
           <div
@@ -415,11 +427,14 @@ export default function ShortcutSettingsModal({
             }}
           >
             <div ref={contentRef} className="flex flex-col gap-[28px] py-[4px]">
-              <div className="flex flex-col gap-[12px]">
-                <p className="text-[12px] font-medium text-[#9A9DA8] uppercase tracking-wider">
-                  {t("shortcutSetting.sectionOverlay")}
-                </p>
-                <TooltipGroup className="flex flex-col gap-[12px]">
+              <div className="flex flex-col gap-[19px]">
+                <div className="flex items-center gap-[10px]">
+                  <p className="text-[12px] font-medium text-[#9A9DA8] uppercase tracking-wider whitespace-nowrap">
+                    {t("shortcutSetting.sectionOverlay")}
+                  </p>
+                  <div className="flex-1 h-[1px] bg-[#2A2A30]" />
+                </div>
+                <div className="flex flex-col gap-[19px]">
                   {overlayActions.map((action) => {
                     const binding = safeDraft[action.key];
                     const isRowListening = listeningKey === action.key;
@@ -433,11 +448,17 @@ export default function ShortcutSettingsModal({
                         key={action.key}
                         className="flex items-center justify-between"
                       >
-                        <FloatingTooltip content={action.help}>
-                          <span className="text-style-2 text-white cursor-help">
-                            {action.label}
-                          </span>
-                        </FloatingTooltip>
+                        {/* 툴팁 비활성화 */}
+                        {/*
+                          <FloatingTooltip content={action.help}>
+                            <span className="text-style-2 text-white cursor-help">
+                              {action.label}
+                            </span>
+                          </FloatingTooltip>
+                        */}
+                        <span className="text-style-2 text-white">
+                          {action.label}
+                        </span>
                         <button
                           onClick={() => handleStartListening(action.key)}
                           onContextMenu={(e) => {
@@ -460,16 +481,19 @@ export default function ShortcutSettingsModal({
                       </div>
                     );
                   })}
-                </TooltipGroup>
+                </div>
               </div>
 
 
 
-              <div className="flex flex-col gap-[12px]">
-                <p className="text-[12px] font-medium text-[#9A9DA8] uppercase tracking-wider">
-                  {t("shortcutSetting.sectionCanvas")}
-                </p>
-                <TooltipGroup className="flex flex-col gap-[12px]">
+              <div className="flex flex-col gap-[19px]">
+                <div className="flex items-center gap-[10px]">
+                  <p className="text-[12px] font-medium text-[#9A9DA8] uppercase tracking-wider whitespace-nowrap">
+                    {t("shortcutSetting.sectionCanvas")}
+                  </p>
+                  <div className="flex-1 h-[1px] bg-[#2A2A30]" />
+                </div>
+                <div className="flex flex-col gap-[19px]">
                   {canvasActions.map((action) => {
                     const binding = safeDraft[action.key];
                     const isRowListening = listeningKey === action.key;
@@ -483,11 +507,17 @@ export default function ShortcutSettingsModal({
                         key={action.key}
                         className="flex items-center justify-between"
                       >
-                        <FloatingTooltip content={action.help}>
-                          <span className="text-style-2 text-white cursor-help">
-                            {action.label}
-                          </span>
-                        </FloatingTooltip>
+                        {/* 툴팁 비활성화 */}
+                        {/*
+                          <FloatingTooltip content={action.help}>
+                            <span className="text-style-2 text-white cursor-help">
+                              {action.label}
+                            </span>
+                          </FloatingTooltip>
+                        */}
+                        <span className="text-style-2 text-white">
+                          {action.label}
+                        </span>
                         <button
                           onClick={() => handleStartListening(action.key)}
                           onContextMenu={(e) => {
@@ -510,7 +540,7 @@ export default function ShortcutSettingsModal({
                       </div>
                     );
                   })}
-                </TooltipGroup>
+                </div>
               </div>
             </div>
           </div>
