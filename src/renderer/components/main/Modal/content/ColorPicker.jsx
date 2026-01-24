@@ -1,5 +1,6 @@
 import React, {
   useCallback,
+  useMemo,
   useEffect,
   useRef,
   useState,
@@ -51,6 +52,11 @@ export default function ColorPickerWrapper({
   solidOnly = false,
   stateMode = undefined,
   onStateModeChange = undefined,
+  opacityPercent = undefined,
+  onOpacityPercentChange = undefined,
+  onOpacityPercentChangeComplete = undefined,
+  opacityPercentLabel = undefined,
+  opacityPercentMixed = false,
   interactiveRefs = [],
   position = undefined,
   offsetY = -80,
@@ -536,6 +542,60 @@ export default function ColorPickerWrapper({
   const showStateSwitch =
     stateMode != null && typeof onStateModeChange === "function";
 
+  const resolvedOpacityPercent = useMemo(() => {
+    if (typeof opacityPercent === "number" && Number.isFinite(opacityPercent)) {
+      const v = opacityPercent;
+      return { solid: v, top: v, bottom: v };
+    }
+    if (opacityPercent && typeof opacityPercent === "object") {
+      const top = Number(opacityPercent.top);
+      const bottom = Number(opacityPercent.bottom);
+      if (Number.isFinite(top) && Number.isFinite(bottom)) {
+        return { solid: top, top, bottom };
+      }
+    }
+    return null;
+  }, [opacityPercent]);
+
+  const showOpacityControl =
+    resolvedOpacityPercent !== null &&
+    typeof onOpacityPercentChange === "function";
+
+  const resolvedOpacitySolid = resolvedOpacityPercent?.solid;
+  const resolvedOpacityTop = resolvedOpacityPercent?.top;
+  const resolvedOpacityBottom = resolvedOpacityPercent?.bottom;
+
+  const [opacityPercentSolidInput, setOpacityPercentSolidInput] = useState(() =>
+    showOpacityControl ? String(Math.round(resolvedOpacitySolid)) : ""
+  );
+  const [opacityPercentTopInput, setOpacityPercentTopInput] = useState(() =>
+    showOpacityControl ? String(Math.round(resolvedOpacityTop)) : ""
+  );
+  const [opacityPercentBottomInput, setOpacityPercentBottomInput] = useState(
+    () => (showOpacityControl ? String(Math.round(resolvedOpacityBottom)) : "")
+  );
+  const [opacityPercentFocusTarget, setOpacityPercentFocusTarget] = useState(
+    /** @type {null | "solid" | "top" | "bottom"} */ (null)
+  );
+
+  useEffect(() => {
+    if (!showOpacityControl) return;
+    if (opacityPercentFocusTarget === "solid") return;
+    setOpacityPercentSolidInput(String(Math.round(resolvedOpacitySolid)));
+  }, [opacityPercentFocusTarget, resolvedOpacitySolid, showOpacityControl]);
+
+  useEffect(() => {
+    if (!showOpacityControl) return;
+    if (opacityPercentFocusTarget === "top") return;
+    setOpacityPercentTopInput(String(Math.round(resolvedOpacityTop)));
+  }, [opacityPercentFocusTarget, resolvedOpacityTop, showOpacityControl]);
+
+  useEffect(() => {
+    if (!showOpacityControl) return;
+    if (opacityPercentFocusTarget === "bottom") return;
+    setOpacityPercentBottomInput(String(Math.round(resolvedOpacityBottom)));
+  }, [opacityPercentFocusTarget, resolvedOpacityBottom, showOpacityControl]);
+
   // panelElement가 있을 때 고정 위치 계산 (패널 기준)
   useLayoutEffect(() => {
     if (!open) {
@@ -552,7 +612,10 @@ export default function ColorPickerWrapper({
         const pickerEl = pickerContainerRef.current;
         const pickerWidth = pickerEl ? pickerEl.offsetWidth : 164;
         // 솔리드 모드 높이를 기준으로 함
-        const solidPickerHeight = (solidOnly ? 280 : 264) + (showStateSwitch ? 31 : 0); // 상태 탭(대기/입력) 포함
+        const solidPickerHeight =
+          (solidOnly ? 280 : 264) +
+          (showStateSwitch ? 31 : 0) +
+          (showOpacityControl ? 36 : 0); // 상태 탭(대기/입력) + 추가 투명도 컨트롤 포함
         const actualPickerHeight = pickerEl
           ? pickerEl.offsetHeight
           : solidPickerHeight;
@@ -587,10 +650,125 @@ export default function ColorPickerWrapper({
     } else {
       setFixedPosition(null);
     }
-  }, [open, panelElement, solidOnly, mode, showStateSwitch]); // mode/상태탭 변경 시에도 재계산 (높이가 변경됨)
+  }, [open, panelElement, solidOnly, mode, showStateSwitch, showOpacityControl]); // mode/상태탭/추가컨트롤 변경 시에도 재계산 (높이가 변경됨)
 
   // fixedPosition이 있으면 offsetY를 무시 (이미 정확한 좌표가 계산됨)
   const effectiveOffsetY = fixedPosition ? 0 : offsetY;
+
+  const clampOpacityPercent = useCallback((value) => {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return 0;
+    return Math.min(Math.max(Math.round(num), 0), 100);
+  }, []);
+
+  const handleOpacityPercentSolidChange = useCallback(
+    (raw) => {
+      if (!showOpacityControl) return;
+      const sanitized = String(raw ?? "").replace(/[^0-9]/g, "").slice(0, 3);
+      setOpacityPercentSolidInput(sanitized);
+
+      if (sanitized === "") return;
+      const num = clampOpacityPercent(sanitized);
+      onOpacityPercentChange?.(num, "solid");
+    },
+    [clampOpacityPercent, onOpacityPercentChange, showOpacityControl]
+  );
+
+  const handleOpacityPercentTopChange = useCallback(
+    (raw) => {
+      if (!showOpacityControl) return;
+      const sanitized = String(raw ?? "").replace(/[^0-9]/g, "").slice(0, 3);
+      setOpacityPercentTopInput(sanitized);
+
+      if (sanitized === "") return;
+      const num = clampOpacityPercent(sanitized);
+      onOpacityPercentChange?.(num, "top");
+    },
+    [clampOpacityPercent, onOpacityPercentChange, showOpacityControl]
+  );
+
+  const handleOpacityPercentBottomChange = useCallback(
+    (raw) => {
+      if (!showOpacityControl) return;
+      const sanitized = String(raw ?? "").replace(/[^0-9]/g, "").slice(0, 3);
+      setOpacityPercentBottomInput(sanitized);
+
+      if (sanitized === "") return;
+      const num = clampOpacityPercent(sanitized);
+      onOpacityPercentChange?.(num, "bottom");
+    },
+    [clampOpacityPercent, onOpacityPercentChange, showOpacityControl]
+  );
+
+  const commitOpacityPercentSolid = useCallback(() => {
+    if (!showOpacityControl) return;
+    const clamped = clampOpacityPercent(opacityPercentSolidInput);
+    setOpacityPercentSolidInput(String(clamped));
+    onOpacityPercentChange?.(clamped, "solid");
+    onOpacityPercentChangeComplete?.(clamped, "solid");
+  }, [
+    clampOpacityPercent,
+    onOpacityPercentChange,
+    onOpacityPercentChangeComplete,
+    opacityPercentSolidInput,
+    showOpacityControl,
+  ]);
+
+  const commitOpacityPercentTop = useCallback(() => {
+    if (!showOpacityControl) return;
+    const clamped = clampOpacityPercent(opacityPercentTopInput);
+    setOpacityPercentTopInput(String(clamped));
+    onOpacityPercentChange?.(clamped, "top");
+    onOpacityPercentChangeComplete?.(clamped, "top");
+  }, [
+    clampOpacityPercent,
+    onOpacityPercentChange,
+    onOpacityPercentChangeComplete,
+    opacityPercentTopInput,
+    showOpacityControl,
+  ]);
+
+  const commitOpacityPercentBottom = useCallback(() => {
+    if (!showOpacityControl) return;
+    const clamped = clampOpacityPercent(opacityPercentBottomInput);
+    setOpacityPercentBottomInput(String(clamped));
+    onOpacityPercentChange?.(clamped, "bottom");
+    onOpacityPercentChangeComplete?.(clamped, "bottom");
+  }, [
+    clampOpacityPercent,
+    onOpacityPercentChange,
+    onOpacityPercentChangeComplete,
+    opacityPercentBottomInput,
+    showOpacityControl,
+  ]);
+
+  const opacitySliderTarget = useMemo(() => {
+    if (solidOnly || mode === MODES.solid) return "solid";
+    return gradientSelected;
+  }, [gradientSelected, mode, solidOnly]);
+
+  const opacitySliderPercent = useMemo(() => {
+    if (!showOpacityControl) return 100;
+    if (opacitySliderTarget === "solid") return resolvedOpacitySolid ?? 100;
+    if (opacitySliderTarget === "top") return resolvedOpacityTop ?? 100;
+    return resolvedOpacityBottom ?? 100;
+  }, [
+    opacitySliderTarget,
+    resolvedOpacityBottom,
+    resolvedOpacitySolid,
+    resolvedOpacityTop,
+    showOpacityControl,
+  ]);
+
+  const opacitySliderColor = useMemo(() => {
+    if (!showOpacityControl) return selectedColor;
+    const a = clampOpacityPercent(opacitySliderPercent) / 100;
+    return {
+      ...selectedColor,
+      rgb: { ...selectedColor.rgb, a },
+      hsv: { ...selectedColor.hsv, a },
+    };
+  }, [clampOpacityPercent, opacitySliderPercent, selectedColor, showOpacityControl]);
 
   return (
     <FloatingPopup
@@ -639,18 +817,84 @@ export default function ColorPickerWrapper({
             }}
           />
         )}
+
+        {showOpacityControl && (
+          <Alpha
+            color={opacitySliderColor}
+            onChange={(c) => {
+              const target = opacitySliderTarget;
+              const next = clampOpacityPercent((c?.rgb?.a ?? 1) * 100);
+              if (
+                opacityPercentFocusTarget === null ||
+                opacityPercentFocusTarget !== target
+              ) {
+                if (target === "solid") setOpacityPercentSolidInput(String(next));
+                else if (target === "top") setOpacityPercentTopInput(String(next));
+                else setOpacityPercentBottomInput(String(next));
+              }
+              onOpacityPercentChange?.(next, target);
+            }}
+            onChangeComplete={(c) => {
+              const target = opacitySliderTarget;
+              const next = clampOpacityPercent((c?.rgb?.a ?? 1) * 100);
+              if (target === "solid") setOpacityPercentSolidInput(String(next));
+              else if (target === "top") setOpacityPercentTopInput(String(next));
+              else setOpacityPercentBottomInput(String(next));
+              onOpacityPercentChange?.(next, target);
+              onOpacityPercentChangeComplete?.(next, target);
+            }}
+          />
+        )}
+
         {solidOnly || mode === MODES.solid ? (
           <Input
             value={inputValue}
             onValueChange={handleInputChange}
             onValueCommit={commitSolidInput}
             previewColor={selectedColor.hex}
-            alpha={solidOnly ? alpha : undefined}
-            alphaPercentValue={alphaPercentInput}
-            alphaPercentFocused={isAlphaPercentFocused}
-            onAlphaPercentChange={handleAlphaPercentChange}
-            onAlphaPercentCommit={commitAlphaPercent}
-            onAlphaPercentFocusChange={setIsAlphaPercentFocused}
+            alpha={
+              solidOnly
+                ? alpha
+                : showOpacityControl
+                ? clampOpacityPercent(opacityPercent) / 100
+                : undefined
+            }
+            alphaPercentValue={
+              solidOnly
+                ? alphaPercentInput
+                : showOpacityControl
+                ? opacityPercentSolidInput
+                : undefined
+            }
+            alphaPercentFocused={
+              solidOnly
+                ? isAlphaPercentFocused
+                : showOpacityControl
+                ? opacityPercentFocusTarget === "solid"
+                : false
+            }
+            onAlphaPercentChange={
+              solidOnly
+                ? handleAlphaPercentChange
+                : showOpacityControl
+                ? handleOpacityPercentSolidChange
+                : undefined
+            }
+            onAlphaPercentCommit={
+              solidOnly
+                ? commitAlphaPercent
+                : showOpacityControl
+                ? commitOpacityPercentSolid
+                : undefined
+            }
+            onAlphaPercentFocusChange={
+              solidOnly
+                ? setIsAlphaPercentFocused
+                : showOpacityControl
+                ? (focused) =>
+                    setOpacityPercentFocusTarget(focused ? "solid" : null)
+                : undefined
+            }
           />
         ) : (
           <GradientInputs
@@ -668,6 +912,34 @@ export default function ColorPickerWrapper({
             }}
             selected={gradientSelected}
             onSelect={(s) => selectGradient(s)}
+            rightTopValue={showOpacityControl ? opacityPercentTopInput : undefined}
+            rightBottomValue={
+              showOpacityControl ? opacityPercentBottomInput : undefined
+            }
+            rightFocusTarget={showOpacityControl ? opacityPercentFocusTarget : null}
+            onRightValueChange={
+              showOpacityControl
+                ? (target, raw) => {
+                    if (target === "top") handleOpacityPercentTopChange(raw);
+                    else handleOpacityPercentBottomChange(raw);
+                  }
+                : undefined
+            }
+            onRightCommit={
+              showOpacityControl
+                ? (target) => {
+                    if (target === "top") commitOpacityPercentTop();
+                    else commitOpacityPercentBottom();
+                  }
+                : undefined
+            }
+            onRightFocusChange={
+              showOpacityControl
+                ? (target, focused) =>
+                    setOpacityPercentFocusTarget(focused ? target : null)
+                : undefined
+            }
+            rightTitle={opacityPercentLabel || "Opacity"}
           />
         )}
 
@@ -956,6 +1228,13 @@ function GradientInputs({
   onBottomCommit,
   selected,
   onSelect,
+  rightTopValue,
+  rightBottomValue,
+  rightFocusTarget,
+  onRightValueChange,
+  onRightCommit,
+  onRightFocusChange,
+  rightTitle,
 }) {
   return (
     <div className="flex flex-col gap-[8px]">
@@ -966,6 +1245,12 @@ function GradientInputs({
         onCommit={onTopCommit}
         selected={selected === "top"}
         onSelect={() => onSelect?.("top")}
+        rightValue={rightTopValue}
+        rightFocused={rightFocusTarget === "top"}
+        onRightValueChange={(raw) => onRightValueChange?.("top", raw)}
+        onRightCommit={() => onRightCommit?.("top")}
+        onRightFocusChange={(focused) => onRightFocusChange?.("top", focused)}
+        rightTitle={rightTitle}
       />
       <GradientInput
         label="Bottom"
@@ -974,6 +1259,14 @@ function GradientInputs({
         onCommit={onBottomCommit}
         selected={selected === "bottom"}
         onSelect={() => onSelect?.("bottom")}
+        rightValue={rightBottomValue}
+        rightFocused={rightFocusTarget === "bottom"}
+        onRightValueChange={(raw) => onRightValueChange?.("bottom", raw)}
+        onRightCommit={() => onRightCommit?.("bottom")}
+        onRightFocusChange={(focused) =>
+          onRightFocusChange?.("bottom", focused)
+        }
+        rightTitle={rightTitle}
       />
     </div>
   );
@@ -986,39 +1279,71 @@ function GradientInput({
   onCommit,
   selected,
   onSelect,
+  rightValue,
+  rightFocused,
+  onRightValueChange,
+  onRightCommit,
+  onRightFocusChange,
+  rightTitle,
 }) {
   return (
-    <div className="relative w-full">
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={() => onSelect?.()}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") onSelect?.();
-        }}
-        className="absolute left-[6px] top-[7px] w-[11px] h-[11px] rounded-[2px] border border-[#3A3943]"
-        style={{
-          background: `#${value}` || "#561ecb",
-        }}
-      />
-      <input
-        type="text"
-        value={value}
-        onChange={(event) => onChange?.(event.target.value)}
-        onFocus={() => onSelect?.()}
-        onBlur={onCommit}
-        onKeyDown={(event) => {
-          if (event.key === "Enter") {
-            onCommit?.();
-          }
-        }}
-        placeholder={label}
-        className={`pl-[23px] text-left w-full h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] text-style-4 text-[#DBDEE8] uppercase pt-[1px] leading-[23px] ${
-          selected
-            ? "border-[#459BF8]"
-            : "border-[#3A3943] focus:border-[#459BF8]"
-        }`}
-      />
+    <div className="flex items-center gap-[6px] w-full">
+      <div className="relative flex-1 min-w-0">
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => onSelect?.()}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") onSelect?.();
+          }}
+          className="absolute left-[6px] top-[7px] w-[11px] h-[11px] rounded-[2px] border border-[#3A3943]"
+          style={{
+            background: `#${value}` || "#561ecb",
+          }}
+        />
+        <input
+          type="text"
+          value={value}
+          onChange={(event) => onChange?.(event.target.value)}
+          onFocus={() => onSelect?.()}
+          onBlur={onCommit}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              onCommit?.();
+            }
+          }}
+          placeholder={label}
+          className={`pl-[23px] text-left w-full h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] text-style-4 text-[#DBDEE8] uppercase pt-[1px] leading-[23px] ${
+            selected
+              ? "border-[#459BF8]"
+              : "border-[#3A3943] focus:border-[#459BF8]"
+          }`}
+        />
+      </div>
+      {rightValue !== undefined && (
+        <div className="w-[36px] flex-shrink-0">
+          <input
+            type="text"
+            inputMode="numeric"
+            value={rightValue ?? ""}
+            onChange={(e) => onRightValueChange?.(e.target.value)}
+            onFocus={() => onRightFocusChange?.(true)}
+            onBlur={() => {
+              onRightFocusChange?.(false);
+              onRightCommit?.();
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.currentTarget.blur();
+              }
+            }}
+            className={`px-[6px] text-center w-full h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943] focus:border-[#459BF8] text-style-4 text-[#DBDEE8] pt-[1px] leading-[23px] ${
+              rightFocused ? "border-[#459BF8]" : ""
+            }`}
+            title={rightTitle}
+          />
+        </div>
+      )}
     </div>
   );
 }

@@ -194,6 +194,9 @@ export const keyPositionSchema = z.object({
   count: z.number().int().nonnegative(),
   noteColor: noteColorSchema,
   noteOpacity: z.number().int().min(0).max(100),
+  // 그라디언트용 노트 투명도(Top/Bottom). 없으면 noteOpacity를 사용.
+  noteOpacityTop: z.number().int().min(0).max(100).optional(),
+  noteOpacityBottom: z.number().int().min(0).max(100).optional(),
   // 노트 모서리 반경 (키별 설정, 없으면 기본값 사용)
   noteBorderRadius: z
     .number()
@@ -207,6 +210,9 @@ export const keyPositionSchema = z.object({
   noteGlowEnabled: z.boolean().optional().default(false),
   noteGlowSize: z.number().int().min(0).max(50).optional().default(20),
   noteGlowOpacity: z.number().int().min(0).max(100).optional().default(70),
+  // 그라디언트용 글로우 투명도(Top/Bottom). 없으면 noteGlowOpacity를 사용.
+  noteGlowOpacityTop: z.number().int().min(0).max(100).optional(),
+  noteGlowOpacityBottom: z.number().int().min(0).max(100).optional(),
   noteGlowColor: noteColorSchema.optional(),
   noteAutoYCorrection: z.boolean().optional().default(true),
   className: z.string().optional().or(z.literal("")),

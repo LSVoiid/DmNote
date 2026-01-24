@@ -86,6 +86,39 @@ const NoteTabContent: React.FC<NoteTabContentProps> = ({
     return typeof glowColor === "string" ? glowColor : DEFAULT_NOTE_COLOR;
   });
 
+  const [localNoteOpacity, setLocalNoteOpacity] = useState<number>(() =>
+    typeof keyPosition.noteOpacity === "number" ? keyPosition.noteOpacity : 80
+  );
+  const [localNoteOpacityTop, setLocalNoteOpacityTop] = useState<number>(() => {
+    const base = typeof keyPosition.noteOpacity === "number" ? keyPosition.noteOpacity : 80;
+    return typeof keyPosition.noteOpacityTop === "number" ? keyPosition.noteOpacityTop : base;
+  });
+  const [localNoteOpacityBottom, setLocalNoteOpacityBottom] = useState<number>(() => {
+    const base = typeof keyPosition.noteOpacity === "number" ? keyPosition.noteOpacity : 80;
+    return typeof keyPosition.noteOpacityBottom === "number"
+      ? keyPosition.noteOpacityBottom
+      : base;
+  });
+  const [localGlowOpacity, setLocalGlowOpacity] = useState<number>(() =>
+    typeof keyPosition.noteGlowOpacity === "number"
+      ? keyPosition.noteGlowOpacity
+      : 70
+  );
+  const [localGlowOpacityTop, setLocalGlowOpacityTop] = useState<number>(() => {
+    const base =
+      typeof keyPosition.noteGlowOpacity === "number" ? keyPosition.noteGlowOpacity : 70;
+    return typeof keyPosition.noteGlowOpacityTop === "number"
+      ? keyPosition.noteGlowOpacityTop
+      : base;
+  });
+  const [localGlowOpacityBottom, setLocalGlowOpacityBottom] = useState<number>(() => {
+    const base =
+      typeof keyPosition.noteGlowOpacity === "number" ? keyPosition.noteGlowOpacity : 70;
+    return typeof keyPosition.noteGlowOpacityBottom === "number"
+      ? keyPosition.noteGlowOpacityBottom
+      : base;
+  });
+
   // keyPosition 변경 시 내부 상태 동기화 (피커가 닫혀있을 때만)
   useEffect(() => {
     // 피커가 열려있으면 외부 변경을 무시 (드래그 중 충돌 방지)
@@ -120,6 +153,40 @@ const NoteTabContent: React.FC<NoteTabContentProps> = ({
       setGlowGradientBottom(color);
     }
   }, [keyPosition.noteGlowColor, keyPosition.noteColor, pickerFor]);
+
+  useEffect(() => {
+    if (pickerFor === "note") return;
+    const base = typeof keyPosition.noteOpacity === "number" ? keyPosition.noteOpacity : 80;
+    setLocalNoteOpacity(base);
+    setLocalNoteOpacityTop(
+      typeof keyPosition.noteOpacityTop === "number" ? keyPosition.noteOpacityTop : base
+    );
+    setLocalNoteOpacityBottom(
+      typeof keyPosition.noteOpacityBottom === "number" ? keyPosition.noteOpacityBottom : base
+    );
+  }, [keyPosition.noteOpacity, keyPosition.noteOpacityTop, keyPosition.noteOpacityBottom, pickerFor]);
+
+  useEffect(() => {
+    if (pickerFor === "glow") return;
+    const base =
+      typeof keyPosition.noteGlowOpacity === "number" ? keyPosition.noteGlowOpacity : 70;
+    setLocalGlowOpacity(base);
+    setLocalGlowOpacityTop(
+      typeof keyPosition.noteGlowOpacityTop === "number"
+        ? keyPosition.noteGlowOpacityTop
+        : base
+    );
+    setLocalGlowOpacityBottom(
+      typeof keyPosition.noteGlowOpacityBottom === "number"
+        ? keyPosition.noteGlowOpacityBottom
+        : base
+    );
+  }, [
+    keyPosition.noteGlowOpacity,
+    keyPosition.noteGlowOpacityTop,
+    keyPosition.noteGlowOpacityBottom,
+    pickerFor,
+  ]);
 
   const interactiveRefs = useMemo(
     () => [noteColorButtonRef, glowColorButtonRef],
@@ -283,27 +350,14 @@ const NoteTabContent: React.FC<NoteTabContentProps> = ({
       <PropertyRow label={t("keySetting.noteColor") || "노트 색상"}>
         <button
           ref={noteColorButtonRef}
+          type="button"
           onClick={() => handlePickerToggle("note")}
-          className={`relative w-[80px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] ${
-            pickerFor === "note" ? "border-[#459BF8]" : "border-[#3A3943]"
-          } flex items-center justify-center text-[#DBDEE8] text-style-2`}
-        >
-          <div
-            className="absolute left-[6px] top-[4.5px] w-[11px] h-[11px] rounded-[2px] border border-[#3A3943]"
-            style={getNoteColorDisplay().style}
-          />
-          <span className="ml-[16px] text-left text-style-4">{getNoteColorDisplay().label}</span>
-        </button>
-      </PropertyRow>
-
-      {/* 노트 투명도 */}
-      <PropertyRow label={t("keySetting.noteOpacity") || "노트 투명도"}>
-        <NumberInput
-          value={keyPosition.noteOpacity ?? 80}
-          onChange={(value) => handleStyleChangeComplete("noteOpacity", value)}
-          suffix="%"
-          min={0}
-          max={100}
+          className={`w-[23px] h-[23px] rounded-[7px] border-[1px] overflow-hidden cursor-pointer transition-colors flex-shrink-0 ${
+            pickerFor === "note"
+              ? "border-[#459BF8]"
+              : "border-[#3A3943] hover:border-[#505058]"
+          }`}
+          style={getNoteColorDisplay().style}
         />
       </PropertyRow>
 
@@ -338,17 +392,15 @@ const NoteTabContent: React.FC<NoteTabContentProps> = ({
       <PropertyRow label={t("keySetting.noteGlowColor") || "글로우 색상"}>
         <button
           ref={glowColorButtonRef}
+          type="button"
           onClick={() => handlePickerToggle("glow")}
-          className={`relative w-[80px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] ${
-            pickerFor === "glow" ? "border-[#459BF8]" : "border-[#3A3943]"
-          } flex items-center justify-center text-[#DBDEE8] text-style-2`}
-        >
-          <div
-            className="absolute left-[6px] top-[4.5px] w-[11px] h-[11px] rounded-[2px] border border-[#3A3943]"
-            style={getGlowColorDisplay().style}
-          />
-          <span className="ml-[16px] text-left text-style-4">{getGlowColorDisplay().label}</span>
-        </button>
+          className={`w-[23px] h-[23px] rounded-[7px] border-[1px] overflow-hidden cursor-pointer transition-colors flex-shrink-0 ${
+            pickerFor === "glow"
+              ? "border-[#459BF8]"
+              : "border-[#3A3943] hover:border-[#505058]"
+          }`}
+          style={getGlowColorDisplay().style}
+        />
       </PropertyRow>
 
       <PropertyRow label={t("keySetting.noteGlowSize") || "글로우 크기"}>
@@ -361,24 +413,11 @@ const NoteTabContent: React.FC<NoteTabContentProps> = ({
         />
       </PropertyRow>
 
-      <PropertyRow label={t("keySetting.noteGlowOpacity") || "글로우 투명도"}>
-        <NumberInput
-          value={keyPosition.noteGlowOpacity ?? 70}
-          onChange={(value) =>
-            handleStyleChangeComplete("noteGlowOpacity", value)
-          }
-          suffix="%"
-          min={0}
-          max={100}
-        />
-      </PropertyRow>
-
       {/* 통합 ColorPicker - 단일 인스턴스로 깜빡임 없이 전환 */}
       {pickerFor && (
         <ColorPicker
-          key={pickerFor}
           open={pickerOpen}
-          referenceRef={noteColorButtonRef}
+          referenceRef={pickerFor === "note" ? noteColorButtonRef : glowColorButtonRef}
           panelElement={panelElement}
           color={pickerFor === "note" ? notePickerColor : glowPickerColor}
           onColorChange={(c: any) => handleColorChange(pickerFor, c)}
@@ -386,6 +425,114 @@ const NoteTabContent: React.FC<NoteTabContentProps> = ({
           onClose={() => setPickerFor(null)}
           interactiveRefs={interactiveRefs}
           solidOnly={false}
+          opacityPercent={
+            pickerFor === "note"
+              ? noteColorMode === COLOR_MODES.gradient
+                ? { top: localNoteOpacityTop, bottom: localNoteOpacityBottom }
+                : localNoteOpacity
+              : glowColorMode === COLOR_MODES.gradient
+              ? { top: localGlowOpacityTop, bottom: localGlowOpacityBottom }
+              : localGlowOpacity
+          }
+          onOpacityPercentChange={(value: number, target: "solid" | "top" | "bottom") => {
+            if (pickerFor === "note") {
+              if (target === "solid") {
+                setLocalNoteOpacity(value);
+                setLocalNoteOpacityTop(value);
+                setLocalNoteOpacityBottom(value);
+                return;
+              }
+              if (target === "top") {
+                setLocalNoteOpacityTop(value);
+                setLocalNoteOpacity(Math.round((value + localNoteOpacityBottom) / 2));
+                return;
+              }
+              setLocalNoteOpacityBottom(value);
+              setLocalNoteOpacity(Math.round((localNoteOpacityTop + value) / 2));
+              return;
+            }
+
+            if (target === "solid") {
+              setLocalGlowOpacity(value);
+              setLocalGlowOpacityTop(value);
+              setLocalGlowOpacityBottom(value);
+              return;
+            }
+            if (target === "top") {
+              setLocalGlowOpacityTop(value);
+              setLocalGlowOpacity(Math.round((value + localGlowOpacityBottom) / 2));
+              return;
+            }
+            setLocalGlowOpacityBottom(value);
+            setLocalGlowOpacity(Math.round((localGlowOpacityTop + value) / 2));
+          }}
+          onOpacityPercentChangeComplete={(value: number, target: "solid" | "top" | "bottom") => {
+            if (pickerFor === "note") {
+              if (target === "solid") {
+                setLocalNoteOpacity(value);
+                setLocalNoteOpacityTop(value);
+                setLocalNoteOpacityBottom(value);
+                const payload = {
+                  noteOpacity: value,
+                  noteOpacityTop: value,
+                  noteOpacityBottom: value,
+                };
+                onKeyPreview?.(keyIndex, payload);
+                onKeyUpdate({ index: keyIndex, ...payload });
+                return;
+              }
+
+              const nextTop = target === "top" ? value : localNoteOpacityTop;
+              const nextBottom = target === "bottom" ? value : localNoteOpacityBottom;
+              const nextBase = Math.round((nextTop + nextBottom) / 2);
+              setLocalNoteOpacity(nextBase);
+              if (target === "top") setLocalNoteOpacityTop(value);
+              else setLocalNoteOpacityBottom(value);
+
+              const payload = {
+                noteOpacity: nextBase,
+                noteOpacityTop: nextTop,
+                noteOpacityBottom: nextBottom,
+              };
+              onKeyPreview?.(keyIndex, payload);
+              onKeyUpdate({ index: keyIndex, ...payload });
+              return;
+            }
+
+            if (target === "solid") {
+              setLocalGlowOpacity(value);
+              setLocalGlowOpacityTop(value);
+              setLocalGlowOpacityBottom(value);
+              const payload = {
+                noteGlowOpacity: value,
+                noteGlowOpacityTop: value,
+                noteGlowOpacityBottom: value,
+              };
+              onKeyPreview?.(keyIndex, payload);
+              onKeyUpdate({ index: keyIndex, ...payload });
+              return;
+            }
+
+            const nextTop = target === "top" ? value : localGlowOpacityTop;
+            const nextBottom = target === "bottom" ? value : localGlowOpacityBottom;
+            const nextBase = Math.round((nextTop + nextBottom) / 2);
+            setLocalGlowOpacity(nextBase);
+            if (target === "top") setLocalGlowOpacityTop(value);
+            else setLocalGlowOpacityBottom(value);
+
+            const payload = {
+              noteGlowOpacity: nextBase,
+              noteGlowOpacityTop: nextTop,
+              noteGlowOpacityBottom: nextBottom,
+            };
+            onKeyPreview?.(keyIndex, payload);
+            onKeyUpdate({ index: keyIndex, ...payload });
+          }}
+          opacityPercentLabel={
+            pickerFor === "note"
+              ? t("keySetting.noteOpacity") || "노트 투명도"
+              : t("keySetting.noteGlowOpacity") || "글로우 투명도"
+          }
         />
       )}
     </>

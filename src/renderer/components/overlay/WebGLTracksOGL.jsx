@@ -10,7 +10,7 @@ const vertexShader = `
   attribute vec4 noteColorTop;
   attribute vec4 noteColorBottom;
   attribute float noteRadius;
-  attribute vec2 noteGlow; // x: glow size, y: glow opacity (0-1)
+  attribute vec3 noteGlow; // x: glow size, y: glow opacity top (0-1), z: glow opacity bottom (0-1)
   attribute vec3 noteGlowColorTop;
   attribute vec3 noteGlowColorBottom;
   attribute float trackIndex;
@@ -29,7 +29,7 @@ const vertexShader = `
   varying vec2 vHalfSize;
   varying float vRadius;
   varying float vGlowSize;
-  varying float vGlowOpacity;
+  varying vec2 vGlowOpacity;
   varying vec3 vGlowColorTop;
   varying vec3 vGlowColorBottom;
   varying float vTrackTopY;
@@ -55,7 +55,8 @@ const vertexShader = `
     bool isActive = endTime == 0.0;
     float rawNoteLength = 0.0;
     float glowSize = max(noteGlow.x, 0.0);
-    float glowOpacity = clamp(noteGlow.y, 0.0, 1.0);
+    float glowOpacityTop = clamp(noteGlow.y, 0.0, 1.0);
+    float glowOpacityBottom = clamp(noteGlow.z, 0.0, 1.0);
 
     if (isActive) {
       rawNoteLength = max(0.0, (uTime - startTime) * uFlowSpeed / 1000.0);
@@ -122,7 +123,7 @@ const vertexShader = `
     vLocalPos = vec2(position.x * expandedWidth, position.y * expandedLength);
     vRadius = noteRadius;
     vGlowSize = glowSize;
-    vGlowOpacity = glowOpacity;
+    vGlowOpacity = vec2(glowOpacityTop, glowOpacityBottom);
     vGlowColorTop = noteGlowColorTop;
     vGlowColorBottom = noteGlowColorBottom;
     vTrackTopY = trackTopY;
@@ -146,7 +147,7 @@ const fragmentShader = `
   varying vec2 vHalfSize;
   varying float vRadius;
   varying float vGlowSize;
-  varying float vGlowOpacity;
+  varying vec2 vGlowOpacity;
   varying vec3 vGlowColorTop;
   varying vec3 vGlowColorBottom;
   varying float vTrackTopY;
@@ -180,6 +181,7 @@ const fragmentShader = `
 
     vec4 baseColor = mix(vColorTop, vColorBottom, gradientRatio);
     vec3 glowColor = mix(vGlowColorTop, vGlowColorBottom, gradientRatio);
+    float glowOpacity = mix(vGlowOpacity.x, vGlowOpacity.y, gradientRatio);
     float fadeZone = 50.0;
     float fadeRatio = fadeZone / trackHeight;
 
@@ -195,7 +197,7 @@ const fragmentShader = `
       float outside = max(dist, 0.0);
       float range = max(vGlowSize, 0.0001);
       float glowFalloff = clamp(1.0 - outside / range, 0.0, 1.0);
-      glowAlpha = baseColor.a * vGlowOpacity * pow(glowFalloff, 2.0);
+      glowAlpha = baseColor.a * glowOpacity * pow(glowFalloff, 2.0);
     }
 
     float fadeMask = 1.0;
@@ -328,7 +330,7 @@ export const WebGLTracksOGL = memo(
       });
       geometry.addAttribute("noteGlow", {
         instanced: 1,
-        size: 2,
+        size: 3,
         data: noteBuffer.noteGlow,
       });
       geometry.addAttribute("noteGlowColorTop", {

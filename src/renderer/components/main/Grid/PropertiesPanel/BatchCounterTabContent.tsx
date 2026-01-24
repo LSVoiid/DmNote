@@ -9,20 +9,17 @@ interface BatchCounterTabContentProps {
   batchCounterSettings: KeyCounterSettings;
   // 핸들러
   handleBatchCounterUpdate: (updates: Partial<KeyCounterSettings>) => void;
-  // 컬러 디스플레이
-  getCounterColorDisplay: (
-    key: "fillIdle" | "fillActive" | "strokeIdle" | "strokeActive",
-  ) => string;
+  // 컬러 디스플레이 (현재 상태 기준)
+  colorState: "idle" | "active";
+  getCounterColorDisplay: (target: "fill" | "stroke") => string;
   // 컬러 피커 토글
-  onFillIdlePickerToggle: () => void;
-  onFillActivePickerToggle: () => void;
-  onStrokeIdlePickerToggle: () => void;
-  onStrokeActivePickerToggle: () => void;
+  onFillPickerToggle: () => void;
+  onStrokePickerToggle: () => void;
   // Refs
-  batchCounterFillIdleButtonRef: React.RefObject<HTMLButtonElement>;
-  batchCounterFillActiveButtonRef: React.RefObject<HTMLButtonElement>;
-  batchCounterStrokeIdleButtonRef: React.RefObject<HTMLButtonElement>;
-  batchCounterStrokeActiveButtonRef: React.RefObject<HTMLButtonElement>;
+  batchCounterFillButtonRef: React.RefObject<HTMLButtonElement>;
+  batchCounterStrokeButtonRef: React.RefObject<HTMLButtonElement>;
+  isFillPickerOpen: boolean;
+  isStrokePickerOpen: boolean;
   // 번역
   t: (key: string) => string;
 }
@@ -30,17 +27,23 @@ interface BatchCounterTabContentProps {
 const BatchCounterTabContent: React.FC<BatchCounterTabContentProps> = ({
   batchCounterSettings,
   handleBatchCounterUpdate,
+  colorState,
   getCounterColorDisplay,
-  onFillIdlePickerToggle,
-  onFillActivePickerToggle,
-  onStrokeIdlePickerToggle,
-  onStrokeActivePickerToggle,
-  batchCounterFillIdleButtonRef,
-  batchCounterFillActiveButtonRef,
-  batchCounterStrokeIdleButtonRef,
-  batchCounterStrokeActiveButtonRef,
+  onFillPickerToggle,
+  onStrokePickerToggle,
+  batchCounterFillButtonRef,
+  batchCounterStrokeButtonRef,
+  isFillPickerOpen,
+  isStrokePickerOpen,
   t,
 }) => {
+  const getDisplayColor = (color: string): string => {
+    if (!color) return "#ffffff";
+    if (color.startsWith("rgba") || color.startsWith("rgb")) return color;
+    if (color.startsWith("#")) return color;
+    return "#ffffff";
+  };
+
   return (
     <>
       {/* 카운터 사용 */}
@@ -122,74 +125,34 @@ const BatchCounterTabContent: React.FC<BatchCounterTabContentProps> = ({
 
       {/* 채우기 색상 */}
       <PropertyRow label={t("counterSetting.fill") || "채우기"}>
-        <div className="flex items-center gap-[4px]">
-          <button
-            ref={batchCounterFillIdleButtonRef}
-            onClick={onFillIdlePickerToggle}
-            className="relative px-[7px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943] flex items-center justify-center text-[#DBDEE8] text-style-4"
-          >
-            <div
-              className="absolute left-[6px] top-[4.5px] w-[11px] h-[11px] rounded-[2px] border border-[#3A3943]"
-              style={{
-                backgroundColor: getCounterColorDisplay("fillIdle"),
-              }}
-            />
-            <span className="ml-[16px] text-left">
-              {t("counterSetting.idle") || "대기"}
-            </span>
-          </button>
-          <button
-            ref={batchCounterFillActiveButtonRef}
-            onClick={onFillActivePickerToggle}
-            className="relative px-[7px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943] flex items-center justify-center text-[#DBDEE8] text-style-4"
-          >
-            <div
-              className="absolute left-[6px] top-[4.5px] w-[11px] h-[11px] rounded-[2px] border border-[#3A3943]"
-              style={{
-                backgroundColor: getCounterColorDisplay("fillActive"),
-              }}
-            />
-            <span className="ml-[16px] text-left">
-              {t("counterSetting.active") || "입력"}
-            </span>
-          </button>
-        </div>
+        <button
+          ref={batchCounterFillButtonRef}
+          type="button"
+          onClick={onFillPickerToggle}
+          className={`w-[23px] h-[23px] rounded-[7px] border-[1px] overflow-hidden cursor-pointer transition-colors flex-shrink-0 ${
+            isFillPickerOpen
+              ? "border-[#459BF8]"
+              : "border-[#3A3943] hover:border-[#505058]"
+          }`}
+          style={{ backgroundColor: getDisplayColor(getCounterColorDisplay("fill")) }}
+          title={`${t("counterSetting.fill") || "채우기"} (${colorState === "active" ? t("counterSetting.active") || "입력" : t("counterSetting.idle") || "대기"})`}
+        />
       </PropertyRow>
 
       {/* 외곽선 색상 */}
       <PropertyRow label={t("counterSetting.stroke") || "외곽선"}>
-        <div className="flex items-center gap-[4px]">
-          <button
-            ref={batchCounterStrokeIdleButtonRef}
-            onClick={onStrokeIdlePickerToggle}
-            className="relative px-[7px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943] flex items-center justify-center text-[#DBDEE8] text-style-4"
-          >
-            <div
-              className="absolute left-[6px] top-[4.5px] w-[11px] h-[11px] rounded-[2px] border border-[#3A3943]"
-              style={{
-                backgroundColor: getCounterColorDisplay("strokeIdle"),
-              }}
-            />
-            <span className="ml-[16px] text-left">
-              {t("counterSetting.idle") || "대기"}
-            </span>
-          </button>
-          <button
-            ref={batchCounterStrokeActiveButtonRef}
-            onClick={onStrokeActivePickerToggle}
-            className="relative px-[7px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943] flex items-center justify-center text-[#DBDEE8] text-style-4"
-          >
-            <div
-              className="absolute left-[6px] top-[4.5px] w-[11px] h-[11px] rounded-[2px] border border-[#3A3943]"
-              style={{
-                backgroundColor: getCounterColorDisplay("strokeActive"),
-              }}
-            />
-            <span className="ml-[16px] text-left">
-              {t("counterSetting.active") || "입력"}
-            </span>
-          </button>
-        </div>
+        <button
+          ref={batchCounterStrokeButtonRef}
+          type="button"
+          onClick={onStrokePickerToggle}
+          className={`w-[23px] h-[23px] rounded-[7px] border-[1px] overflow-hidden cursor-pointer transition-colors flex-shrink-0 ${
+            isStrokePickerOpen
+              ? "border-[#459BF8]"
+              : "border-[#3A3943] hover:border-[#505058]"
+          }`}
+          style={{ backgroundColor: getDisplayColor(getCounterColorDisplay("stroke")) }}
+          title={`${t("counterSetting.stroke") || "외곽선"} (${colorState === "active" ? t("counterSetting.active") || "입력" : t("counterSetting.idle") || "대기"})`}
+        />
       </PropertyRow>
 
       <SectionDivider />

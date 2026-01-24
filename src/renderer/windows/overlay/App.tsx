@@ -404,9 +404,15 @@ export default function App() {
           height: trackHeight,
           noteColor: position.noteColor,
           noteOpacity: position.noteOpacity,
+          noteOpacityTop: position.noteOpacityTop ?? position.noteOpacity,
+          noteOpacityBottom: position.noteOpacityBottom ?? position.noteOpacity,
           noteGlowEnabled: position.noteGlowEnabled ?? false,
           noteGlowSize: position.noteGlowSize ?? 20,
           noteGlowOpacity: position.noteGlowOpacity ?? 70,
+          noteGlowOpacityTop:
+            position.noteGlowOpacityTop ?? (position.noteGlowOpacity ?? 70),
+          noteGlowOpacityBottom:
+            position.noteGlowOpacityBottom ?? (position.noteGlowOpacity ?? 70),
           noteGlowColor: position.noteGlowColor ?? position.noteColor,
           flowSpeed: noteSettings?.speed ?? DEFAULT_NOTE_SETTINGS.speed,
           borderRadius:

@@ -26,6 +26,8 @@ interface BatchNoteTabContentProps {
   // 컬러 피커 토글
   onNoteColorPickerToggle: () => void;
   onGlowColorPickerToggle: () => void;
+  isNoteColorPickerOpen: boolean;
+  isGlowColorPickerOpen: boolean;
   batchNoteColorButtonRef: React.RefObject<HTMLButtonElement>;
   batchGlowColorButtonRef: React.RefObject<HTMLButtonElement>;
   // 번역
@@ -39,6 +41,8 @@ const BatchNoteTabContent: React.FC<BatchNoteTabContentProps> = ({
   getBatchGlowColorDisplay,
   onNoteColorPickerToggle,
   onGlowColorPickerToggle,
+  isNoteColorPickerOpen,
+  isGlowColorPickerOpen,
   batchNoteColorButtonRef,
   batchGlowColorButtonRef,
   t,
@@ -106,35 +110,14 @@ const BatchNoteTabContent: React.FC<BatchNoteTabContentProps> = ({
         <button
           ref={batchNoteColorButtonRef}
           onClick={onNoteColorPickerToggle}
-          className="relative w-[80px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943] flex items-center justify-center text-[#DBDEE8] text-style-2"
-        >
-          <div
-            className="absolute left-[6px] top-[4.5px] w-[11px] h-[11px] rounded-[2px] border border-[#3A3943]"
-            style={getBatchNoteColorDisplay().style}
-          />
-          <span
-            className={`ml-[16px] text-left text-style-4 ${
-              getBatchNoteColorDisplay().isMixed ? "italic text-[#6B6D75]" : ""
-            }`}
-          >
-            {getBatchNoteColorDisplay().label}
-          </span>
-        </button>
-      </PropertyRow>
-
-      {/* 노트 투명도 */}
-      <PropertyRow label={t("keySetting.noteOpacity") || "노트 투명도"}>
-        {getMixedValue((pos) => pos.noteOpacity, 80).isMixed ? (
-          <span className="text-[#6B6D75] text-style-4 italic">Mixed</span>
-        ) : null}
-        <NumberInput
-          value={getMixedValue((pos) => pos.noteOpacity, 80).value}
-          onChange={(value) =>
-            handleBatchStyleChangeComplete("noteOpacity", value)
-          }
-          suffix="%"
-          min={0}
-          max={100}
+          className={`w-[23px] h-[23px] rounded-[7px] border-[1px] overflow-hidden cursor-pointer transition-colors flex-shrink-0 ${
+            isNoteColorPickerOpen
+              ? "border-[#459BF8]"
+              : "border-[#3A3943] hover:border-[#505058]"
+          }`}
+          style={getBatchNoteColorDisplay().style}
+          title={getBatchNoteColorDisplay().label}
+          type="button"
         />
       </PropertyRow>
 
@@ -188,22 +171,15 @@ const BatchNoteTabContent: React.FC<BatchNoteTabContentProps> = ({
         <button
           ref={batchGlowColorButtonRef}
           onClick={onGlowColorPickerToggle}
-          className="relative w-[80px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943] flex items-center justify-center text-[#DBDEE8] text-style-2"
-        >
-          <div
-            className="absolute left-[6px] top-[4.5px] w-[11px] h-[11px] rounded-[2px] border border-[#3A3943]"
-            style={getBatchGlowColorDisplay().style}
-          />
-          <span
-            className={`ml-[16px] text-left text-style-4 ${
-              getBatchGlowColorDisplay().isMixed
-                ? "italic text-[#6B6D75]"
-                : ""
-            }`}
-          >
-            {getBatchGlowColorDisplay().label}
-          </span>
-        </button>
+          className={`w-[23px] h-[23px] rounded-[7px] border-[1px] overflow-hidden cursor-pointer transition-colors flex-shrink-0 ${
+            isGlowColorPickerOpen
+              ? "border-[#459BF8]"
+              : "border-[#3A3943] hover:border-[#505058]"
+          }`}
+          style={getBatchGlowColorDisplay().style}
+          title={getBatchGlowColorDisplay().label}
+          type="button"
+        />
       </PropertyRow>
 
       <PropertyRow label={t("keySetting.noteGlowSize") || "글로우 크기"}>
@@ -221,20 +197,6 @@ const BatchNoteTabContent: React.FC<BatchNoteTabContentProps> = ({
         />
       </PropertyRow>
 
-      <PropertyRow label={t("keySetting.noteGlowOpacity") || "글로우 투명도"}>
-        {getMixedValue((pos) => pos.noteGlowOpacity, 70).isMixed ? (
-          <span className="text-[#6B6D75] text-style-4 italic">Mixed</span>
-        ) : null}
-        <NumberInput
-          value={getMixedValue((pos) => pos.noteGlowOpacity, 70).value}
-          onChange={(value) =>
-            handleBatchStyleChangeComplete("noteGlowOpacity", value)
-          }
-          suffix="%"
-          min={0}
-          max={100}
-        />
-      </PropertyRow>
     </>
   );
 };

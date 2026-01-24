@@ -193,10 +193,8 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   // 일괄 편집용 컬러 버튼 refs
   const batchNoteColorButtonRef = useRef<HTMLButtonElement>(null);
   const batchGlowColorButtonRef = useRef<HTMLButtonElement>(null);
-  const batchCounterFillIdleButtonRef = useRef<HTMLButtonElement>(null);
-  const batchCounterFillActiveButtonRef = useRef<HTMLButtonElement>(null);
-  const batchCounterStrokeIdleButtonRef = useRef<HTMLButtonElement>(null);
-  const batchCounterStrokeActiveButtonRef = useRef<HTMLButtonElement>(null);
+  const batchCounterFillButtonRef = useRef<HTMLButtonElement>(null);
+  const batchCounterStrokeButtonRef = useRef<HTMLButtonElement>(null);
 
   // 패널 ref (컬러픽커/이미지픽커 위치 기준)
   // useRef 대신 useState를 사용하여 ref가 설정될 때 리렌더링 유발
@@ -333,12 +331,13 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   type BatchPickerTarget =
     | "noteColor"
     | "glowColor"
-    | "fillIdle"
-    | "fillActive"
-    | "strokeIdle"
-    | "strokeActive"
+    | "fill"
+    | "stroke"
     | null;
   const [batchPickerFor, setBatchPickerFor] = useState<BatchPickerTarget>(null);
+  const [batchCounterColorState, setBatchCounterColorState] = useState<
+    "idle" | "active"
+  >("idle");
 
   // 배치 편집용 로컬 색상 상태 (드래그 중 UI 업데이트용)
   const [batchLocalColors, setBatchLocalColors] = useState<{
@@ -355,6 +354,14 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     fillActive: "#FFFFFF",
     strokeIdle: "#000000",
     strokeActive: "#000000",
+  });
+
+  const [batchLocalOpacities, setBatchLocalOpacities] = useState<{
+    noteOpacity: number;
+    glowOpacity: number;
+  }>({
+    noteOpacity: 80,
+    glowOpacity: 70,
   });
 
   // 선택이 변경되면 로컬 상태 초기화
@@ -1092,17 +1099,15 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     () => [
       batchNoteColorButtonRef,
       batchGlowColorButtonRef,
-      batchCounterFillIdleButtonRef,
-      batchCounterFillActiveButtonRef,
-      batchCounterStrokeIdleButtonRef,
-      batchCounterStrokeActiveButtonRef,
+      batchCounterFillButtonRef,
+      batchCounterStrokeButtonRef,
     ],
     [],
   );
 
   // 배치 피커 토글 - 열릴 때 현재 색상값으로 로컬 상태 초기화
   const handleBatchPickerToggle = useCallback(
-    (target: typeof batchPickerFor) => {
+    (target: BatchPickerTarget) => {
       if (target && target !== batchPickerFor) {
         // 피커가 열릴 때 현재 색상값으로 로컬 상태 초기화
         const keysData = getSelectedKeysData();
@@ -1139,6 +1144,14 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
             strokeIdle: counterSettings.stroke.idle,
             strokeActive: counterSettings.stroke.active,
           });
+          setBatchLocalOpacities({
+            noteOpacity:
+              typeof firstPos.noteOpacity === "number" ? firstPos.noteOpacity : 80,
+            glowOpacity:
+              typeof firstPos.noteGlowOpacity === "number"
+                ? firstPos.noteGlowOpacity
+                : 70,
+          });
         }
       }
       setBatchPickerFor((prev) => (prev === target ? null : target));
@@ -1153,32 +1166,30 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
         return batchLocalColors.noteColor;
       case "glowColor":
         return batchLocalColors.glowColor;
-      case "fillIdle":
-        return batchLocalColors.fillIdle;
-      case "fillActive":
-        return batchLocalColors.fillActive;
-      case "strokeIdle":
-        return batchLocalColors.strokeIdle;
-      case "strokeActive":
-        return batchLocalColors.strokeActive;
+      case "fill":
+        return batchCounterColorState === "active"
+          ? batchLocalColors.fillActive
+          : batchLocalColors.fillIdle;
+      case "stroke":
+        return batchCounterColorState === "active"
+          ? batchLocalColors.strokeActive
+          : batchLocalColors.strokeIdle;
       default:
         return "#FFFFFF";
     }
-  }, [batchPickerFor, batchLocalColors]);
+  }, [batchCounterColorState, batchLocalColors, batchPickerFor]);
 
-  // 배치 피커 referenceRef (카운터 컬러픽커는 원본 모달처럼 fillActive 버튼 위치에 고정)
+  // 배치 피커 referenceRef
   const getBatchPickerRef = useCallback(() => {
     switch (batchPickerFor) {
       case "noteColor":
         return batchNoteColorButtonRef;
       case "glowColor":
         return batchGlowColorButtonRef;
-      case "fillIdle":
-      case "fillActive":
-      case "strokeIdle":
-      case "strokeActive":
-        // 카운터 컬러픽커는 모두 fillActive 버튼 위치에서 렌더링
-        return batchCounterFillActiveButtonRef;
+      case "fill":
+        return batchCounterFillButtonRef;
+      case "stroke":
+        return batchCounterStrokeButtonRef;
       default:
         return null;
     }
@@ -1187,11 +1198,26 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   // 배치 피커 색상 변경 (드래그 중 - 로컬 상태만 업데이트)
   const handleBatchPickerColorChange = useCallback(
     (newColor: any) => {
+      if (!batchPickerFor) return;
+
       // 로컬 상태 업데이트
-      if (batchPickerFor) {
+      if (batchPickerFor === "noteColor" || batchPickerFor === "glowColor") {
         setBatchLocalColors((prev) => ({
           ...prev,
           [batchPickerFor]: newColor,
+        }));
+      } else if (batchPickerFor === "fill") {
+        const key = batchCounterColorState === "active" ? "fillActive" : "fillIdle";
+        setBatchLocalColors((prev) => ({
+          ...prev,
+          [key]: newColor,
+        }));
+      } else if (batchPickerFor === "stroke") {
+        const key =
+          batchCounterColorState === "active" ? "strokeActive" : "strokeIdle";
+        setBatchLocalColors((prev) => ({
+          ...prev,
+          [key]: newColor,
         }));
       }
 
@@ -1203,16 +1229,36 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
       }
       // counter 색상은 preview 없이 complete에서만 처리
     },
-    [batchPickerFor, handleBatchNoteColorChange, handleBatchGlowColorChange],
+    [
+      batchCounterColorState,
+      batchPickerFor,
+      handleBatchGlowColorChange,
+      handleBatchNoteColorChange,
+    ],
   );
 
   const handleBatchPickerColorChangeComplete = useCallback(
     (newColor: any) => {
+      if (!batchPickerFor) return;
+
       // 로컬 상태 업데이트
-      if (batchPickerFor) {
+      if (batchPickerFor === "noteColor" || batchPickerFor === "glowColor") {
         setBatchLocalColors((prev) => ({
           ...prev,
           [batchPickerFor]: newColor,
+        }));
+      } else if (batchPickerFor === "fill") {
+        const key = batchCounterColorState === "active" ? "fillActive" : "fillIdle";
+        setBatchLocalColors((prev) => ({
+          ...prev,
+          [key]: newColor,
+        }));
+      } else if (batchPickerFor === "stroke") {
+        const key =
+          batchCounterColorState === "active" ? "strokeActive" : "strokeIdle";
+        setBatchLocalColors((prev) => ({
+          ...prev,
+          [key]: newColor,
         }));
       }
 
@@ -1225,25 +1271,30 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
         handleBatchNoteColorChangeComplete(newColor);
       } else if (batchPickerFor === "glowColor") {
         handleBatchGlowColorChangeComplete(newColor);
-      } else if (batchPickerFor === "fillIdle") {
-        handleBatchCounterUpdate({
-          fill: { ...firstCounter.fill, idle: newColor },
-        });
-      } else if (batchPickerFor === "fillActive") {
-        handleBatchCounterUpdate({
-          fill: { ...firstCounter.fill, active: newColor },
-        });
-      } else if (batchPickerFor === "strokeIdle") {
-        handleBatchCounterUpdate({
-          stroke: { ...firstCounter.stroke, idle: newColor },
-        });
-      } else if (batchPickerFor === "strokeActive") {
-        handleBatchCounterUpdate({
-          stroke: { ...firstCounter.stroke, active: newColor },
-        });
+      } else if (batchPickerFor === "fill") {
+        if (batchCounterColorState === "active") {
+          handleBatchCounterUpdate({
+            fill: { ...firstCounter.fill, active: newColor },
+          });
+        } else {
+          handleBatchCounterUpdate({
+            fill: { ...firstCounter.fill, idle: newColor },
+          });
+        }
+      } else if (batchPickerFor === "stroke") {
+        if (batchCounterColorState === "active") {
+          handleBatchCounterUpdate({
+            stroke: { ...firstCounter.stroke, active: newColor },
+          });
+        } else {
+          handleBatchCounterUpdate({
+            stroke: { ...firstCounter.stroke, idle: newColor },
+          });
+        }
       }
     },
     [
+      batchCounterColorState,
       batchPickerFor,
       getSelectedKeysData,
       handleBatchNoteColorChangeComplete,
@@ -1476,33 +1527,36 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
       };
     };
 
-    // 카운터 색상 표시 (피커가 열려있을 때는 로컬 상태 사용)
-    const getCounterColorDisplay = (
-      key: "fillIdle" | "fillActive" | "strokeIdle" | "strokeActive",
-    ) => {
-      if (batchPickerFor === key) {
-        return batchLocalColors[key];
-      }
-      const keysData = getSelectedKeysData();
-      const firstPos = keysData[0]?.position;
-      if (!firstPos) return "#FFFFFF";
-      const counterSettings = normalizeCounterSettings(firstPos.counter);
-      switch (key) {
-        case "fillIdle":
-          return counterSettings.fill.idle;
-        case "fillActive":
-          return counterSettings.fill.active;
-        case "strokeIdle":
-          return counterSettings.stroke.idle;
-        case "strokeActive":
-          return counterSettings.stroke.active;
-      }
-    };
-
     const keysData = getSelectedKeysData();
     const batchCounterSettings = keysData[0]?.position
       ? normalizeCounterSettings(keysData[0].position.counter)
       : createDefaultCounterSettings();
+    const noteOpacityMixed = getMixedValue((pos) => pos.noteOpacity, 80).isMixed;
+    const glowOpacityMixed = getMixedValue((pos) => pos.noteGlowOpacity, 70).isMixed;
+
+    // 카운터 색상 표시 (피커가 열려있을 때는 로컬 상태 사용)
+    const getCounterColorDisplay = (target: "fill" | "stroke") => {
+      const key =
+        target === "fill"
+          ? batchCounterColorState === "active"
+            ? "fillActive"
+            : "fillIdle"
+          : batchCounterColorState === "active"
+          ? "strokeActive"
+          : "strokeIdle";
+
+      if (batchPickerFor === target) {
+        return batchLocalColors[key];
+      }
+
+      return target === "fill"
+        ? batchCounterColorState === "active"
+          ? batchCounterSettings.fill.active
+          : batchCounterSettings.fill.idle
+        : batchCounterColorState === "active"
+        ? batchCounterSettings.stroke.active
+        : batchCounterSettings.stroke.idle;
+    };
 
     return (
       <div
@@ -1597,6 +1651,8 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                   getBatchGlowColorDisplay={getBatchGlowColorDisplay}
                   onNoteColorPickerToggle={() => handleBatchPickerToggle("noteColor")}
                   onGlowColorPickerToggle={() => handleBatchPickerToggle("glowColor")}
+                  isNoteColorPickerOpen={batchPickerFor === "noteColor"}
+                  isGlowColorPickerOpen={batchPickerFor === "glowColor"}
                   batchNoteColorButtonRef={batchNoteColorButtonRef}
                   batchGlowColorButtonRef={batchGlowColorButtonRef}
                   t={t}
@@ -1620,15 +1676,14 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                 <BatchCounterTabContent
                   batchCounterSettings={batchCounterSettings}
                   handleBatchCounterUpdate={handleBatchCounterUpdate}
+                  colorState={batchCounterColorState}
                   getCounterColorDisplay={getCounterColorDisplay}
-                  onFillIdlePickerToggle={() => handleBatchPickerToggle("fillIdle")}
-                  onFillActivePickerToggle={() => handleBatchPickerToggle("fillActive")}
-                  onStrokeIdlePickerToggle={() => handleBatchPickerToggle("strokeIdle")}
-                  onStrokeActivePickerToggle={() => handleBatchPickerToggle("strokeActive")}
-                  batchCounterFillIdleButtonRef={batchCounterFillIdleButtonRef}
-                  batchCounterFillActiveButtonRef={batchCounterFillActiveButtonRef}
-                  batchCounterStrokeIdleButtonRef={batchCounterStrokeIdleButtonRef}
-                  batchCounterStrokeActiveButtonRef={batchCounterStrokeActiveButtonRef}
+                  onFillPickerToggle={() => handleBatchPickerToggle("fill")}
+                  onStrokePickerToggle={() => handleBatchPickerToggle("stroke")}
+                  batchCounterFillButtonRef={batchCounterFillButtonRef}
+                  batchCounterStrokeButtonRef={batchCounterStrokeButtonRef}
+                  isFillPickerOpen={batchPickerFor === "fill"}
+                  isStrokePickerOpen={batchPickerFor === "stroke"}
                   t={t}
                 />
               </div>
@@ -1656,6 +1711,55 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
               solidOnly={
                 batchPickerFor !== "noteColor" &&
                 batchPickerFor !== "glowColor"
+              }
+              stateMode={
+                batchPickerFor === "fill" || batchPickerFor === "stroke"
+                  ? batchCounterColorState
+                  : undefined
+              }
+              onStateModeChange={
+                batchPickerFor === "fill" || batchPickerFor === "stroke"
+                  ? setBatchCounterColorState
+                  : undefined
+              }
+              opacityPercent={
+                batchPickerFor === "noteColor"
+                  ? batchLocalOpacities.noteOpacity
+                  : batchPickerFor === "glowColor"
+                  ? batchLocalOpacities.glowOpacity
+                  : undefined
+              }
+              onOpacityPercentChange={(value: number) => {
+                if (batchPickerFor === "noteColor") {
+                  setBatchLocalOpacities((prev) => ({ ...prev, noteOpacity: value }));
+                  handleBatchStyleChange("noteOpacity", value);
+                } else if (batchPickerFor === "glowColor") {
+                  setBatchLocalOpacities((prev) => ({ ...prev, glowOpacity: value }));
+                  handleBatchStyleChange("noteGlowOpacity", value);
+                }
+              }}
+              onOpacityPercentChangeComplete={(value: number) => {
+                if (batchPickerFor === "noteColor") {
+                  setBatchLocalOpacities((prev) => ({ ...prev, noteOpacity: value }));
+                  handleBatchStyleChangeComplete("noteOpacity", value);
+                } else if (batchPickerFor === "glowColor") {
+                  setBatchLocalOpacities((prev) => ({ ...prev, glowOpacity: value }));
+                  handleBatchStyleChangeComplete("noteGlowOpacity", value);
+                }
+              }}
+              opacityPercentLabel={
+                batchPickerFor === "noteColor"
+                  ? t("keySetting.noteOpacity") || "노트 투명도"
+                  : batchPickerFor === "glowColor"
+                  ? t("keySetting.noteGlowOpacity") || "글로우 투명도"
+                  : undefined
+              }
+              opacityPercentMixed={
+                batchPickerFor === "noteColor"
+                  ? noteOpacityMixed
+                  : batchPickerFor === "glowColor"
+                  ? glowOpacityMixed
+                  : false
               }
             />
           )}
