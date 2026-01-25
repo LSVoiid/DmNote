@@ -3,6 +3,10 @@
   "bundle": {
     "active": true,
     "targets": ["app", "dmg"],
-    "icon": ["icons/icon.icns"]
+    "icon": ["icons/icon.icns"],
+    "macOS": {
+      "entitlements": null,
+      "infoPlist": "Info.macos.plist"
+    }
   }
 }
