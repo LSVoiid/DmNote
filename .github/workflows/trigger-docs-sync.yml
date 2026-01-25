@@ -5,7 +5,7 @@ on:
     branches:
       - master
     paths:
-      - "docs/plugin/**"
+      - "docs/content/**"
 
 jobs:
   trigger-sync:
