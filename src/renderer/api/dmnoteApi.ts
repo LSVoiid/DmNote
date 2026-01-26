@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import type { Channel } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { usePluginMenuStore } from "@stores/usePluginMenuStore";
 import {
@@ -220,6 +221,18 @@ const api: DMNoteAPI = {
       subscribe<OverlayAnchorPayload>("overlay:anchor", listener),
     onResized: (listener: (payload: OverlayResizePayload) => void) =>
       subscribe<OverlayResizePayload>("overlay:resized", listener),
+  },
+  note: {
+    init: (channel: Channel<ArrayBuffer>, now: number) =>
+      invoke("init_note_system", { channel, now }),
+    getBuffer: () => invoke<ArrayBuffer>("get_note_buffer"),
+    updateSettings: (settings: any) =>
+      invoke("update_note_settings", { settings }),
+    updateTrackLayouts: (layouts: any[]) =>
+      invoke("update_track_layouts", { layouts }),
+    setEffectEnabled: (enabled: boolean) =>
+      invoke("set_note_effect_enabled", { enabled }),
+    requestTick: (now: number) => invoke("request_tick", { now }),
   },
   css: {
     get: () => invoke<CustomCss>("css_get"),

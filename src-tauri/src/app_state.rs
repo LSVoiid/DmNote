@@ -18,6 +18,7 @@ use tauri::{
     AppHandle, Emitter, Manager, Monitor, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
     WindowEvent,
 };
+use tauri::ipc::InvokeResponseBody;
 use tauri_runtime_wry::wry::dpi::{LogicalPosition, LogicalSize};
 
 use crate::{
@@ -39,9 +40,11 @@ pub struct AppState {
     pub store: Arc<AppStore>,
     pub settings: SettingsService,
     pub keyboard: KeyboardManager,
+    pub note_system: Arc<RwLock<crate::note_system::NoteSystem>>,
     overlay_visible: Arc<RwLock<bool>>,
     overlay_force_close: Arc<AtomicBool>,
     keyboard_task: RwLock<Option<KeyboardDaemonTask>>,
+    note_task: RwLock<Option<NoteTickTask>>,
     key_counters: Arc<RwLock<KeyCounters>>,
     key_counter_enabled: Arc<AtomicBool>,
     active_keys: Arc<RwLock<HashSet<String>>>,
@@ -58,6 +61,7 @@ impl AppState {
         let keyboard =
             KeyboardManager::new(snapshot.keys.clone(), snapshot.selected_key_type.clone());
         let settings = SettingsService::new(store.clone());
+        let note_system = Arc::new(RwLock::new(crate::note_system::NoteSystem::new()));
 
         let key_counters = Arc::new(RwLock::new(snapshot.key_counters.clone()));
         Self::sync_counters_with_keys_impl(&key_counters, &snapshot.keys);
@@ -68,9 +72,11 @@ impl AppState {
             store,
             settings,
             keyboard,
+            note_system,
             overlay_visible: Arc::new(RwLock::new(false)),
             overlay_force_close: Arc::new(AtomicBool::new(false)),
             keyboard_task: RwLock::new(None),
+            note_task: RwLock::new(None),
             key_counters,
             key_counter_enabled,
             active_keys,
@@ -93,6 +99,7 @@ impl AppState {
             }
         }
         self.start_keyboard_hook(app.clone())?;
+        self.start_note_tick();
         // CSS 핫리로딩 워처 초기화
         self.initialize_css_watcher(app);
         Ok(())
@@ -232,10 +239,52 @@ impl AppState {
         if let Some(task) = self.keyboard_task.write().take() {
             drop(task);
         }
+        if let Some(task) = self.note_task.write().take() {
+            drop(task);
+        }
         // CSS 워처 정리
         if let Some(watcher) = self.css_watcher.write().take() {
             watcher.shutdown();
         }
+    }
+
+    fn start_note_tick(&self) {
+        if self.note_task.read().is_some() {
+            return;
+        }
+
+        let running = Arc::new(AtomicBool::new(true));
+        let running_clone = running.clone();
+        let note_system = self.note_system.clone();
+
+        let handle = thread::Builder::new()
+            .name("note-tick".into())
+            .spawn(move || {
+                while running_clone.load(Ordering::SeqCst) {
+                    let (sleep_ms, msg) = {
+                        let mut system = note_system.write();
+                        if !system.has_pending_work() {
+                            (50u64, None)
+                        } else {
+                            (16u64, system.tick_now())
+                        }
+                    };
+
+                    if let Some(msg) = msg {
+                        let _ = msg
+                            .channel
+                            .send(InvokeResponseBody::Raw(msg.payload));
+                    }
+
+                    thread::sleep(Duration::from_millis(sleep_ms));
+                }
+            })
+            .ok();
+
+        *self.note_task.write() = Some(NoteTickTask {
+            running,
+            handle,
+        });
     }
 
     pub fn set_overlay_anchor(&self, app: &AppHandle, anchor: &str) -> Result<String> {
@@ -582,6 +631,19 @@ impl AppState {
                                 }
                             } else {
                                 app_state.register_key_up(&mode, &key_label);
+                            }
+
+                            if let Some(msg) = {
+                                let mut system = app_state.note_system.write();
+                                if state == "DOWN" {
+                                    system.on_key_down(&key_label)
+                                } else {
+                                    system.on_key_up(&key_label)
+                                }
+                            } {
+                                let _ = msg
+                                    .channel
+                                    .send(InvokeResponseBody::Raw(msg.payload));
                             }
                             let payload = json!({ "key": key_label, "state": state, "mode": mode });
 
@@ -1420,6 +1482,20 @@ struct KeyboardDaemonTask {
     reader_handle: Option<JoinHandle<()>>,
     stderr_handle: Option<JoinHandle<()>>,
     child: Option<Child>,
+}
+
+struct NoteTickTask {
+    running: Arc<AtomicBool>,
+    handle: Option<JoinHandle<()>>,
+}
+
+impl Drop for NoteTickTask {
+    fn drop(&mut self) {
+        self.running.store(false, Ordering::SeqCst);
+        if let Some(handle) = self.handle.take() {
+            let _ = handle.join();
+        }
+    }
 }
 
 impl Drop for KeyboardDaemonTask {

@@ -3,6 +3,7 @@ pub mod bridge;
 pub mod css;
 pub mod js;
 pub mod keys;
+pub mod note;
 pub mod overlay;
 pub mod plugin_storage;
 pub mod preset;

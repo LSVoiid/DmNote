@@ -12,6 +12,7 @@ import {
   SettingsPatchInput,
   SettingsState,
 } from "@src/types/settings";
+import type { Channel } from "@tauri-apps/api/core";
 
 export type ModeChangePayload = { mode: string };
 export type CustomTabsChangePayload = {
@@ -625,6 +626,14 @@ export interface DMNoteAPI {
     onLock(listener: (payload: OverlayLockPayload) => void): Unsubscribe;
     onAnchor(listener: (payload: OverlayAnchorPayload) => void): Unsubscribe;
     onResized(listener: (payload: OverlayResizePayload) => void): Unsubscribe;
+  };
+  note: {
+    init(channel: Channel<ArrayBuffer>, now: number): Promise<void>;
+    getBuffer(): Promise<ArrayBuffer>;
+    updateSettings(settings: any): Promise<void>;
+    updateTrackLayouts(layouts: any[]): Promise<void>;
+    setEffectEnabled(enabled: boolean): Promise<void>;
+    requestTick(now: number): Promise<void>;
   };
   css: {
     get(): Promise<CustomCss>;

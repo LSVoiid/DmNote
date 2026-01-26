@@ -8,5 +8,6 @@ pub mod keyboard_daemon;
 pub mod keyboard_labels;
 pub mod ipc;
 pub mod models;
+pub mod note_system;
 pub mod services;
 pub mod store;

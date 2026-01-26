@@ -149,8 +149,6 @@ export default function App() {
   const {
     notesRef,
     subscribe,
-    handleKeyDown,
-    handleKeyUp,
     noteBuffer,
     updateTrackLayouts,
   } = useNoteSystem({
@@ -231,22 +229,6 @@ export default function App() {
         const isDown = state === "DOWN";
         // 키 UI 업데이트 (딜레이 적용)
         updateKeySignalWithDelay(key, isDown);
-        // 노트 이펙트는 즉시 처리 (딜레이 없음)
-        if (noteEffect) {
-          // 개별 키의 noteEffectEnabled 확인
-          const currentKeys = keyMappings[selectedKeyType] ?? [];
-          const currentPositions = positions[selectedKeyType] ?? [];
-          const keyIndex = currentKeys.indexOf(key);
-          const keyPosition = currentPositions[keyIndex];
-          const keyNoteEffectEnabled = keyPosition?.noteEffectEnabled !== false;
-
-          if (keyNoteEffectEnabled) {
-            requestAnimationFrame(() => {
-              if (isDown) handleKeyDown(key);
-              else handleKeyUp(key);
-            });
-          }
-        }
       });
     });
 
@@ -267,15 +249,7 @@ export default function App() {
       // 안전하게 모든 키 신호 초기화(선택적)
       resetAllKeySignals();
     };
-  }, [
-    handleKeyDown,
-    handleKeyUp,
-    noteEffect,
-    updateKeySignalWithDelay,
-    keyMappings,
-    positions,
-    selectedKeyType,
-  ]);
+  }, [updateKeySignalWithDelay]);
 
   const currentKeys = useMemo(
     () => keyMappings[selectedKeyType] ?? [],
@@ -384,7 +358,8 @@ export default function App() {
     () =>
       currentKeys.map((key, index) => {
         const originalPosition = currentPositions[index] ?? FALLBACK_POSITION;
-        if (originalPosition.hidden) return null;
+        if (originalPosition.hidden || originalPosition.noteEffectEnabled === false)
+          return null;
         const position = displayPositions[index] ?? originalPosition;
         // noteAutoYCorrection이 false면 원래 위치 사용, 아니면 topMostY로 보정
         const useAutoCorrection = position.noteAutoYCorrection !== false;

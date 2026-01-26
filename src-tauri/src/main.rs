@@ -10,6 +10,7 @@ mod keyboard_daemon;
 mod keyboard_labels;
 mod ipc;
 mod models;
+mod note_system;
 mod services;
 mod store;
 
@@ -130,6 +131,12 @@ fn main() {
             commands::overlay::overlay_set_lock,
             commands::overlay::overlay_set_anchor,
             commands::overlay::overlay_resize,
+            commands::note::init_note_system,
+            commands::note::get_note_buffer,
+            commands::note::update_note_settings,
+            commands::note::update_track_layouts,
+            commands::note::set_note_effect_enabled,
+            commands::note::request_tick,
             commands::bridge::plugin_bridge_send,
             commands::bridge::plugin_bridge_send_to,
             commands::plugin_storage::plugin_storage_get,
