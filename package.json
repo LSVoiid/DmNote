@@ -3,9 +3,13 @@
   "version": "1.5.0",
   "description": "DM NOTE",
   "scripts": {
+    "wasm:build": "wasm-pack build src-tauri/crates/note_wasm --target web --out-dir ../../../src/renderer/wasm/note_wasm --out-name note_wasm --release --no-opt",
+    "predev": "npm run wasm:build",
     "dev": "vite",
+    "prebuild": "npm run wasm:build",
     "build": "vite build",
     "preview": "vite preview",
+    "pretype-check": "npm run wasm:build",
     "type-check": "tsc --noEmit",
     "type-check:watch": "tsc --noEmit --watch",
     "tauri:dev": "tauri dev",

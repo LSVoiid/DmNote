@@ -12,6 +12,11 @@ export default defineConfig(() => {
   const rendererRoot = path.resolve(projectRoot, "src/renderer");
   const windowsRoot = path.resolve(rendererRoot, "windows");
   const isAnalyze = process.env.ANALYZE === "true";
+  const crossOriginIsolationHeaders = {
+    "Cross-Origin-Opener-Policy": "same-origin",
+    "Cross-Origin-Embedder-Policy": "require-corp",
+    "Origin-Agent-Cluster": "?1",
+  };
 
   return {
     // Vite 개발 서버 루트: /main/index.html, /overlay/index.html 경로로 접근 가능
@@ -21,6 +26,17 @@ export default defineConfig(() => {
       __APP_VERSION__: JSON.stringify(pkg.version),
     },
     plugins: [
+      {
+        name: "dmnote-cross-origin-isolation",
+        configureServer(server) {
+          server.middlewares.use((req, res, next) => {
+            Object.entries(crossOriginIsolationHeaders).forEach(([key, value]) =>
+              res.setHeader(key, value)
+            );
+            next();
+          });
+        },
+      },
       preact(),
       svgr({
         include: "**/*.svg",
@@ -47,10 +63,14 @@ export default defineConfig(() => {
       port: 3400,
       strictPort: true,
       open: false,
+      headers: crossOriginIsolationHeaders,
       fs: {
         // 루트 상위(src/renderer 등) 경로 import 허용
         allow: [projectRoot, rendererRoot, windowsRoot],
       },
+    },
+    preview: {
+      headers: crossOriginIsolationHeaders,
     },
     resolve: {
       alias: {

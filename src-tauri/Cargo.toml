@@ -4,6 +4,10 @@ version = "1.5.0"
 edition = "2021"
 default-run = "dm-note"
 
+[workspace]
+members = ["crates/note_core", "crates/note_wasm"]
+resolver = "2"
+
 [build-dependencies]
 tauri-build = { version = "2.4.1", features = [] }
 walkdir = "2.5"
@@ -27,6 +31,7 @@ rfd = "0.14"
 dirs-next = "2.0"
 uuid = { version = "1", features = ["v4"] }
 zip = "0.6"
+note-core = { path = "crates/note_core" }
 
 [target."cfg(windows)".dependencies]
 windows = { version = "0.61.3", features = [

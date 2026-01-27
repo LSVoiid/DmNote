@@ -7,6 +7,9 @@ copilot-instructions.md
 src-tauri/target
 .DS_Store
 
+# wasm-pack output (generated)
+src/renderer/wasm/note_wasm
+
 # WebView2 FixedVersionRuntime (downloaded locally; keep placeholder)
 src-tauri/webview2-fixed-runtime/*
 !src-tauri/webview2-fixed-runtime/placeholder.txt

@@ -36,13 +36,25 @@ fn main() {
 
         // GPU/하드웨어 가속 강제 활성화 및 렌더링 최적화 플래그
         let gpu_flags = [
-            "--disable-blink-features=VSync",           // VSync 비활성화 (입력 지연 감소)
             "--enable-gpu-rasterization",               // GPU 래스터화 강제 활성화
             "--enable-zero-copy",                       // 제로 카피 래스터라이저 활성화
             "--ignore-gpu-blocklist",                   // GPU 블랙리스트 무시 (강제 GPU 사용)
         ];
         for flag in gpu_flags {
             apply_webview2_additional_args(flag);
+        }
+
+        // Dev server is served over HTTP; WebView2 may treat it as an insecure context which
+        // disables cross-origin isolation (SharedArrayBuffer). In debug builds, mark localhost
+        // as trustworthy to enable `crossOriginIsolated`.
+        #[cfg(debug_assertions)]
+        {
+            apply_webview2_additional_args(
+                "--unsafely-treat-insecure-origin-as-secure=http://localhost:3400",
+            );
+            apply_webview2_additional_args(
+                "--unsafely-treat-insecure-origin-as-secure=http://127.0.0.1:3400",
+            );
         }
 
         // 렌더러 설정 적용 (store.json에서 읽어옴)
@@ -426,6 +438,9 @@ fn apply_webview2_fixed_runtime_override() {
 
     for candidate in candidates {
         if is_valid_webview2_fixed_runtime_dir(&candidate) {
+            // Windows 10에서는 Fixed Runtime을 "unpackaged"로 사용할 때 AppContainer(WebView2 renderer) 접근 권한이
+            // 필요할 수 있습니다. (Win11은 대체로 영향이 적음)
+            try_grant_webview2_fixed_runtime_appcontainer_access(&candidate, false, None, false);
             env::set_var(KEY, &candidate);
             log::info!(
                 "using fixed WebView2 runtime override: {}",
@@ -439,6 +454,81 @@ fn apply_webview2_fixed_runtime_override() {
 #[cfg(target_os = "windows")]
 fn is_valid_webview2_fixed_runtime_dir(dir: &PathBuf) -> bool {
     dir.is_dir() && dir.join("msedgewebview2.exe").is_file()
+}
+
+#[cfg(target_os = "windows")]
+fn try_grant_webview2_fixed_runtime_appcontainer_access(
+    runtime_dir: &std::path::Path,
+    write_marker: bool,
+    marker_value: Option<&str>,
+    recursive: bool,
+) {
+    use std::env;
+    use std::fs;
+    use std::process::Command;
+
+    if env::var_os("DMNOTE_WEBVIEW2_SKIP_ACL_FIX").is_some() {
+        return;
+    }
+
+    const MARKER_FILE: &str = "dmnote-webview2-fixed-runtime-acl.txt";
+    const ALL_APP_PACKAGES: &str = "*S-1-15-2-2:(OI)(CI)(RX)";
+    const ALL_RESTRICTED_APP_PACKAGES: &str = "*S-1-15-2-1:(OI)(CI)(RX)";
+
+    let marker_path = runtime_dir.join(MARKER_FILE);
+    if write_marker {
+        if let Some(marker) = marker_value {
+            if let Ok(existing) = fs::read_to_string(&marker_path) {
+                if existing.lines().next().map(|l| l.trim()) == Some(marker) {
+                    return;
+                }
+            }
+        }
+    }
+
+    let mut cmd = Command::new("icacls");
+    cmd.arg(runtime_dir)
+        .arg("/grant")
+        .arg(ALL_APP_PACKAGES)
+        .arg("/grant")
+        .arg(ALL_RESTRICTED_APP_PACKAGES)
+        .arg("/C");
+    if recursive {
+        cmd.arg("/T");
+    }
+
+    match cmd.output() {
+        Ok(output) => {
+            if output.status.success() {
+                if write_marker {
+                    if let Some(marker) = marker_value {
+                        let _ = fs::write(&marker_path, format!("{marker}\n"));
+                    }
+                }
+            } else {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                if stderr.trim().is_empty() {
+                    log::warn!(
+                        "failed to apply WebView2 Fixed runtime ACL (icacls exit code {:?}) for {}",
+                        output.status.code(),
+                        runtime_dir.display()
+                    );
+                } else {
+                    log::warn!(
+                        "failed to apply WebView2 Fixed runtime ACL for {}: {}",
+                        runtime_dir.display(),
+                        stderr.trim()
+                    );
+                }
+            }
+        }
+        Err(err) => {
+            log::warn!(
+                "failed to run icacls for WebView2 Fixed runtime ACL on {}: {err}",
+                runtime_dir.display()
+            );
+        }
+    }
 }
 
 #[cfg(all(target_os = "windows", dmnote_embedded_webview2))]
@@ -472,6 +562,7 @@ fn apply_embedded_webview2_fixed_runtime_override() {
         (Some(v), true) if v == embedded_version => false,
         _ => true,
     };
+    let acl_marker = format!("{embedded_version}-{embedded_arch}");
 
     if needs_extract {
         // Clean up previous attempts.
@@ -481,6 +572,9 @@ fn apply_embedded_webview2_fixed_runtime_override() {
             return;
         }
 
+        // Ensure Win10 AppContainer can read/execute the extracted runtime.
+        try_grant_webview2_fixed_runtime_appcontainer_access(&extract_dir, true, Some(&acl_marker), false);
+
         static ZIP_BYTES: &[u8] = include_bytes!(env!("DMNOTE_WEBVIEW2_EMBEDDED_ZIP"));
         if let Err(err) = extract_zip_bytes_to_dir(ZIP_BYTES, &extract_dir) {
             log::warn!(
@@ -489,6 +583,9 @@ fn apply_embedded_webview2_fixed_runtime_override() {
             );
             return;
         }
+    } else {
+        // Legacy extracted folders might exist without the proper ACL. Apply once (recursive).
+        try_grant_webview2_fixed_runtime_appcontainer_access(&extract_dir, true, Some(&acl_marker), true);
     }
 
     if is_valid_webview2_fixed_runtime_dir(&extract_dir) {
