@@ -9,6 +9,11 @@ export const fadePositionSchema = z.union([
 ]);
 
 export const noteSettingsSchema = z.object({
+  fpsLimit: z
+    .number()
+    .int()
+    .min(NOTE_SETTINGS_CONSTRAINTS.fpsLimit.min)
+    .max(NOTE_SETTINGS_CONSTRAINTS.fpsLimit.max),
   speed: z
     .number()
     .int()
@@ -42,6 +47,7 @@ export const noteSettingsSchema = z.object({
 export type NoteSettings = z.infer<typeof noteSettingsSchema>;
 
 export const NOTE_SETTINGS_DEFAULTS: NoteSettings = Object.freeze({
+  fpsLimit: NOTE_SETTINGS_CONSTRAINTS.fpsLimit.default,
   speed: NOTE_SETTINGS_CONSTRAINTS.speed.default,
   trackHeight: NOTE_SETTINGS_CONSTRAINTS.trackHeight.default,
   reverse: false,

@@ -14,6 +14,7 @@ import {
   SRGBColorSpace,
 } from "three";
 import { animationScheduler } from "../../utils/animationScheduler";
+import { getNotePerfDebugApi, getNotePerfDebugConfig } from "../../utils/notePerfDebug";
 
 const MAX_NOTES = 2048; // 씬에서 동시에 렌더링할 수 있는 최대 노트 수
 
@@ -301,6 +302,12 @@ export const WebGLTracks = memo(
     const colorCacheRef = useRef(new Map()); // 색상 변환 캐싱
     const isAnimating = useRef(false); // 애니메이션 루프 상태
     const noteTrackMapRef = useRef(new Map()); // noteId -> trackKey 매핑
+    const fpsLimitRef = useRef(0);
+    const nextRenderTimeRef = useRef(0);
+    const lastDebugLogRef = useRef(0);
+    const debugFrameCounterRef = useRef(0);
+    const appliedDprRef = useRef(0);
+    const lastSkipDrawRef = useRef(false);
 
     // 1. WebGL 씬 초기 설정 (단 한번만 실행)
     useEffect(() => {
@@ -315,7 +322,13 @@ export const WebGLTracks = memo(
       renderer.sortObjects = true; // 투명 객체 정렬 활성화
 
       renderer.setSize(window.innerWidth, window.innerHeight);
-      renderer.setPixelRatio(window.devicePixelRatio);
+      {
+        const dbg = getNotePerfDebugConfig();
+        const dpr =
+          dbg.forceDpr > 0 ? dbg.forceDpr : window.devicePixelRatio || 1;
+        appliedDprRef.current = dpr;
+        renderer.setPixelRatio(dpr);
+      }
       rendererRef.current = renderer;
 
       const scene = new Scene();
@@ -450,6 +463,7 @@ export const WebGLTracks = memo(
 
       // 애니메이션 루프: GPU에 시간만 전달하고 렌더링
       const animate = (currentTime) => {
+        const dbg = getNotePerfDebugConfig();
         if (
           !rendererRef.current ||
           !sceneRef.current ||
@@ -457,6 +471,61 @@ export const WebGLTracks = memo(
           !materialRef.current
         )
           return;
+
+        if (canvas) {
+          canvas.style.display = dbg.hideCanvas ? "none" : "block";
+        }
+
+        if (dbg.mode === "pause") {
+          if (isAnimating.current) {
+            animationScheduler.remove(animate);
+            isAnimating.current = false;
+          }
+          return;
+        }
+
+        const fpsLimit = fpsLimitRef.current;
+        if (fpsLimit > 0) {
+          const minDelta = 1000 / fpsLimit;
+          // Frame limiter with a scheduled next render time to avoid jitter when fpsLimit ~= refresh rate.
+          const nextAt = nextRenderTimeRef.current;
+          if (nextAt && currentTime < nextAt) {
+            return;
+          }
+
+          const base = nextAt || currentTime;
+          const behind = currentTime - base;
+          const skips = behind > 0 ? Math.floor(behind / minDelta) : 0;
+          nextRenderTimeRef.current = base + (skips + 1) * minDelta;
+        }
+
+        const requestedDpr =
+          dbg.forceDpr > 0 ? dbg.forceDpr : window.devicePixelRatio || 1;
+        if (rendererRef.current && appliedDprRef.current !== requestedDpr) {
+          appliedDprRef.current = requestedDpr;
+          rendererRef.current.setPixelRatio(requestedDpr);
+          rendererRef.current.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        const wantsSkipDraw = !!dbg.skipDraw;
+        if (lastSkipDrawRef.current !== wantsSkipDraw) {
+          lastSkipDrawRef.current = wantsSkipDraw;
+        }
+
+        if (dbg.skipRender) {
+          if (dbg.sampleFps) {
+            debugFrameCounterRef.current += 1;
+          }
+          return;
+        }
+
+        if (dbg.skipDraw) {
+          for (const { mesh } of meshMapRef.current.values()) {
+            if (mesh.count > 0) {
+              mesh.count = 0;
+            }
+          }
+        }
 
         const totalNotes = Object.values(notesRef.current).reduce(
           (sum, notes) => sum + notes.length,
@@ -474,6 +543,18 @@ export const WebGLTracks = memo(
 
         materialRef.current.uniforms.uTime.value = currentTime;
         rendererRef.current.render(sceneRef.current, cameraRef.current);
+
+        if (dbg.sampleFps) {
+          debugFrameCounterRef.current += 1;
+          if (currentTime - lastDebugLogRef.current > 1000) {
+            const frames = debugFrameCounterRef.current;
+            debugFrameCounterRef.current = 0;
+            lastDebugLogRef.current = currentTime;
+            const api = getNotePerfDebugApi();
+            api.stats.fps = frames;
+            api.stats.lastSampleMs = currentTime;
+          }
+        }
       };
 
       // 데이터 업데이트 로직을 이벤트 기반으로 변경
@@ -517,8 +598,11 @@ export const WebGLTracks = memo(
           if (!entry) return;
 
           if (!isAnimating.current) {
-            animationScheduler.add(animate);
-            isAnimating.current = true;
+            const dbg = getNotePerfDebugConfig();
+            if (dbg.mode !== "pause") {
+              animationScheduler.add(animate);
+              isAnimating.current = true;
+            }
           }
 
           const { mesh, noteIndexMap, freeIndices, nextIndex } = entry;
@@ -687,6 +771,10 @@ export const WebGLTracks = memo(
     // 3. 노트 설정(속도) 업데이트
     useEffect(() => {
       if (materialRef.current) {
+        fpsLimitRef.current = Number(noteSettings.fpsLimit) || 0;
+        nextRenderTimeRef.current = 0;
+        appliedDprRef.current = 0;
+        lastSkipDrawRef.current = false;
         materialRef.current.uniforms.uFlowSpeed.value =
           noteSettings.speed || 180;
         materialRef.current.uniforms.uTrackHeight.value =
@@ -710,6 +798,7 @@ export const WebGLTracks = memo(
             : 0.0;
       }
     }, [
+      noteSettings.fpsLimit,
       noteSettings.speed,
       noteSettings.trackHeight,
       noteSettings.reverse,
@@ -727,7 +816,11 @@ export const WebGLTracks = memo(
         const height = window.innerHeight;
         if (rendererRef.current) {
           rendererRef.current.setSize(width, height);
-          rendererRef.current.setPixelRatio(window.devicePixelRatio);
+          const dbg = getNotePerfDebugConfig();
+          const dpr =
+            dbg.forceDpr > 0 ? dbg.forceDpr : window.devicePixelRatio || 1;
+          appliedDprRef.current = dpr;
+          rendererRef.current.setPixelRatio(dpr);
         }
         if (cameraRef.current) {
           cameraRef.current.left = 0;

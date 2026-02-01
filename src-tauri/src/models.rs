@@ -267,6 +267,8 @@ pub struct NoteSettings {
     // Legacy: global note rounding (migrated to per-key noteBorderRadius).
     #[serde(default, skip_serializing)]
     pub border_radius: Option<u32>,
+    #[serde(default)]
+    pub fps_limit: u32,
     pub speed: u32,
     pub track_height: u32,
     pub reverse: bool,
@@ -307,6 +309,7 @@ impl Default for NoteSettings {
     fn default() -> Self {
         Self {
             border_radius: None,
+            fps_limit: 0,
             speed: 180,
             track_height: 150,
             reverse: false,
@@ -905,6 +908,7 @@ impl Default for SettingsState {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct NoteSettingsPatch {
+    pub fps_limit: Option<u32>,
     pub speed: Option<u32>,
     pub track_height: Option<u32>,
     pub reverse: Option<bool>,
@@ -918,6 +922,7 @@ pub struct NoteSettingsPatch {
 impl Default for NoteSettingsPatch {
     fn default() -> Self {
         Self {
+            fps_limit: None,
             speed: None,
             track_height: None,
             reverse: None,

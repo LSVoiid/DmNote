@@ -219,6 +219,9 @@ fn apply_changes(mut current: SettingsState, patch: &SettingsPatch) -> SettingsS
 }
 
 fn apply_note_patch(mut settings: NoteSettings, patch: &NoteSettingsPatch) -> NoteSettings {
+    if let Some(value) = patch.fps_limit {
+        settings.fps_limit = value;
+    }
     if let Some(value) = patch.speed {
         settings.speed = value;
     }

@@ -11,6 +11,9 @@ import {
 export default function NoteSetting({ onClose, settings, onSave }) {
   const { t } = useTranslation();
   const initial = settings || {};
+  const [fpsLimit, setFpsLimit] = useState(
+    Number.isFinite(Number(initial.fpsLimit)) ? Number(initial.fpsLimit) : 0
+  );
   const [speed, setSpeed] = useState(
     Number.isFinite(Number(initial.speed)) ? Number(initial.speed) : 180
   );
@@ -32,8 +35,18 @@ export default function NoteSetting({ onClose, settings, onSave }) {
   ];
 
   const handleSave = async () => {
+    const nextFpsLimit =
+      fpsLimit === ""
+        ? NOTE_SETTINGS_CONSTRAINTS.fpsLimit.default
+        : parseInt(fpsLimit);
     const normalized = {
       ...settings,
+      fpsLimit: clampValue(
+        Number.isNaN(nextFpsLimit)
+          ? NOTE_SETTINGS_CONSTRAINTS.fpsLimit.default
+          : nextFpsLimit,
+        "fpsLimit"
+      ),
       speed: clampValue(
         parseInt(speed || NOTE_SETTINGS_CONSTRAINTS.speed.default),
         "speed"
@@ -59,6 +72,36 @@ export default function NoteSetting({ onClose, settings, onSave }) {
         className="flex flex-col items-center justify-center p-[20px] bg-[#1A191E] rounded-[13px] gap-[19px] border-[1px] border-[#2A2A30]"
         onClick={(e) => e.stopPropagation()}
       >
+        <div className="flex justify-between w-full items-center">
+          <p className="text-white text-style-2">{t("noteSetting.fpsLimit")}</p>
+          <input
+            type="number"
+            min={NOTE_SETTINGS_CONSTRAINTS.fpsLimit.min}
+            max={NOTE_SETTINGS_CONSTRAINTS.fpsLimit.max}
+            value={fpsLimit}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v === "") {
+                setFpsLimit("");
+              } else {
+                const num = parseInt(v);
+                if (!Number.isNaN(num) && num >= 0) {
+                  setFpsLimit(num);
+                }
+              }
+            }}
+            onBlur={(e) => {
+              if (e.target.value === "" || isNaN(parseInt(e.target.value))) {
+                setFpsLimit(NOTE_SETTINGS_CONSTRAINTS.fpsLimit.default);
+              } else {
+                const num = parseInt(e.target.value);
+                setFpsLimit(clampValue(num, "fpsLimit"));
+              }
+            }}
+            className="text-center w-[47px] h-[23px] bg-[#2A2A30] rounded-[7px] border-[1px] border-[#3A3943] focus:border-[#459BF8] text-style-4 text-[#DBDEE8]"
+          />
+        </div>
+
         <div className="flex justify-between w-full items-center">
           <p className="text-white text-style-2">{t("noteSetting.speed")}</p>
           <input

@@ -2,6 +2,7 @@ import React, { memo, useEffect, useRef } from "react";
 import { Renderer, Camera, Transform, Program, Geometry, Mesh } from "ogl";
 import { animationScheduler } from "../../utils/animationScheduler";
 import { MAX_NOTES } from "@stores/noteBuffer";
+import { getNotePerfDebugApi, getNotePerfDebugConfig } from "../../utils/notePerfDebug";
 
 const vertexShader = `
   attribute vec3 position;
@@ -261,6 +262,12 @@ export const WebGLTracksOGL = memo(
     const isAnimating = useRef(false);
     const lastVersionRef = useRef(noteBuffer?.version ?? 0);
     const pendingUpdateRef = useRef({ dirty: false, dirtySinceFrame: false });
+    const fpsLimitRef = useRef(0);
+    const nextRenderTimeRef = useRef(0);
+    const lastDebugLogRef = useRef(0);
+    const debugFrameCounterRef = useRef(0);
+    const appliedDprRef = useRef(0);
+    const lastSkipDrawRef = useRef(false);
 
     useEffect(() => {
       const canvas = canvasRef.current;
@@ -386,12 +393,23 @@ export const WebGLTracksOGL = memo(
       mesh.setParent(scene);
 
       const animate = (currentTime) => {
+        const dbg = getNotePerfDebugConfig();
         if (
           !rendererRef.current ||
           !sceneRef.current ||
           !cameraRef.current ||
           !programRef.current
         ) {
+          return;
+        }
+
+        canvas.style.display = dbg.hideCanvas ? "none" : "block";
+
+        if (dbg.mode === "pause") {
+          if (isAnimating.current) {
+            animationScheduler.remove(animate);
+            isAnimating.current = false;
+          }
           return;
         }
 
@@ -403,25 +421,97 @@ export const WebGLTracksOGL = memo(
           return;
         }
 
+        const fpsLimit = fpsLimitRef.current;
+        if (fpsLimit > 0) {
+          const minDelta = 1000 / fpsLimit;
+          // Frame limiter with a scheduled next render time.
+          // This avoids jitter caused by small timer quantization/rounding when fpsLimit ~= refresh rate (e.g. 144Hz).
+          const nextAt = nextRenderTimeRef.current;
+          if (nextAt && currentTime < nextAt) {
+            return;
+          }
+
+          // Schedule the next render based on the previous target time to keep cadence stable.
+          const base = nextAt || currentTime;
+          const behind = currentTime - base;
+          const skips = behind > 0 ? Math.floor(behind / minDelta) : 0;
+          nextRenderTimeRef.current = base + (skips + 1) * minDelta;
+        }
+
+        const requestedDpr =
+          dbg.forceDpr > 0 ? dbg.forceDpr : window.devicePixelRatio || 1;
+        if (rendererRef.current && appliedDprRef.current !== requestedDpr) {
+          appliedDprRef.current = requestedDpr;
+          rendererRef.current.dpr = requestedDpr;
+          rendererRef.current.setSize(window.innerWidth, window.innerHeight);
+          if (programRef.current) {
+            programRef.current.uniforms.uDpr.value = requestedDpr;
+          }
+        }
+
         // 프레임 시작 시 배치 업데이트 적용
         if (pendingUpdateRef.current.dirtySinceFrame) {
           const geometryTarget = geometryRef.current;
           if (geometryTarget) {
-            markAllAttributesDirty(geometryTarget, noteBuffer.activeCount);
+            if (!dbg.skipUpload) {
+              markAllAttributesDirty(geometryTarget, noteBuffer.activeCount);
+            } else {
+              geometryTarget.instancedCount = Math.min(
+                noteBuffer.activeCount,
+                MAX_NOTES
+              );
+            }
           }
           pendingUpdateRef.current.dirtySinceFrame = false;
           pendingUpdateRef.current.dirty = false;
         }
 
+        const geometryTarget = geometryRef.current;
+        const wantsSkipDraw = !!dbg.skipDraw;
+        if (geometryTarget && lastSkipDrawRef.current !== wantsSkipDraw) {
+          lastSkipDrawRef.current = wantsSkipDraw;
+          if (!wantsSkipDraw) {
+            if (!dbg.skipUpload) {
+              markAllAttributesDirty(geometryTarget, noteBuffer.activeCount);
+            } else {
+              geometryTarget.instancedCount = Math.min(
+                noteBuffer.activeCount,
+                MAX_NOTES
+              );
+            }
+          }
+        }
+
+        if (dbg.skipRender) {
+          if (dbg.sampleFps) {
+            debugFrameCounterRef.current += 1;
+          }
+          return;
+        }
+
+        if (geometryTarget && dbg.skipDraw) {
+          geometryTarget.instancedCount = 0;
+        }
+
         programRef.current.uniforms.uTime.value = currentTime;
-        rendererRef.current.render({
-          scene: sceneRef.current,
-          camera: cameraRef.current,
-        });
+        rendererRef.current.render({ scene: sceneRef.current, camera: cameraRef.current });
+
+        if (dbg.sampleFps) {
+          debugFrameCounterRef.current += 1;
+          if (currentTime - lastDebugLogRef.current > 1000) {
+            const frames = debugFrameCounterRef.current;
+            debugFrameCounterRef.current = 0;
+            lastDebugLogRef.current = currentTime;
+            const api = getNotePerfDebugApi();
+            api.stats.fps = frames;
+            api.stats.lastSampleMs = currentTime;
+          }
+        }
       };
 
       const handleNoteEvent = (event) => {
         if (!event) return;
+        const dbg = getNotePerfDebugConfig();
         const geometryTarget = geometryRef.current;
         if (!geometryTarget) return;
 
@@ -445,7 +535,11 @@ export const WebGLTracksOGL = memo(
               pendingUpdateRef.current.dirty = true;
               pendingUpdateRef.current.dirtySinceFrame = true;
             }
-            if (!isAnimating.current && noteBuffer.activeCount > 0) {
+            if (
+              dbg.mode !== "pause" &&
+              !isAnimating.current &&
+              noteBuffer.activeCount > 0
+            ) {
               animationScheduler.add(animate);
               isAnimating.current = true;
             }
@@ -453,7 +547,14 @@ export const WebGLTracksOGL = memo(
           case "cleanup":
           case "clear":
             // cleanup/clear는 즉시 처리 (빈도가 낮음)
-            markAllAttributesDirty(geometryTarget, noteBuffer.activeCount);
+            if (!dbg.skipUpload) {
+              markAllAttributesDirty(geometryTarget, noteBuffer.activeCount);
+            } else {
+              geometryTarget.instancedCount = Math.min(
+                noteBuffer.activeCount,
+                MAX_NOTES
+              );
+            }
             pendingUpdateRef.current.dirty = false;
             pendingUpdateRef.current.dirtySinceFrame = false;
             if (noteBuffer.activeCount === 0 && isAnimating.current) {
@@ -478,8 +579,11 @@ export const WebGLTracksOGL = memo(
       const handleResize = () => {
         const width = window.innerWidth;
         const height = window.innerHeight;
-        const dpr = window.devicePixelRatio || 1;
+        const dbg = getNotePerfDebugConfig();
+        const dpr =
+          dbg.forceDpr > 0 ? dbg.forceDpr : window.devicePixelRatio || 1;
         // Keep renderer/program in sync when moving between monitors with different DPR.
+        appliedDprRef.current = dpr;
         renderer.dpr = dpr;
         renderer.setSize(width, height);
         if (cameraRef.current) {
@@ -500,8 +604,11 @@ export const WebGLTracksOGL = memo(
       handleResize();
 
       if (noteBuffer.activeCount > 0 && !isAnimating.current) {
-        animationScheduler.add(animate);
-        isAnimating.current = true;
+        const dbg = getNotePerfDebugConfig();
+        if (dbg.mode !== "pause") {
+          animationScheduler.add(animate);
+          isAnimating.current = true;
+        }
       }
 
       return () => {
@@ -523,6 +630,10 @@ export const WebGLTracksOGL = memo(
     }, [noteBuffer, subscribe]);
 
     useEffect(() => {
+      fpsLimitRef.current = Number(noteSettings.fpsLimit) || 0;
+      nextRenderTimeRef.current = 0;
+      appliedDprRef.current = 0;
+      lastSkipDrawRef.current = false;
       if (!programRef.current) return;
       const uniforms = programRef.current.uniforms;
       uniforms.uFlowSpeed.value = noteSettings.speed || 180;
