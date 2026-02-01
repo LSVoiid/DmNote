@@ -141,6 +141,17 @@ We welcome your contributions! Please check the [Contributing Guide](CONTRIBUTIN
 
 [GPL-3.0 License Copyright (C) 2024 lee-sihun](https://github.com/lee-sihun/DmNote/blob/master/LICENSE)
 
+## ✨ Contributors
+
+This project exists thanks to all the contributors. Thank you! ([emoji key](https://allcontributors.org/docs/en/emoji-key))
+
+<!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
+<!-- prettier-ignore-start -->
+<!-- markdownlint-disable -->
+<!-- markdownlint-restore -->
+<!-- prettier-ignore-end -->
+<!-- ALL-CONTRIBUTORS-LIST:END -->
+
 ## ❤️ Special Thanks!
 
 - [tauri-apps/tauri](https://github.com/tauri-apps/tauri)

@@ -23,7 +23,7 @@ https://github.com/user-attachments/assets/20fb118d-3982-4925-9004-9ce0936590c2
 
 ## 🌟 개요
 
-**DM Note**는 DJMAX RESPECT V에서 사용하기 위해 만들어진 키뷰어 프로그램입니다. Tauri와 React로 구축 되었으며 간편한 설정으로 스트리밍이나 플레이 영상 제작 시 키 입력을 시각적으로 보여줄 수 있습니다. 현재는 공식적으로 Windows 10/11, macOS 환경만 지원하고 있습니다. 만약 리눅스 환경이라면 [커뮤니티 포크 버전](https://github.com/northernorca/DmNote)을 사용해보는걸 추천합니다.  
+**DM Note**는 DJMAX RESPECT V에서 사용하기 위해 만들어진 키뷰어 프로그램입니다. Tauri와 React로 구축 되었으며 간편한 설정으로 스트리밍이나 플레이 영상 제작 시 키 입력을 시각적으로 보여줄 수 있습니다. 현재는 공식적으로 Windows 10/11, macOS 환경만 지원하고 있습니다. 만약 리눅스 환경이라면 [커뮤니티 포크 버전](https://github.com/northernorca/DmNote)을 사용해보는걸 추천합니다.
 
 [DM NOTE v1.5.0 다운로드](https://github.com/lee-sihun/DmNote/releases/download/1.5.0/DM.NOTE.v.1.5.0.zip)
 
@@ -36,7 +36,7 @@ https://github.com/user-attachments/assets/20fb118d-3982-4925-9004-9ce0936590c2
 
 ### 🎨 키 스타일 커스터마이징
 
-- 그리드 기반 키 편집 
+- 그리드 기반 키 편집
 - 이미지 할당 지원
 - 커스텀 CSS 지원
 
@@ -75,7 +75,7 @@ https://github.com/user-attachments/assets/20fb118d-3982-4925-9004-9ce0936590c2
 - **프론트엔드**: React 19 + Typescript + Vite 7
 - **백엔드**: Tauri
 - **스타일링**: Tailwind CSS 3
-- **입력 감지**: Raw Input API (Windows), 전역 입력 이벤트 (macOS) 
+- **입력 감지**: Raw Input API (Windows), 전역 입력 이벤트 (macOS)
 - **패키지 매니저**: npm
 
 ### 폴더 구조
@@ -141,6 +141,17 @@ npm run tauri:dev
 
 [GPL-3.0 License Copyright (C) 2024 lee-sihun](https://github.com/lee-sihun/DmNote/blob/master/LICENSE)
 
+## ✨ Contributors
+
+이 프로젝트는 모든 기여자들 덕분에 가능했습니다. 감사합니다! ([emoji key](https://allcontributors.org/docs/en/emoji-key))
+
+<!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
+<!-- prettier-ignore-start -->
+<!-- markdownlint-disable -->
+<!-- markdownlint-restore -->
+<!-- prettier-ignore-end -->
+<!-- ALL-CONTRIBUTORS-LIST:END -->
+
 ## ❤️ Special Thanks!
 
 - [tauri-apps/tauri](https://github.com/tauri-apps/tauri)
@@ -152,8 +163,3 @@ npm run tauri:dev
 - 동시 입력 간격 밀리초(ms) 표시
 - 입력 통계 분석 기능
  -->
-
-
-
-
-
