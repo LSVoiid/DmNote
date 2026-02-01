@@ -12,25 +12,22 @@
   "commitConvention": "angular",
   "contributors": [
     {
-      "login": "LSVoiid",
-      "name": "LSVoiid",
-      "avatar_url": "https://avatars.githubusercontent.com/u/187824877?v=4",
-      "profile": "https://github.com/LSVoiid",
-      "contributions": [
-        "translation"
-      ]
-    },
-    {
       "login": "lee-sihun",
       "name": "이시훈",
       "avatar_url": "https://avatars.githubusercontent.com/u/111095268?v=4",
       "profile": "https://github.com/lee-sihun",
       "contributions": [
-        "code",
-        "doc",
-        "design",
-        "infra",
         "maintenance"
+      ]
+    },
+    {
+      "login": "eunyeon",
+      "name": "연우",
+      "avatar_url": "https://avatars.githubusercontent.com/u/eunyeon?v=4",
+      "profile": "https://github.com/eunyeon",
+      "contributions": [
+        "design",
+        "ideas"
       ]
     },
     {
@@ -39,7 +36,16 @@
       "avatar_url": "https://avatars.githubusercontent.com/u/150683765?v=4",
       "profile": "https://github.com/mohong2",
       "contributions": [
-        "code"
+        "translation"
+      ]
+    },
+    {
+      "login": "LSVoiid",
+      "name": "LSVoiid",
+      "avatar_url": "https://avatars.githubusercontent.com/u/187824877?v=4",
+      "profile": "https://github.com/LSVoiid",
+      "contributions": [
+        "translation"
       ]
     }
   ],
