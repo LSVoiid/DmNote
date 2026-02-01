@@ -1,181 +1,154 @@
-[한국어](README.md) | **English**
+<meta name="google-site-verification" content="tw5pjIDYKCrq1QKYBrD5iyV7DXIM4rsHN9d11WlJFe4" />
+
+[한국어](../README.md) | **English**
 
 <div align="center">
-<img src="../src-tauri/icons/icon.ico" alt="DM Note Logo" width="120" height="120">
+  <img src="../src-tauri/icons/icon.ico" alt="dmnote Logo" width="120" height="120">
 
-<h1>DM Note</h1>
+  <h1>DM Note</h1>
   
   <p>
-    <strong>Open-source key viewer for rhythm games</strong>
+    <strong>Key viewer program with extensive customization support</strong>
   </p>
   <p>
-    <strong>Custom key mapping and styling, quick preset switching, and a clean, intuitive UI</strong>
+    <strong>Offers user-defined key mapping and styling, easily switchable presets, and a modern, intuitive interface.</strong>
   </p>
   
-[![GitHub release](https://img.shields.io/github/release/lee-sihun/DmNote.svg?logo=github)](https://github.com/lee-sihun/DmNote/releases)
-[![GitHub downloads](https://img.shields.io/github/downloads/lee-sihun/DmNote/total.svg?logo=github)](https://github.com/lee-sihun/DmNote/releases/download/1.2.1/DM.NOTE.v.1.2.1.zip)
-[![GitHub license](https://img.shields.io/github/license/lee-sihun/DmNote.svg?logo=github)](https://github.com/lee-sihun/DmNote/blob/master/LICENSE)
+  [![GitHub release](https://img.shields.io/github/release/lee-sihun/DmNote.svg?logo=github)](https://github.com/lee-sihun/DmNote/releases)
+  [![GitHub downloads](https://img.shields.io/github/downloads/lee-sihun/DmNote/total.svg?logo=github)](https://github.com/lee-sihun/DmNote/releases/download/1.5.0/DM.NOTE.v.1.5.0.zip)
+  [![GitHub license](https://img.shields.io/github/license/lee-sihun/DmNote.svg?logo=github)](https://github.com/lee-sihun/DmNote/blob/master/LICENSE)
 </div>
 
 https://github.com/user-attachments/assets/20fb118d-3982-4925-9004-9ce0936590c2
 
 ## 🌟 Overview
 
-**DM Note** is a key viewer built for DJMAX RESPECT V. Built with Electron and React, powered by [node-global-key-listener-extended](https://github.com/lee-sihun/node-global-key-listener) for global keyboard hooks.
-Set it up in minutes and visualize your keystrokes for streams or gameplay captures. Windows and macOS are supported, and it works with non-rhythm games too
+**DM Note** is a key viewer program created for use with DJMAX RESPECT V. Built with Tauri and React, it allows you to visually display key inputs during streaming or gameplay video creation with simple setup. Currently, it officially supports Windows 10/11 and macOS environments only. If you are on Linux, we recommend trying the [community fork version](https://github.com/northernorca/DmNote).
 
-[Download DM NOTE v1.2.1](https://github.com/lee-sihun/DmNote/releases/download/1.2.1/DM.NOTE.v.1.2.1.zip)
+[Download DM NOTE v1.5.0](https://github.com/lee-sihun/DmNote/releases/download/1.5.0/DM.NOTE.v.1.5.0.zip)
 
 ## ✨ Features
 
-### ⌨️ Keyboard input and mapping
+### ⌨️ Keyboard Input & Mapping
 
-- Detect and visualize keyboard input in real time
-- Configure custom key mappings
+- Real-time keyboard input detection and visualization
+- Custom key mapping configuration
 
-### 🎨 Key style customization
+### 🎨 Key Style Customization
 
-- Resize keys and add or remove keys
-- Grid-based key layout
-- Assign images to keys
-- Support for custom CSS
+- Grid-based key editing
+- Support for image assignment
+- Custom CSS support
 
-### 💾 Presets and settings management
+### 💾 Presets & Settings Management
 
 - Auto-save user settings
-- Save and load presets
+- Save/Load presets
 
-### 🖼️ Overlay and window management
+### 🖼️ Overlay & Window Management
 
 - Lock window position
-- Keep window always on top
-- Choose a resize anchor
+- Always on top
+- Select resize anchor
 
-### 🌧️ Raining Note effect customization
+### 🌧️ Note Effect (Raining Effect) Customization
 
-- Adjust color, opacity, rounding, speed, and height
-- Reverse direction
+- Adjust note effect color, opacity, rounding, speed, and height
+- Reverse function
 
-### ⚙️ Graphics and settings
+### 🔢 Key Counter
+
+- Real-time display of input counts per key
+- Customize counter position, color, and style
+- Custom CSS support
+
+### ⚙️ Graphics & Settings
 
 - Multilingual support (Korean, English)
 - Graphics rendering options (Direct3D 11/9, OpenGL)
-- Reset to defaults
+- Reset settings
 
 ## 🚀 Development
 
-### Tech stack
+### Tech Stack
 
-- **Frontend**: React 19 + TypeScript + Vite 7
-- **Backend**: Electron
+- **Frontend**: React 19 + Typescript + Vite 7
+- **Backend**: Tauri
 - **Styling**: Tailwind CSS 3
-- **Keyboard hooking**: [node-global-key-listener-extended](https://github.com/lee-sihun/node-global-key-listener)
-- **Package manager**: npm
+- **Input Detection**: Raw Input API (Windows), Global input events (macOS)
+- **Package Manager**: npm
 
-### Project structure
+### Folder Structure
 
 ```
 DmNote/
-├── src/                          # Source code
-│   ├── main/                     # Electron main process
-│   │   ├── app/                  # Application bootstrap
-│   │   ├── core/                 # ipcRouter, windowRegistry
-│   │   ├── domains/              # Domain routing (app, settings, keys, overlay, css, preset, system)
-│   │   │   ├── keys/             # Default key mappings
-│   │   │   └── positions/        # Default key positions
-│   │   ├── services/             # Services (keyboard listener, etc.)
-│   │   ├── store/                # electron-store + Zod schema
-│   │   ├── windows/              # BrowserWindow wrapper + config
-│   │   ├── preload.ts            # Expose contextBridge API (dmn)
-│   │   └── main.ts               # Main entry point
-│   ├── renderer/                 # React renderer
-│   │   ├── components/           # UI components
-│   │   ├── hooks/                # State/sync hooks
-│   │   ├── stores/               # Zustand stores
-│   │   ├── windows/              # Renderer windows (main/overlay)
-│   │   ├── styles/               # Global/common styles
-│   │   └── assets/               # Static assets
-│   └── types/                    # Shared types/schemas
-├── package.json                  # Project dependencies and scripts
-├── tsconfig.json                 # TypeScript (renderer/shared) config
-├── tsconfig.main.json            # TypeScript (main) config
-├── vite.config.ts                # Vite (renderer) config
-└── dist/                         # Build output
+├─ src/                          # Frontend
+│  ├─ renderer/                  # React renderer
+│  │  ├─ components/             # UI components
+│  │  ├─ hooks/                  # State/sync hooks
+│  │  ├─ stores/                 # Zustand stores
+│  │  ├─ windows/                # Renderer windows (main/overlay)
+│  │  ├─ styles/                 # Global/common styles
+│  │  └─ assets/                 # Static resources
+│  └─ types/                     # Shared types/schemas
+├─ src-tauri/                    # Tauri backend
+│  └─ src/                       # Commands, services
+├─ package.json                  # Project dependencies and run scripts
+├─ tsconfig.json                 # TypeScript config
+└─ vite.config.ts                # Vite config
 ```
 
-### Basic setup and run
+### Basic Installation & Run
 
-This project uses [node-global-key-listener-extended](https://github.com/lee-sihun/node-global-key-listener), which relies on `node-gyp` and builds native C++ code, so you need the following development environment
-
-- **Node.js**
-- **Python 3.x**
-- **Visual Studio Build Tools** with the C++ Desktop Development workload
-
-Once your environment is ready, run the following commands in your terminal
+Enter the following commands in your terminal in order:
 
 ```bash
 git clone https://github.com/lee-sihun/DmNote.git
 cd DmNote
 npm install
-npm run start
+npm run tauri:dev
 ```
-
-### (Optional) quick test without C++ build tools
-
-If setting up a C++ build environment is difficult, you can test with a prebuilt version of the package. Remove the `postinstall` script from `package.json` and change `dependencies` as below
-
-```json
-{
-  "dependencies": {
-    "node-global-key-listener-extended": "github:lee-sihun/node-global-key-listener#win-keyserver-version"
-  }
-}
-```
-
-After editing the file, run `npm install` and then `npm run start`
 
 ## 🖼️ Screenshots
 
-<!--img src="docs/assets/2025-08-29_12-07-12.webp" alt="Note Effect" width="700"-->
+<!--img src="assets/2025-08-29_12-07-12.webp" alt="Note Effect" width="700"-->
 
-<img src="./assets/IMG_1005.gif" alt="Note Effect" width="700">
+<img src="assets/IMG_1005.gif" alt="Note Effect" width="700">
 
-<!--img src="docs/assets/1.webp" alt="키뷰어 데모 1" width="700"-->
+<!--img src="assets/1.webp" alt="Key Viewer Demo 1" width="700"-->
 
-<img src="./assets/2025-09-20_11-55-17.gif" alt="키뷰어 데모 2" width="700">
+<img src="assets/2025-09-20_11-55-17.gif" alt="Key Viewer Demo 2" width="700">
 
-<!--img src="./assets/IMG_1008.gif" alt="키뷰어 데모 3" width="700"-->
+<!--img src="assets/IMG_1008.gif" alt="Key Viewer Demo 3" width="700"-->
 
-<img src="./assets/2025-09-20_11-57-38.gif" alt="키뷰어 데모 4" width="700">
+<img src="assets/2025-09-20_11-57-38.gif" alt="Key Viewer Demo 4" width="700">
 
 ## 📝 Notes
 
-- If you encounter graphics issues, try changing the graphics API option in Settings
-- With OBS Window Capture, you can bring it in with a transparent background — no chroma key needed
-- When overlaying on top of a game, enable **Always on top** and turn on **Overlay window lock**
-- Default presets and custom CSS examples live in `resources/resources`
-- When adding class names, enter just the name — no selector (`blue` = OK, `.blue` = not OK)
-- Default settings live at `%appdata%/dm-note/config.json`
+- It may not work properly in full-screen mode for some games. In this case, please use borderless window mode.
+- If graphics issues occur, please change the rendering option in the settings.
+- You can capture it with a transparent background using OBS Window Capture without chroma key.
+- When displaying over a game screen, place it with **Always on top** and enable **Lock Overlay Window**.
+- Custom CSS example files are located in the `assets` folder.
+- When assigning class names, enter only the name excluding the selector (e.g., `blue` -> o, `.blue` -> x).
+- Program default settings are saved in the `store.json` file in the `%appdata%/com.dmnote.desktop` folder.
 
 ## 🤝 Contributing
 
-We welcome your contributions. See the [contribution guide](CONTRIBUTING.md) for details
+We welcome your contributions! Please check the [Contributing Guide](CONTRIBUTING.md) for details.
 
 ## 📄 License
 
 [GPL-3.0 License Copyright (C) 2024 lee-sihun](https://github.com/lee-sihun/DmNote/blob/master/LICENSE)
 
-## ❤️ Special thanks
+## ❤️ Special Thanks!
 
-- [electron/electron](https://github.com/electron/electron)
-- [LaunchMenu/node-global-key-listener](https://github.com/LaunchMenu/node-global-key-listener)
+- [tauri-apps/tauri](https://github.com/tauri-apps/tauri)
 
 <!--
-## 🔜 Coming soon
+## 🔜 Updates Planned
 
-- Keystroke counter and input speed visualization
-- Millisecond interval display for simultaneous presses
-- Input analytics
--->
-
-
+- Key input count, input speed visualization
+- Simultaneous input interval (ms) display
+- Input statistics analysis features
+ -->
