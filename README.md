@@ -137,13 +137,7 @@ npm run tauri:dev
 
 여러분의 참여를 환영합니다! 자세한 내용은 [기여 가이드](CONTRIBUTING.md)를 확인해주세요.
 
-## 📄 라이선스
-
-[GPL-3.0 License Copyright (C) 2024 lee-sihun](https://github.com/lee-sihun/DmNote/blob/master/LICENSE)
-
-## ✨ Contributors
-
-이 프로젝트는 모든 기여자들 덕분에 가능했습니다. 감사합니다! ([emoji key](https://allcontributors.org/docs/en/emoji-key))
+### ✨ 기여자
 
 <!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
 <!-- prettier-ignore-start -->
@@ -160,6 +154,10 @@ npm run tauri:dev
 <!-- prettier-ignore-end -->
 
 <!-- ALL-CONTRIBUTORS-LIST:END -->
+
+## 📄 라이선스
+
+[GPL-3.0 License Copyright (C) 2024 lee-sihun](https://github.com/lee-sihun/DmNote/blob/master/LICENSE)
 
 ## ❤️ Special Thanks!
 

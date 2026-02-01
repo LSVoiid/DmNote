@@ -137,13 +137,7 @@ npm run tauri:dev
 
 We welcome your contributions! Please check the [Contributing Guide](CONTRIBUTING.md) for details.
 
-## 📄 License
-
-[GPL-3.0 License Copyright (C) 2024 lee-sihun](https://github.com/lee-sihun/DmNote/blob/master/LICENSE)
-
-## ✨ Contributors
-
-This project exists thanks to all the contributors. Thank you! ([emoji key](https://allcontributors.org/docs/en/emoji-key))
+### ✨ Contributors
 
 <!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
 <!-- prettier-ignore-start -->
@@ -160,6 +154,10 @@ This project exists thanks to all the contributors. Thank you! ([emoji key](http
 <!-- prettier-ignore-end -->
 
 <!-- ALL-CONTRIBUTORS-LIST:END -->
+
+## 📄 License
+
+[GPL-3.0 License Copyright (C) 2024 lee-sihun](https://github.com/lee-sihun/DmNote/blob/master/LICENSE)
 
 ## ❤️ Special Thanks!
 
