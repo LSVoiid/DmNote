@@ -1,14 +1,28 @@
 {
   "projectName": "DmNote",
-  "projectOwner": "lee-sihun",
+  "projectOwner": "DmNote-App",
   "repoType": "github",
   "repoHost": "https://github.com",
-  "files": ["README.md", "docs/readme_en.md"],
+  "files": [
+    "README.md",
+    "docs/readme_en.md"
+  ],
   "imageSize": 100,
   "commit": true,
   "commitConvention": "angular",
-  "contributors": [],
+  "contributors": [
+    {
+      "login": "LSVoiid",
+      "name": "LSVoiid",
+      "avatar_url": "https://avatars.githubusercontent.com/u/187824877?v=4",
+      "profile": "https://github.com/LSVoiid",
+      "contributions": [
+        "translation"
+      ]
+    }
+  ],
   "contributorsPerLine": 7,
   "skipCi": true,
-  "contributorsSortAlphabetically": false
+  "contributorsSortAlphabetically": false,
+  "commitType": "docs"
 }
