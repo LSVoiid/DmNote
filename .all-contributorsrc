@@ -19,6 +19,19 @@
       "contributions": [
         "translation"
       ]
+    },
+    {
+      "login": "lee-sihun",
+      "name": "이시훈",
+      "avatar_url": "https://avatars.githubusercontent.com/u/111095268?v=4",
+      "profile": "https://github.com/lee-sihun",
+      "contributions": [
+        "code",
+        "doc",
+        "design",
+        "infra",
+        "maintenance"
+      ]
     }
   ],
   "contributorsPerLine": 7,

@@ -146,6 +146,7 @@ npm run tauri:dev
   <tbody>
     <tr>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/LSVoiid"><img src="https://avatars.githubusercontent.com/u/187824877?v=4?s=100" width="100px;" alt="LSVoiid"/><br /><sub><b>LSVoiid</b></sub></a><br /><a href="#translation-LSVoiid" title="Translation">🌍</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/lee-sihun"><img src="https://avatars.githubusercontent.com/u/111095268?v=4?s=100" width="100px;" alt="이시훈"/><br /><sub><b>이시훈</b></sub></a><br /><a href="https://github.com/DmNote-App/DmNote/commits?author=lee-sihun" title="Code">💻</a> <a href="https://github.com/DmNote-App/DmNote/commits?author=lee-sihun" title="Documentation">📖</a> <a href="#design-lee-sihun" title="Design">🎨</a> <a href="#infra-lee-sihun" title="Infrastructure (Hosting, Build-Tools, etc)">🚇</a> <a href="#maintenance-lee-sihun" title="Maintenance">🚧</a></td>
     </tr>
   </tbody>
 </table>
